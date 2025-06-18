@@ -495,60 +495,58 @@
                 console.log(`\nChecking line: ${line.name}, positions: ${line.positions}`);
                 const symbolsOnLine = line.positions.map(pos => grid[pos]);
                 console.log(`Symbols on line:`, symbolsOnLine.map(s => s.id));
-                
-                // Ищем максимальную последовательность одинаковых символов
-                let maxLength = 0;
-                let maxSymbol = null;
-                let maxStartPos = 0;
-                
-                for (let start = 0; start < symbolsOnLine.length; start++) {
-                    const currentSymbol = symbolsOnLine[start];
-                    if (!currentSymbol) continue;
-                    
+
+                let i = 0;
+                while (i < symbolsOnLine.length) {
+                    const currentSymbol = symbolsOnLine[i];
+                    if (!currentSymbol) {
+                        i++;
+                        continue;
+                    }
+
+                    // Находим длину последовательности
                     let length = 1;
-                    for (let i = start + 1; i < symbolsOnLine.length; i++) {
-                        if (symbolsOnLine[i] && symbolsOnLine[i].id === currentSymbol.id) {
+                    for (let j = i + 1; j < symbolsOnLine.length; j++) {
+                        if (symbolsOnLine[j] && symbolsOnLine[j].id === currentSymbol.id) {
                             length++;
                         } else {
                             break;
                         }
                     }
-                    
-                    if (length > maxLength) {
-                        maxLength = length;
-                        maxSymbol = currentSymbol;
-                        maxStartPos = start;
+
+                    // Если найдена выигрышная комбинация (3+ символов)
+                    if (length >= 3) {
+                        const baseValue = currentSymbol.value;
+                        const multiplier = {3: 1, 4: 2, 5: 5}[length] * (length === 5 ? getItemEffectValue('five_in_row_multiplier', 1) : 1);
+                        const win = Math.floor(baseValue * multiplier * getItemEffectValue('winMultiplier', 1));
+                        
+                        // Собираем позиции выигрышных символов
+                        const winningPositions = [];
+                        for (let k = 0; k < length; k++) {
+                            winningPositions.push(line.positions[i + k]);
+                        }
+                        
+                        // Сохраняем информацию о выигрышной линии
+                        winningLines.push({
+                            name: line.name,
+                            symbol: currentSymbol.id,
+                            length: length,
+                            win: win,
+                            positions: winningPositions
+                        });
+                        
+                        totalWinnings += win;
+                        winningPositions.forEach(pos => allWinningPositions.add(pos));
+                        
+                        addLog(`${line.name} (${currentSymbol.id} x${length}): +${win}💰`, 'win');
+                        console.log(`  WIN! ${line.name} (${currentSymbol.id} x${length}): +${win}💰`);
+
+                        // Перемещаем индекс за пределы найденной комбинации, чтобы не считать её части снова
+                        i += length;
+                    } else {
+                        // Если комбинация не выигрышная, просто переходим к следующему символу
+                        i++;
                     }
-                }
-                
-                // Проверяем, есть ли выигрышная комбинация (3+ символов)
-                if (maxLength >= 3 && maxSymbol) {
-                    const baseValue = maxSymbol.value;
-                    const multiplier = {3: 1, 4: 2, 5: 5}[maxLength] * (maxLength === 5 ? getItemEffectValue('five_in_row_multiplier', 1) : 1);
-                    const win = Math.floor(baseValue * multiplier * getItemEffectValue('winMultiplier', 1));
-                    
-                    // Находим позиции выигрышных символов (последовательные)
-                    const winningPositions = [];
-                    for (let i = 0; i < maxLength; i++) {
-                        winningPositions.push(line.positions[maxStartPos + i]);
-                    }
-                    
-                    // Сохраняем информацию о выигрышной линии
-                    winningLines.push({
-                        name: line.name,
-                        symbol: maxSymbol.id,
-                        length: maxLength,
-                        win: win,
-                        positions: winningPositions
-                    });
-                    
-                    totalWinnings += win;
-                    
-                    // Добавляем позиции выигрышной комбинации
-                    winningPositions.forEach(pos => allWinningPositions.add(pos));
-                    
-                    addLog(`${line.name} (${maxSymbol.id} x${maxLength}): +${win}💰`, 'win');
-                    console.log(`  WIN! ${line.name} (${maxSymbol.id} x${maxLength}): +${win}💰`);
                 }
             });
 
@@ -598,7 +596,6 @@
             }
         }
         
-        // ИЗМЕНЕНО: Функция `spin` полностью переписана для правильной логики
         async function spin() {
             if (state.spinsLeft <= 0 || state.gameover || state.isSpinning) return;
             
@@ -627,7 +624,7 @@
         function initGame() {
             state = {
                 run: 1, targetDebt: 50, turn: 1, coins: 20, bankBalance: 0, tickets: 5, luck: 0,
-                spinsLeft: 0, baseInterestRate: 0.03, inventory: [], shop: [], gameover: false, isSpinning: false,
+                spinsLeft: 0, baseInterestRate: 0.40, inventory: [], shop: [], gameover: false, isSpinning: false,
             };
             // Генерируем grid после инициализации state
             state.grid = generateGrid();
@@ -654,6 +651,18 @@
         }
 
         function startTurn() {
+            // Начисляем проценты в начале раунда (кроме первого раунда первого цикла)
+            if (state.turn > 1) {
+                const interest = Math.floor(state.bankBalance * state.baseInterestRate);
+                console.log(`Debug: turn=${state.turn}, run=${state.run}, bankBalance=${state.bankBalance}, interestRate=${state.baseInterestRate}, calculatedInterest=${state.bankBalance * state.baseInterestRate}, finalInterest=${interest}`);
+                if (interest > 0) {
+                    state.coins += interest;
+                    addLog(`Банковский кэшбек: +${interest}💰.`, 'win');
+                } else {
+                    addLog(`Банковский кэшбек: 0💰 (баланс: ${state.bankBalance}💰, ставка: ${(state.baseInterestRate * 100).toFixed(1)}%)`);
+                }
+            }
+            
             // Применяем пассивные эффекты в начале раунда
             applyPassiveEffects();
             
@@ -697,11 +706,6 @@
         function confirmEndTurn() {
             ui.endOfRoundModal.classList.add('hidden');
             addLog(`--- Раунд ${state.turn} окончен ---`);
-            const interest = Math.floor(state.bankBalance * state.baseInterestRate);
-            if (interest > 0) {
-                state.coins += interest;
-                addLog(`Банковский кэшбек за прошлый день: +${interest}💰.`, 'win');
-            }
             state.turn++;
             if (state.turn > 3) {
                 judgementDay();
@@ -729,6 +733,16 @@
                     state.tickets += rewardTickets;
                     state.spinsLeft = 0;
                     addLog(`Новый Цикл Долга #${state.run} начался. Цель: ${state.targetDebt}💰.`);
+                    
+                    // Начисляем проценты в начале нового цикла, если есть деньги в банке
+                    if (state.bankBalance > 0) {
+                        const interest = Math.floor(state.bankBalance * state.baseInterestRate);
+                        if (interest > 0) {
+                            state.coins += interest;
+                            addLog(`Банковский кэшбек в новом цикле: +${interest}💰.`, 'win');
+                        }
+                    }
+                    
                     populateShop();
                     startTurn();
                 };
@@ -814,7 +828,6 @@
             renderShop();
         }
         
-        // ИЗМЕНЕНО: Эта функция теперь создает ячейки и барабаны только один раз.
         function renderGrid(isInitialSetup = false) {
             if (!isInitialSetup) return; // Выходим, если это не первая отрисовка
 
@@ -833,7 +846,6 @@
             updateReels(true);
         }
 
-                // ИЗМЕНЕНО: Исправлена логика добавления символов в барабан
         function updateReels(isInitial = false) {
             const reels = ui.slotMachine.querySelectorAll('.reel');
             const finalGrid = state.grid;
@@ -851,7 +863,6 @@
                     const symbolDiv = document.createElement('div');
                     symbolDiv.className = 'symbol';
                     symbolDiv.textContent = symbol.graphic;
-                    // ИЗМЕНЕНИЕ: Используем appendChild вместо prepend
                     reel.appendChild(symbolDiv); 
                 });
 
@@ -862,7 +873,6 @@
             });
         }
         
-        // ИЗМЕНЕНО: Функция анимации переименована и исправлена
         async function runSpinAnimation() {
             // Сначала обновляем содержимое барабанов новыми символами
             updateReels(false);
