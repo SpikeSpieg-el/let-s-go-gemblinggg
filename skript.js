@@ -92,66 +92,34 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: "Небо", positions: [2, 6, 7, 8, 12], multiplier: 7, type: "Небо/Земля" },
         { name: "Земля", positions: [5, 1, 7, 13, 9], multiplier: 7, type: "Небо/Земля" },
     ];
-    const ALL_ITEMS = [
-        // Common
-        { id: 'lucky_clover', name: 'Счастливый клевер', desc: '+1 к удаче.', cost: 3, rarity: 'common', effect: { luck: 1 } },
-        { id: 'scrap_metal', name: 'Копилка', desc: 'Каждый проигрышный спин добавляет 1💰 в Копилку. Разбивается в конце раунда.', cost: 4, rarity: 'common', effect: { on_loss_bonus: 1 } },
-        { id: 'timepiece', name: 'Карманные часы', desc: 'Дает +1 прокрут в начале каждого раунда.', cost: 6, rarity: 'common', effect: { on_round_start_spins: 1 } },
-
-        // Rare
-        { id: 'golden_ticket', name: 'Золотой билет', desc: '+2 к удаче.', cost: 5, rarity: 'rare', effect: { luck: 2 } },
-        { id: 'money_magnet', name: 'Денежный магнит', desc: '2 подряд 💰 на линиях дают +3💰 (только за каждую пару, не масштабируется).', cost: 6, rarity: 'rare', on_spin_bonus: (grid) => {
-            // Проверяем горизонтали, вертикали и диагонали на наличие ровно двух подряд идущих символов "coins"
-            const ROWS = 3, COLS = 5;
-            let bonus = 0;
-            // Горизонтали
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS - 1; c++) {
-                    const i1 = r * COLS + c;
-                    const i2 = r * COLS + c + 1;
-                    if (grid[i1].id === 'coins' && grid[i2].id === 'coins') bonus += 3;
-                }
-            }
-            // Вертикали
-            for (let c = 0; c < COLS; c++) {
-                for (let r = 0; r < ROWS - 1; r++) {
-                    const i1 = r * COLS + c;
-                    const i2 = (r + 1) * COLS + c;
-                    if (grid[i1].id === 'coins' && grid[i2].id === 'coins') bonus += 3;
-                }
-            }
-            // Диагонали (↘)
-            for (let r = 0; r < ROWS - 1; r++) {
-                for (let c = 0; c < COLS - 1; c++) {
-                    const i1 = r * COLS + c;
-                    const i2 = (r + 1) * COLS + (c + 1);
-                    if (grid[i1].id === 'coins' && grid[i2].id === 'coins') bonus += 3;
-                }
-            }
-            // Диагонали (↙)
-            for (let r = 0; r < ROWS - 1; r++) {
-                for (let c = 1; c < COLS; c++) {
-                    const i1 = r * COLS + c;
-                    const i2 = (r + 1) * COLS + (c - 1);
-                    if (grid[i1].id === 'coins' && grid[i2].id === 'coins') bonus += 3;
-                }
-            }
-            return bonus;
-        } },
-        { id: 'architect_blueprint', name: 'Чертеж архитектора', desc: 'Горизонтальные и вертикальные линии получают +1 к множителю.', cost: 8, rarity: 'rare', effect: { line_type_multiplier_bonus: { types: ["Горизонтальная", "Вертикальная"], bonus: 1 } } },
-        { id: 'cherry_bomb', name: 'Вишневая бомба', desc: 'Линии из Вишен 🍒 дополнительно дают +10💰.', cost: 7, rarity: 'rare', effect: { symbol_win_bonus: { symbol: 'cherry', bonus: 10 } } },
-        
-        // Legendary
-        { id: 'lemon_zest', name: 'Цедра лимона', desc: 'Лимоны 🍋 считаются как Клеверы 🍀 для комбинаций.', cost: 9, rarity: 'legendary', effect: { substitute: { from: 'lemon', to: 'clover' } } },
-        { id: 'fortune_charm', name: 'Амулет фортуны', desc: 'Увеличивает ВСЕ денежные выигрыши на 25%.', cost: 10, rarity: 'legendary', effect: { winMultiplier: 1.25 } },
-        { id: 'double_down', name: 'Стеклянный Глаз', desc: 'Удваивает множитель для всех 5-символьных линий.', cost: 9, rarity: 'legendary', effect: { line_length_multiplier_bonus: { length: 5, multiplier: 2 } } },
-        { id: 'sevens_pact', name: 'Пакт Семёрок', desc: 'Каждая 7️⃣ на поле увеличивает Удачу на 1 до конца раунда.', cost: 12, rarity: 'legendary', effect: { temporary_luck_on_spin: 'seven' } },
-        { id: 'all_seeing_eye', name: 'Всевидящее Око', desc: 'Открывает новую линию "Третий Глаз" (x5).', cost: 11, rarity: 'legendary', effect: { add_payline: { name: 'Третий Глаз', positions: [1, 6, 12, 8, 3], multiplier: 5, type: "Секретная" } } }
-    ];
 
     let state = {};
-    const weightedSymbols = SYMBOLS.flatMap(s => Array(s.weight).fill(s));
-    
+    let weightedSymbols = [];
+    let devDebugLuck = false;
+
+    // ВОССТАНАВЛИВАЕМ ФУНКЦИИ
+    function hasItem(itemId) {
+        return state.inventory && state.inventory.some(item => item.id === itemId);
+    }
+    function getItemEffectValue(effectKey, defaultValue, accumulator = 'sum') {
+        let items = [...state.inventory];
+        // mimic: копируем эффект другого предмета
+        const mimicItem = items.find(item => item.effect?.mimic);
+        if (mimicItem) {
+            const targetId = mimicItem.effect.mimic.target;
+            const target = ALL_ITEMS.find(i => i.id === targetId);
+            // --- ОТЛАДКА ДЛЯ СУНДУКА-МИМИКА ---
+            console.log('[DEBUG] Сундук-Мимик: mimicItem=', mimicItem, 'targetId=', targetId, 'target=', target);
+            if (target) items.push({...target, id: 'mimic_copy'});
+        }
+        return items.reduce((acc, item) => {
+            if (item.effect && item.effect[effectKey] !== undefined) {
+                if (accumulator === 'multiply') return acc * item.effect[effectKey];
+                return acc + item.effect[effectKey];
+            }
+            return acc;
+        }, defaultValue);
+    }
     function addLog(message, type = 'normal') {
         const logEntry = document.createElement('p');
         logEntry.textContent = `> ${message}`;
@@ -161,44 +129,96 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ui.logPanel.children.length > 50) ui.logPanel.removeChild(ui.logPanel.lastChild);
     }
 
-    function hasItem(itemId) { return state.inventory.some(item => item.id === itemId); }
-
-    function getItemEffectValue(effectKey, defaultValue) {
-        return state.inventory.reduce((acc, item) => {
-            if (item.effect && item.effect[effectKey]) {
-                return effectKey.includes('Multiplier') ? acc * item.effect[effectKey] : acc + item.effect[effectKey];
-            }
-            return acc;
-        }, defaultValue);
+    function updateWeightedSymbols() {
+        let currentSymbols = [...SYMBOLS];
+        // Применяем эффект "Фильтр Неудач"
+        const removedSymbolId = state.inventory.find(item => item.effect?.remove_symbol)?.effect.remove_symbol;
+        if (removedSymbolId) {
+            currentSymbols = currentSymbols.filter(s => s.id !== removedSymbolId);
+        }
+        weightedSymbols = currentSymbols.flatMap(s => Array(s.weight).fill(s));
     }
 
     function generateGrid() {
-        const baseLuck = getItemEffectValue('luck', 0);
-        const totalLuck = baseLuck + state.tempLuck;
-        let adjustedSymbols = [...SYMBOLS];
-        
-        if (totalLuck > 0) {
-            adjustedSymbols = adjustedSymbols.map(symbol => ({
-                ...symbol,
-                weight: symbol.weight + Math.floor(symbol.value * totalLuck * 2)
-            }));
+        updateWeightedSymbols(); // Обновляем пул символов перед генерацией
+
+        let tempLuck = 0;
+        if(hasItem('blood_ritual')) {
+            const effect = ALL_ITEMS.find(i => i.id === 'blood_ritual').effect.on_spin_sacrifice;
+            if(state.coins >= effect.condition_coin){
+                state.coins -= effect.cost;
+                tempLuck += effect.bonus.luck;
+                addLog(`Кровавый Ритуал: -${effect.cost}💰, +${effect.bonus.luck} к удаче на этот спин.`, 'win');
+            }
         }
         
-        const adjustedWeightedSymbols = adjustedSymbols.flatMap(s => Array(s.weight).fill(s));
+        const perRunLuck = hasItem('growing_debt') ? getItemEffectValue('per_run_bonus.luck', 0, 'sum') * state.run : 0;
+
+        const totalLuck = getItemEffectValue('luck', 0) + state.tempLuck + tempLuck + perRunLuck;
         
-        return Array.from({ length: CONFIG.ROWS * CONFIG.COLS }, () => 
+        let adjustedSymbols = weightedSymbols.map(symbol => {
+            let newWeight = symbol.weight + Math.floor(symbol.value * totalLuck * 2);
+            return { ...symbol, weight: newWeight };
+        });
+
+        if (devDebugLuck) {
+            // Считаем уникальные веса
+            let uniqueWeights = {};
+            adjustedSymbols.forEach(s => { uniqueWeights[s.id] = s.weight; });
+            let weightsStr = Object.entries(uniqueWeights)
+                .map(([id, w]) => `${GRAPHICS[id]}:${w}`)
+                .join(' ');
+            addLog(`Dev: generateGrid() totalLuck=${totalLuck}, веса: ${weightsStr}`);
+            devDebugLuck = false;
+        }
+
+        const adjustedWeightedSymbols = adjustedSymbols.flatMap(s => Array(s.weight > 0 ? s.weight : 0).fill(s));
+
+        let grid = Array.from({ length: CONFIG.ROWS * CONFIG.COLS }, () =>
             adjustedWeightedSymbols[Math.floor(Math.random() * adjustedWeightedSymbols.length)]
         );
+
+        // --- ЭФФЕКТ: guarantee_symbol ---
+        const guarantee = state.inventory.find(item => item.effect?.guarantee_symbol);
+        if (guarantee) {
+            const { symbol, count } = guarantee.effect.guarantee_symbol;
+            let positions = Array.from({length: grid.length}, (_, i) => i);
+            for (let i = 0; i < count; i++) {
+                if (positions.length === 0) break;
+                const idx = Math.floor(Math.random() * positions.length);
+                grid[positions[idx]] = SYMBOLS.find(s => s.id === symbol);
+                positions.splice(idx, 1);
+            }
+            // --- ОТЛАДКА ДЛЯ МАГНИТА СЕМЁРОК ---
+            if(guarantee.id === 'seven_magnet') {
+                console.log('[DEBUG] Магнит Семёрок: grid после гарантии =', grid);
+            }
+        }
+        // --- ЭФФЕКТ: sync_cells ---
+        const sync = state.inventory.find(item => item.effect?.sync_cells);
+        if (sync) {
+            const positions = sync.effect.sync_cells.cells;
+            if (Array.isArray(positions) && positions.length > 0 && grid.length > 0) {
+                const symbol = grid[positions[0]];
+                positions.forEach(pos => grid[pos] = symbol);
+                // DEBUG LOG
+                console.log('[Квантовая Запутанность] Синхронизированы позиции', positions, 'Символ:', symbol);
+            }
+        }
+
+        return grid;
     }
 
     function calculateWinnings() {
         let grid = [...state.grid];
         let totalWinnings = 0;
         const allWinningPositions = new Set();
-        const winningLinesInfo = [];
+        let winningLinesInfo = [];
+        
+        const wildSymbolId = state.inventory.find(item => item.effect?.wild_symbol)?.effect.wild_symbol;
 
         // --- 0. ПРЕДВАРИТЕЛЬНЫЕ ЭФФЕКТЫ ---
-        state.tempLuck = 0;
+        state.tempLuck = 0; // Сбрасываем временную удачу от "Пакт Семёрок"
         state.inventory.forEach(item => {
             if (item.effect?.temporary_luck_on_spin) {
                 const symbolId = item.effect.temporary_luck_on_spin;
@@ -206,8 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (count > 0) { state.tempLuck += count; }
             }
         });
-        if (state.tempLuck > 0) addLog(`Пакт Семёрок: +${state.tempLuck} к временной удаче.`, 'win');
-        updateUI(); 
+        if(state.tempLuck > 0) addLog(`Пакт Семёрок: +${state.tempLuck} к временной удаче.`, 'win');
 
         const substitutions = state.inventory.filter(item => item.effect?.substitute).map(item => item.effect.substitute);
         if (substitutions.length > 0) {
@@ -226,6 +245,44 @@ document.addEventListener('DOMContentLoaded', () => {
         let activePaylines = [...PAYLINES];
         state.inventory.forEach(item => {
             if (item.effect?.add_payline) { activePaylines.push(item.effect.add_payline); }
+        });
+        
+        const payBothWays = hasItem("twins_mirror") || state.inventory.some(item => item.effect?.pay_both_ways);
+
+        // pay_both_ways: если активен, добавляем зеркальные линии для scannable
+        if (payBothWays) {
+            const mirrored = activePaylines.filter(l => l.scannable).map(line => ({
+                ...line,
+                name: line.name + ' (обратно)',
+                positions: [...line.positions].reverse(),
+            }));
+            activePaylines = activePaylines.concat(mirrored);
+        }
+
+        // --- ДОБАВЛЯЕМ ЭФФЕКТЫ ПРЕДМЕТОВ К ВЫПЛАТАМ ---
+        // symbol_value_multiplier
+        const symbolMultipliers = {};
+        state.inventory.forEach(item => {
+            if (item.effect?.symbol_value_multiplier) {
+                const eff = item.effect.symbol_value_multiplier;
+                symbolMultipliers[eff.symbol] = (symbolMultipliers[eff.symbol] || 1) * eff.multiplier;
+            }
+        });
+        // line_length_win_bonus
+        const lineLengthBonuses = {};
+        state.inventory.forEach(item => {
+            if (item.effect?.line_length_win_bonus) {
+                const eff = item.effect.line_length_win_bonus;
+                lineLengthBonuses[eff.length] = (lineLengthBonuses[eff.length] || 0) + eff.bonus;
+            }
+        });
+        // on_line_win_bonus
+        const lineWinBonuses = {};
+        state.inventory.forEach(item => {
+            if (item.effect?.on_line_win_bonus) {
+                const eff = item.effect.on_line_win_bonus;
+                lineWinBonuses[eff.length] = (lineWinBonuses[eff.length] || 0) + eff.bonus;
+            }
         });
 
         activePaylines.forEach(line => {
@@ -255,7 +312,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => (item.effect.line_length_multiplier_bonus.length === comboLength) ? acc * item.effect.line_length_multiplier_bonus.multiplier : acc, 1);
                         lineMultiplier *= lengthBonus;
 
-                        let win = currentSymbol.value * lineMultiplier;
+                        // --- ПРИМЕНЯЕМ symbol_value_multiplier ---
+                        let symbolValue = currentSymbol.value;
+                        if (symbolMultipliers[currentSymbol.id]) {
+                            symbolValue = Math.floor(symbolValue * symbolMultipliers[currentSymbol.id]);
+                        }
+
+                        let win = symbolValue * lineMultiplier;
+
+                        // --- ПРИМЕНЯЕМ line_length_win_bonus ---
+                        if (lineLengthBonuses[comboLength]) {
+                            win += lineLengthBonuses[comboLength];
+                        }
+                        // --- ПРИМЕНЯЕМ on_line_win_bonus ---
+                        if (lineWinBonuses[comboLength]) {
+                            win += lineWinBonuses[comboLength];
+                        }
 
                         const symbolWinBonus = state.inventory.filter(item => item.effect?.symbol_win_bonus).reduce((acc, item) => (item.effect.symbol_win_bonus.symbol === currentSymbol.id) ? acc + item.effect.symbol_win_bonus.bonus : acc, 0);
                         win += symbolWinBonus;
@@ -282,8 +354,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => (item.effect.line_length_multiplier_bonus.length === line.positions.length) ? acc * item.effect.line_length_multiplier_bonus.multiplier : acc, 1);
                     lineMultiplier *= lengthBonus;
 
-                    let win = firstSymbol.value * lineMultiplier;
+                    // --- ПРИМЕНЯЕМ symbol_value_multiplier ---
+                    let symbolValue = firstSymbol.value;
+                    if (symbolMultipliers[firstSymbol.id]) {
+                        symbolValue = Math.floor(symbolValue * symbolMultipliers[firstSymbol.id]);
+                    }
+
+                    let win = symbolValue * lineMultiplier;
                     
+                    // --- ПРИМЕНЯЕМ line_length_win_bonus ---
+                    if (lineLengthBonuses[line.positions.length]) {
+                        win += lineLengthBonuses[line.positions.length];
+                    }
+                    // --- ПРИМЕНЯЕМ on_line_win_bonus ---
+                    if (lineWinBonuses[line.positions.length]) {
+                        win += lineWinBonuses[line.positions.length];
+                    }
+
                     const symbolWinBonus = state.inventory.filter(item => item.effect?.symbol_win_bonus).reduce((acc, item) => (item.effect.symbol_win_bonus.symbol === firstSymbol.id) ? acc + item.effect.symbol_win_bonus.bonus : acc, 0);
                     win += symbolWinBonus;
 
@@ -320,14 +407,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (winningLinesInfo.length > 1) {
-            const comboBonus = Math.floor(totalWinnings * (1 + (winningLinesInfo.length - 1) * 0.25 - 1));
+            let comboMultiplier = 1;
+            if (hasItem('combo_counter')) {
+                comboMultiplier = state.inventory.find(item => item.id === 'combo_counter')?.effect?.combo_bonus_multiplier || 1.5;
+            }
+            const comboBonus = Math.floor(totalWinnings * ((1 + (winningLinesInfo.length - 1) * 0.25 - 1) * comboMultiplier));
             totalWinnings += comboBonus;
             addLog(`🔥 КОМБО x${winningLinesInfo.length}! Бонус: +${comboBonus}💰`, 'win');
         }
 
         state.inventory.forEach(item => {
             if (item.on_spin_bonus) {
-                const bonus = item.on_spin_bonus(state.grid);
+                // --- ОТЛАДКА ДЛЯ РАДУЖНОГО КЛЕВЕРА ---
+                if(item.id === 'rainbow_clover') {
+                    console.log('[DEBUG] Радужный клевер: grid=', state.grid, 'totalWinnings=', totalWinnings);
+                }
+                const bonus = item.on_spin_bonus(state.grid, totalWinnings);
                 if (bonus > 0) { totalWinnings += bonus; addLog(`${item.name}: +${bonus}💰`, 'win'); }
             }
         });
@@ -337,6 +432,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const bonus = Math.floor(totalWinnings * (finalMultiplier - 1));
             totalWinnings += bonus;
             addLog(`Амулет Фортуны: +${Math.round((finalMultiplier-1)*100)}% бонус! (+${bonus}💰)`, 'win');
+        }
+
+        // --- LAST CHANCE ---
+        if (hasItem('last_chance') && state.spinsLeft === 0 && state.turn === 3) {
+            const lastChanceMultiplier = state.inventory.find(item => item.id === 'last_chance')?.effect?.on_last_spin_bonus?.multiplier || 3;
+            if (totalWinnings > 0) {
+                const bonus = totalWinnings * (lastChanceMultiplier - 1);
+                totalWinnings += bonus;
+                addLog(`Последний Шанс: x${lastChanceMultiplier} к выигрышу! (+${bonus}💰)`, 'win');
+            }
         }
 
         totalWinnings = Math.floor(totalWinnings);
@@ -354,8 +459,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Остальная часть JS кода остается без изменений...
-    
     function highlightWinningCells(positions, winAmount) {
         const cells = ui.slotMachine.querySelectorAll('.slot-cell');
         let highlightClass = 'highlight';
@@ -399,7 +502,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         state.isSpinning = true;
         ui.lever.classList.add('pulled');
-        state.spinsLeft--;
+        // --- ЛОГИКА СЧАСТЛИВОЙ МОНЕТКИ ---
+        let freeSpin = false;
+        if (hasItem('lucky_penny') && !state.firstSpinUsed) {
+            freeSpin = true;
+            state.firstSpinUsed = true;
+            addLog('Счастливая монетка: первый прокрут бесплатный!', 'win');
+        }
+        if (!freeSpin) {
+            state.spinsLeft--;
+        }
         updateUI(); 
 
         state.grid = generateGrid();
@@ -419,7 +531,9 @@ document.addEventListener('DOMContentLoaded', () => {
             run: 1, targetDebt: 50, turn: 1, coins: 20, bankBalance: 0, tickets: 5,
             spinsLeft: 0, baseInterestRate: 0.40, inventory: [], shop: [], gameover: false, isSpinning: false,
             piggyBank: 0, tempLuck: 0,
+            firstSpinUsed: false,
         };
+        updateInterestRate();
         state.grid = generateGrid();
         
         ui.startScreen.classList.add('hidden');
@@ -435,7 +549,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startTurn() {
         state.tempLuck = 0;
-         const roundStartSpins = getItemEffectValue('on_round_start_spins', 0);
+        state.firstSpinUsed = false;
+        updateInterestRate();
+        // --- ЭФФЕКТ: on_round_start_coins ---
+        const roundStartCoins = getItemEffectValue('on_round_start_coins', 0);
+        if (roundStartCoins > 0) {
+            state.coins += roundStartCoins;
+            addLog(`Монеты за раунд: +${roundStartCoins}💰.`, 'win');
+        }
+        // --- ЭФФЕКТ: free_reroll_per_round ---
+        state.freeRerolls = getItemEffectValue('free_reroll_per_round', 0);
+        if (state.freeRerolls > 0) {
+            addLog(`Бесплатный реролл магазина: ${state.freeRerolls} за раунд.`, 'win');
+        }
+        const roundStartSpins = getItemEffectValue('on_round_start_spins', 0);
         if (roundStartSpins > 0) {
             state.spinsLeft += roundStartSpins;
             addLog(`Карманные часы: +${roundStartSpins} прокрут в начале раунда.`, 'win');
@@ -455,6 +582,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
         ui.spinPurchaseModal.classList.remove('hidden');
         updateUI();
+
+        updateMimicTarget();
     }
     
     function buySpins(pkg) {
@@ -472,6 +601,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function endTurn() {
         if (state.isSpinning) return;
+        // --- ЭФФЕКТ: on_spin_count_bonus ---
+        const spinBonus = getItemEffectValue('on_spin_count_bonus', 0);
+        if (spinBonus > 0 && state.spinsLeft === 0) {
+            state.coins += spinBonus;
+            addLog(`Бонус за все использованные спины: +${spinBonus}💰.`, 'win');
+        }
         ui.eorTitle.textContent = `Конец Раунда ${state.turn}`;
         ui.eorCoins.textContent = `${state.coins}💰`;
         ui.eorBank.textContent = `${state.bankBalance}💰`;
@@ -481,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function confirmEndTurn() {
         if (hasItem('scrap_metal') && state.piggyBank > 0) {
-            addLog(`Копилка разбита! Вы получили +${state.piggyBank}💰.`, 'win');
+            addLog(`💥 Копилка разбита! Вы получили +${state.piggyBank}💰.`, 'win');
             state.coins += state.piggyBank;
             state.piggyBank = 0;
         }
@@ -514,6 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.bankBalance = remainder;
                 state.tickets += rewardTickets;
                 state.spinsLeft = 0;
+                updateInterestRate();
                 addLog(`Новый Цикл Долга #${state.run} начался. Цель: ${state.targetDebt}💰.`);
                 populateShop();
                 startTurn();
@@ -553,10 +689,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function rerollShop() {
+        // --- ЭФФЕКТ: free_reroll_per_round ---
+        if (state.freeRerolls && state.freeRerolls > 0) {
+            state.freeRerolls--;
+            populateShop();
+            addLog('Бесплатный реролл магазина!', 'win');
+            // --- ЭФФЕКТ: resellers_ticket ---
+            if (hasItem('resellers_ticket')) {
+                state.tickets += 1;
+                addLog('Билет перекупщика: +1🎟️ за реролл!', 'win');
+            }
+            updateUI();
+            return;
+        }
         if (state.tickets >= CONFIG.REROLL_COST) {
             state.tickets -= CONFIG.REROLL_COST;
             populateShop();
             addLog(`Магазин обновлен за ${CONFIG.REROLL_COST}🎟️.`);
+            // --- ЭФФЕКТ: resellers_ticket ---
+            if (hasItem('resellers_ticket')) {
+                state.tickets += 1;
+                addLog('Билет перекупщика: +1🎟️ за реролл!', 'win');
+            }
             updateUI();
         } else { addLog('Недостаточно талонов.', 'loss'); }
     }
@@ -568,7 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.inventory.push(item);
         state.shop = state.shop.filter(i => i.id !== itemId);
         addLog(`Куплен амулет: ${item.name}`, 'win');
-        
+        updateMimicTarget();
         if (ui.planningModal.classList.contains('hidden')) {
             updateUI();
         } else {
@@ -591,8 +745,24 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.spinsLeft.textContent = state.spinsLeft;
         ui.atmInterestRate.textContent = (state.baseInterestRate * 100).toFixed(0);
         
-        ui.btnEndTurn.disabled = state.isSpinning || state.spinsLeft > 0;
+        // --- ДОБАВЛЯЕМ ОТОБРАЖЕНИЕ ПРОЦЕНТА И БОНУСА ---
+        let bonus = state.inventory.reduce((acc, item) => acc + (item.effect?.interest_rate_bonus || 0), 0);
+        let bonusText = '';
+        if (bonus > 0) bonusText = ` <span style="color:var(--highlight-color); font-size:12px;">(+${(bonus*100).toFixed(0)}% от предметов)</span>`;
+        let percent = state.baseInterestRate;
+        let bank = state.bankBalance;
+        let profit = Math.floor(bank * percent);
+        let profitText = `<div style='font-size:13px; margin-top:4px;'>След. процент: <b style='color:var(--money-color)'>+${profit}💰</b> (${(percent*100).toFixed(0)}%${bonusText})</div>`;
+        // Найти блок под ставкой и добавить/обновить его
+        let infoBlock = document.getElementById('interest-info-block');
+        if (!infoBlock) {
+            infoBlock = document.createElement('div');
+            infoBlock.id = 'interest-info-block';
+            ui.atmInterestRate.parentElement.parentElement.appendChild(infoBlock);
+        }
+        infoBlock.innerHTML = profitText;
         
+        ui.btnEndTurn.disabled = state.isSpinning || state.spinsLeft > 0;
         ui.btnRerollShop.textContent = `Reroll (${CONFIG.REROLL_COST}🎟️)`;
         renderInventory(); 
         renderShop();
@@ -688,6 +858,21 @@ document.addEventListener('DOMContentLoaded', () => {
             itemDiv.className = `item rarity-${item.rarity}`;
             itemDiv.style.cursor = 'default';
             itemDiv.innerHTML = `<span class="item-name">${item.name}</span><p class="item-desc">${item.desc}</p>`;
+            // --- ПОДПИСЬ ДЛЯ СУНДУКА-МИМИКА ---
+            if(item.id === 'mimic_chest') {
+                let mimicInfo = '';
+                if(item.effect && item.effect.mimic && item.effect.mimic.target) {
+                    const target = ALL_ITEMS.find(i => i.id === item.effect.mimic.target);
+                    if(target) {
+                        mimicInfo = `<div style='color:#b388ff; font-size:12px; margin-top:6px;'>Работает: копирует <b>${target.name}</b></div>`;
+                    } else {
+                        mimicInfo = `<div style='color:#b388ff; font-size:12px; margin-top:6px;'>Работает: цель не найдена</div>`;
+                    }
+                } else {
+                    mimicInfo = `<div style='color:#b388ff; font-size:12px; margin-top:6px;'>Работает: нет цели для копирования</div>`;
+                }
+                itemDiv.innerHTML += mimicInfo;
+            }
             ui.inventoryItems.appendChild(itemDiv);
         });
     }
@@ -735,10 +920,54 @@ document.addEventListener('DOMContentLoaded', () => {
             state.tickets -= CONFIG.REROLL_COST;
             populateShop();
             addLog(`Магазин обновлен за ${CONFIG.REROLL_COST}🎟️.`);
+            // --- ЭФФЕКТ: resellers_ticket ---
+            if (hasItem('resellers_ticket')) {
+                state.tickets += 1;
+                addLog('Билет перекупщика: +1🎟️ за реролл!', 'win');
+            }
             ui.planningTickets.textContent = state.tickets;
             renderPlanningShop();
             updateUI();
         } else { addLog('Недостаточно талонов.', 'loss'); }
+    }
+
+    // --- ДОБАВЛЯЕМ ФУНКЦИЮ ДЛЯ ПОДСЧЁТА МИНИМАЛЬНОЙ СТАВКИ ---
+    function getMinInterestRate() {
+        let min = 0.03;
+        const bonus = state.inventory.reduce((acc, item) => acc + (item.effect?.interest_rate_bonus || 0), 0);
+        const floor = state.inventory.reduce((acc, item) => acc + (item.effect?.min_interest_rate_floor || 0), 0);
+        return min + bonus + floor;
+    }
+
+    // --- ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ СТАВКИ ---
+    function updateInterestRate() {
+        // Базовая ставка 40% (0.40)
+        let base = 0.40;
+        // Снижение за циклы (run)
+        base -= (state.run - 1) * 0.03;
+        // Снижение за дни (turn)
+        base -= (state.turn - 1) * 0.10;
+        // Минимум
+        const minRate = getMinInterestRate();
+        if (base < minRate) base = minRate;
+        state.baseInterestRate = base;
+    }
+
+    // --- ВЫБОР ЦЕЛИ ДЛЯ СУНДУКА-МИМИКА ---
+    function updateMimicTarget() {
+        const mimicItem = state.inventory.find(item => item.id === 'mimic_chest');
+        if (mimicItem) {
+            // Выбираем случайный амулет, кроме самого мимика
+            const candidates = state.inventory.filter(item => item.id !== 'mimic_chest');
+            if (candidates.length > 0) {
+                const target = candidates[Math.floor(Math.random() * candidates.length)];
+                mimicItem.effect.mimic = { target: target.id };
+                console.log('[DEBUG] Сундук-Мимик выбрал цель:', target);
+            } else {
+                mimicItem.effect.mimic = { target: undefined };
+                console.log('[DEBUG] Сундук-Мимик: нет других амулетов для копирования');
+            }
+        }
     }
 
     // --- СОБЫТИЯ ---
@@ -758,4 +987,79 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.btnFinishPlanning.onclick = closePlanningMode;
 
     ui.startScreen.classList.remove('hidden');
+
+    // --- DEV MENU ---
+    const devBtn = document.getElementById('dev-menu-btn');
+    const devModal = document.getElementById('dev-menu-modal');
+    const devAddCoins = document.getElementById('dev-add-coins');
+    const devAddTickets = document.getElementById('dev-add-tickets');
+    const devSetInterest = document.getElementById('dev-set-interest');
+    const devGiveItem = document.getElementById('dev-give-item');
+    const devClose = document.getElementById('dev-close-menu');
+    const devItemSelect = document.getElementById('dev-item-select');
+    const devSymbolChances = document.getElementById('dev-symbol-chances');
+    const devApplyChances = document.getElementById('dev-apply-chances');
+    const devApplyLuck = document.getElementById('dev-apply-luck');
+    const devLuckInput = document.getElementById('dev-luck-input');
+
+    devBtn.onclick = () => { 
+        devModal.classList.remove('hidden');
+        // Заполнить список предметов
+        devItemSelect.innerHTML = '';
+        ALL_ITEMS.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = `${item.name} (${item.rarity})`;
+            devItemSelect.appendChild(opt);
+        });
+        // Отобразить шансы символов
+        devSymbolChances.innerHTML = '';
+        SYMBOLS.forEach((sym, idx) => {
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.gap = '8px';
+            row.style.marginBottom = '2px';
+            row.innerHTML = `<span style='width:30px;'>${sym.graphic}</span><input type='number' min='1' style='width:60px;' id='dev-sym-${idx}' value='${sym.weight}'>`;
+            devSymbolChances.appendChild(row);
+        });
+        // Подставить текущее значение временной удачи
+        devLuckInput.value = state.tempLuck;
+    };
+    devClose.onclick = () => { devModal.classList.add('hidden'); };
+    devAddCoins.onclick = () => { state.coins += 1000; addLog('Dev: +1000 монет', 'win'); updateUI(); };
+    devAddTickets.onclick = () => { state.tickets += 100; addLog('Dev: +100 талонов', 'win'); updateUI(); };
+    devSetInterest.onclick = () => { state.baseInterestRate = 0.5; addLog('Dev: Ставка установлена 50%', 'win'); updateUI(); };
+    devGiveItem.onclick = () => {
+        const id = devItemSelect.value;
+        if (!state.inventory.some(i => i.id === id)) {
+            const item = ALL_ITEMS.find(i => i.id === id);
+            state.inventory.push(item);
+            addLog(`Dev: Выдан предмет: ${item.name}`, 'win');
+            updateUI();
+        } else {
+            addLog('Dev: Этот предмет уже есть в инвентаре.', 'loss');
+        }
+    };
+    devApplyChances.onclick = () => {
+        SYMBOLS.forEach((sym, idx) => {
+            const val = parseInt(document.getElementById(`dev-sym-${idx}`).value, 10);
+            if (!isNaN(val) && val > 0) sym.weight = val;
+        });
+        updateWeightedSymbols();
+        addLog('Dev: Шансы символов обновлены.', 'win');
+    };
+    devApplyLuck.onclick = () => {
+        const val = parseInt(devLuckInput.value, 10);
+        if (!isNaN(val)) {
+            state.tempLuck = val;
+            addLog(`Dev: Временная удача установлена: ${val}`, 'win');
+            // Вывести итоговую удачу и веса символов (только уникальные)
+            const totalLuck = getItemEffectValue('luck', 0) + state.tempLuck + (hasItem('growing_debt') ? getItemEffectValue('per_run_bonus.luck', 0, 'sum') * state.run : 0);
+            let weights = SYMBOLS.map(s => `${s.graphic}:${s.weight}`).join(' ');
+            addLog(`Dev: Итоговая удача: ${totalLuck}, веса: ${weights}`);
+            devDebugLuck = true;
+            updateUI();
+        }
+    };
 });
