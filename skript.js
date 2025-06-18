@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
         purchaseModalCoins: document.getElementById('purchase-modal-coins'),
         btnBuySpins7: document.getElementById('buy-spins-7'),
         btnBuySpins3: document.getElementById('buy-spins-3'),
+        btnBuySpin1: document.getElementById('buy-spin-1'),
         btnBuyNothing: document.getElementById('buy-nothing'),
         btnPlanning: document.getElementById('btn-planning'),
         planningModal: document.getElementById('planning-modal'),
@@ -113,14 +114,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (target) items.push({...target, id: 'mimic_copy'});
         }
         return items.reduce((acc, item) => {
-            if (item.effect && item.effect[effectKey] !== undefined) {
-                if (accumulator === 'multiply') return acc * item.effect[effectKey];
-                return acc + item.effect[effectKey];
+            if (item.effect) {
+                // поддержка вложенных ключей через точку
+                let value = item.effect;
+                for (const key of effectKey.split('.')) {
+                    if (value && value.hasOwnProperty(key)) {
+                        value = value[key];
+                    } else {
+                        value = undefined;
+                        break;
+                    }
+                }
+                if (value !== undefined) {
+                    if (accumulator === 'multiply') return acc * value;
+                    return acc + value;
+                }
             }
             return acc;
         }, defaultValue);
     }
     function addLog(message, type = 'normal') {
+        // Не добавлять в log-panel сообщения, начинающиеся с '[DEBUG]', '[Квантовая Запутанность]' или 'Dev:'
+        if (typeof message === 'string' && (message.startsWith('[DEBUG]') || message.startsWith('[Квантовая Запутанность]') || message.startsWith('Dev:'))) return;
         const logEntry = document.createElement('p');
         logEntry.textContent = `> ${message}`;
         if (type === 'win') logEntry.style.color = 'var(--highlight-color)';
@@ -153,13 +168,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         const perRunLuck = hasItem('growing_debt') ? getItemEffectValue('per_run_bonus.luck', 0, 'sum') * state.run : 0;
+        if (hasItem('growing_debt')) {
+            console.log('[DEBUG] Растущий Долг: +', getItemEffectValue('per_run_bonus.luck', 0, 'sum'), 'к удаче за каждый цикл. Текущий цикл:', state.run, '=> бонус:', perRunLuck);
+        }
 
         const totalLuck = getItemEffectValue('luck', 0) + state.tempLuck + tempLuck + perRunLuck;
         
+        // --- НОВАЯ ЛОГИКА: удача влияет только на один случайный символ ---
+        const luckySymbolIndex = Math.floor(Math.random() * SYMBOLS.length);
+        const luckySymbolId = SYMBOLS[luckySymbolIndex].id;
+
         let adjustedSymbols = weightedSymbols.map(symbol => {
-            let newWeight = symbol.weight + Math.floor(symbol.value * totalLuck * 2);
-            return { ...symbol, weight: newWeight };
+            if (symbol.id === luckySymbolId) {
+                let newWeight = symbol.weight + Math.floor(symbol.value * totalLuck * 40);
+                return { ...symbol, weight: newWeight };
+            }
+            return { ...symbol, weight: symbol.weight };
         });
+
+        addLog(`В этот спин удача увеличивает вес символа: ${GRAPHICS[luckySymbolId]}`, 'win');
+        // Собираем уникальные веса по id
+        const uniqueWeights = {};
+        adjustedSymbols.forEach(s => { uniqueWeights[s.id] = s.weight; });
+        const weightsDebug = Object.entries(uniqueWeights)
+            .map(([id, w]) => `${GRAPHICS[id]}:${w}`)
+            .join(' ');
+        console.log(`[DEBUG] В этот спин удача увеличивает вес символа: ${GRAPHICS[luckySymbolId]}. Веса: ${weightsDebug}`);
+        if (hasItem('twins_mirror')) {
+            console.log('[DEBUG] Зеркало Близнецов: горизонтальные линии выплат работают в обе стороны.');
+        }
 
         if (devDebugLuck) {
             // Считаем уникальные веса
@@ -274,6 +311,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (item.effect?.line_length_win_bonus) {
                 const eff = item.effect.line_length_win_bonus;
                 lineLengthBonuses[eff.length] = (lineLengthBonuses[eff.length] || 0) + eff.bonus;
+                // --- ОТЛАДКА ДЛЯ ЛИПКИХ ПАЛЬЦЕВ ---
+                if(item.id === 'sticky_fingers') {
+                    console.log('[DEBUG] Липкие Пальцы: найден эффект line_length_win_bonus', eff, 'item:', item);
+                }
             }
         });
         // on_line_win_bonus
@@ -323,6 +364,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         // --- ПРИМЕНЯЕМ line_length_win_bonus ---
                         if (lineLengthBonuses[comboLength]) {
                             win += lineLengthBonuses[comboLength];
+                            // --- ОТЛАДКА ДЛЯ ЛИПКИХ ПАЛЬЦЕВ ---
+                            if (hasItem('sticky_fingers') && comboLength === 3) {
+                                console.log('[DEBUG] Липкие Пальцы: добавлен бонус', lineLengthBonuses[comboLength], 'к линии', line.name, 'символ', currentSymbol.id, 'win:', win);
+                            }
                         }
                         // --- ПРИМЕНЯЕМ on_line_win_bonus ---
                         if (lineWinBonuses[comboLength]) {
@@ -365,6 +410,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     // --- ПРИМЕНЯЕМ line_length_win_bonus ---
                     if (lineLengthBonuses[line.positions.length]) {
                         win += lineLengthBonuses[line.positions.length];
+                        // --- ОТЛАДКА ДЛЯ ЛИПКИХ ПАЛЬЦЕВ ---
+                        if (hasItem('sticky_fingers') && line.positions.length === 3) {
+                            console.log('[DEBUG] Липкие Пальцы: добавлен бонус', lineLengthBonuses[line.positions.length], 'к линии', line.name, 'символ', firstSymbol.id, 'win:', win);
+                        }
                     }
                     // --- ПРИМЕНЯЕМ on_line_win_bonus ---
                     if (lineWinBonuses[line.positions.length]) {
@@ -580,6 +629,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.purchaseModalCoins.textContent = `${state.coins}💰`;
         ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
         ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
+        ui.btnBuySpin1.disabled = state.coins < 3 || state.coins >= CONFIG.SPIN_PACKAGE_2.cost;
+        if (state.coins < CONFIG.SPIN_PACKAGE_2.cost) {
+            ui.btnBuySpin1.style.display = '';
+        } else {
+            ui.btnBuySpin1.style.display = 'none';
+        }
         ui.spinPurchaseModal.classList.remove('hidden');
         updateUI();
 
@@ -587,6 +642,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function buySpins(pkg) {
+        if (pkg === 'single') {
+            if (state.coins >= 3) {
+                state.coins -= 3;
+                state.spinsLeft += 1;
+                addLog('Куплен 1 прокрут за 3💰 (без талонов).', 'win');
+            } else {
+                addLog('Недостаточно наличных.', 'loss');
+            }
+            ui.spinPurchaseModal.classList.add('hidden');
+            updateUI();
+            return;
+        }
         if (pkg) {
             if (state.coins >= pkg.cost) {
                 state.coins -= pkg.cost;
@@ -741,7 +808,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.bankBalance.textContent = `${state.bankBalance}💰`;
         ui.statTickets.textContent = `${state.tickets}🎟️`;
         const baseLuck = getItemEffectValue('luck', 0);
-        ui.statLuck.textContent = `${baseLuck}${state.tempLuck > 0 ? ` (+${state.tempLuck})` : ''}`;
+        const debtLuck = getItemEffectValue('per_run_bonus.luck', 0) * state.run;
+        let luckText = `${baseLuck}`;
+        if (debtLuck > 0) luckText += ` (+${debtLuck} от долга)`;
+        if (state.tempLuck > 0) luckText += ` (+${state.tempLuck})`;
+        ui.statLuck.textContent = luckText;
         ui.spinsLeft.textContent = state.spinsLeft;
         ui.atmInterestRate.textContent = (state.baseInterestRate * 100).toFixed(0);
         
@@ -980,6 +1051,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.btnEorDeposit.onclick = () => deposit(parseInt(ui.eorDepositAmount.value, 10), true);
     ui.btnBuySpins7.onclick = () => buySpins(CONFIG.SPIN_PACKAGE_1);
     ui.btnBuySpins3.onclick = () => buySpins(CONFIG.SPIN_PACKAGE_2);
+    ui.btnBuySpin1.onclick = () => buySpins('single');
     ui.btnBuyNothing.onclick = () => buySpins(null);
     ui.btnRerollShop.onclick = rerollShop;
     ui.btnPlanning.onclick = openPlanningMode;
