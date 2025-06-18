@@ -235,3 +235,27 @@
             color: var(--bg-color);
             border-color: var(--highlight-color);
         }
+
+        /* Стилизация скроллбаров */
+        ::-webkit-scrollbar {
+            width: 10px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--highlight-color);
+        }
+        ::-webkit-scrollbar-corner {
+            background: var(--panel-bg);
+        }
+
+        /* Для Firefox */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) var(--panel-bg);
+        }
