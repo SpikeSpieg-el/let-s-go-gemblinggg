@@ -10,6 +10,7 @@
 
     <!-- КНОПКА ДЛЯ МЕНЮ РАЗРАБОТЧИКА -->
     <button id="dev-menu-btn" style="position:fixed;top:10px;right:10px;z-index:1000;padding:7px 16px;font-size:15px;">Dev</button>
+    <button id="switch-style2-btn" class="style2-switch-btn" style="position:fixed;top:10px;right:70px;z-index:1000;">Style 2</button>
     <div id="dev-menu-modal" class="modal-overlay hidden">
         <div class="modal-content" style="max-width:400px;">
             <h2>Меню разработчика</h2>
@@ -164,5 +165,10 @@
     
     <script src="items.js"></script>
     <script src="skript.js"></script>
+    <script>
+      document.getElementById('switch-style2-btn').onclick = function() {
+        window.location.href = 'style2/index_style2.html';
+      };
+    </script>
 </body>
 </html>

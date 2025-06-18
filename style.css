@@ -217,3 +217,21 @@
         @keyframes winPulse { 0% {transform: scale(1.05);} 50% {transform: scale(1.1);} 100% {transform: scale(1.05);} }
         @keyframes winPulseBig { 0% {transform: scale(1.08);} 50% {transform: scale(1.15);} 100% {transform: scale(1.08);} }
         @keyframes winPulseHuge { 0% {transform: scale(1.12);} 50% {transform: scale(1.2);} 100% {transform: scale(1.12);} }
+
+        .style2-switch-btn {
+            background: var(--cell-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 16px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+            letter-spacing: 1px;
+        }
+        .style2-switch-btn:hover:not(:disabled) {
+            background: var(--highlight-color);
+            color: var(--bg-color);
+            border-color: var(--highlight-color);
+        }
