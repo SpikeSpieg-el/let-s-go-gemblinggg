@@ -1,0 +1,219 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #111;
+            --cell-bg: #222;
+            --panel-bg: #1a1a1a;
+            --text-color: #e0e0e0;
+            --highlight-color: #00ff7f;
+            --danger-color: #ff3b3b;
+            --money-color: #ffd700;
+            --ticket-color: #b388ff;
+            --luck-color: #40c4ff;
+            --border-color: #444;
+            --rarity-common: #aaa;
+            --rarity-rare: #536dfe;
+            --rarity-legendary: #ffab40;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-image: radial-gradient(circle, #222 1px, transparent 1px);
+            background-size: 25px 25px;
+        }
+
+        .game-container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            width: 100%;
+            max-width: 1300px;
+        }
+
+        .main-panel {
+            flex-grow: 1; display: flex; flex-direction: column; gap: 20px;
+        }
+        
+        .slot-area {
+            display: flex;
+            align-items: stretch;
+            gap: 20px;
+        }
+
+        .slot-machine {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            padding: 15px;
+            border: 2px solid var(--border-color);
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.7);
+            flex-grow: 1;
+        }
+
+        .slot-cell {
+            background-color: var(--cell-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 1 / 1;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+        .slot-cell .reel {
+            /* transition убран отсюда и добавляется динамически в JS */
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2000%; /* 20 картинок */
+        }
+        .slot-cell .symbol {
+            width: 100%; 
+            height: 5%; /* 1/20 */
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 2em;
+            padding: 10%;
+        }
+
+        .slot-cell.highlight {
+            box-shadow: 0 0 15px var(--highlight-color);
+            border-color: var(--highlight-color);
+            transform: scale(1.05);
+            z-index: 10;
+            animation: winPulse 0.5s ease-in-out;
+        }
+        .slot-cell.highlight-big {
+            box-shadow: 0 0 20px var(--money-color);
+            border-color: var(--money-color);
+            transform: scale(1.08);
+            z-index: 10;
+            animation: winPulseBig 0.5s ease-in-out;
+        }
+        .slot-cell.highlight-huge {
+            box-shadow: 0 0 25px var(--ticket-color);
+            border-color: var(--ticket-color);
+            transform: scale(1.12);
+            z-index: 10;
+            animation: winPulseHuge 0.5s ease-in-out;
+        }
+
+
+        .lever-container {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background-color: var(--panel-bg); border: 2px solid var(--border-color);
+            padding: 20px 15px; border-radius: 8px;
+        }
+        .lever-base { width: 50px; height: 30px; background: #333; border-radius: 5px 5px 0 0; }
+        .lever {
+            width: 12px; height: 100px; background: #666;
+            position: relative; cursor: pointer; transition: transform 0.2s;
+            transform-origin: bottom center;
+        }
+        .lever-handle {
+            width: 30px; height: 30px; background: var(--danger-color);
+            border-radius: 50%; position: absolute; top: -15px; left: -9px;
+        }
+        .lever.pulled { transform: rotate(45deg); cursor: not-allowed; }
+        .lever:not(.pulled):hover { transform: scale(1.1); }
+
+        .controls {
+            padding: 15px; border: 2px solid var(--border-color); background-color: var(--panel-bg);
+            border-radius: 8px; text-align: center;
+            display: flex; justify-content: space-around; align-items: center;
+        }
+
+        .log-panel {
+            height: 150px; padding: 15px; border: 2px solid var(--border-color);
+            background-color: var(--panel-bg); border-radius: 8px; overflow-y: auto;
+            font-size: 14px; display: flex; flex-direction: column-reverse;
+        }
+        .log-panel p { margin-bottom: 5px; }
+
+        .ui-panel {
+            width: 350px; display: flex; flex-direction: column;
+            gap: 20px; flex-shrink: 0;
+        }
+
+        .ui-box {
+            padding: 15px; border: 2px solid var(--border-color);
+            background-color: var(--panel-bg); border-radius: 8px;
+        }
+        .ui-box h3 {
+            margin-bottom: 10px; border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px; color: var(--highlight-color);
+        }
+
+        .stats-grid { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
+        .stats-grid span:nth-child(odd) { text-align: left; padding-right: 10px; font-weight: 700; }
+        .shop-items, .inventory-items { display: flex; flex-direction: column; gap: 10px; max-height: 150px; overflow-y: auto; padding-right: 5px; }
+
+        .item {
+            padding: 10px; border: 1px solid var(--border-color); background-color: var(--cell-bg);
+            border-radius: 4px; cursor: pointer; transition: background-color 0.2s, border-color 0.2s;
+            position: relative;
+        }
+        .item:hover:not(:disabled) { background-color: #3c3c3c; border-color: var(--highlight-color); }
+        .item.rarity-common { border-left: 5px solid var(--rarity-common); }
+        .item.rarity-rare { border-left: 5px solid var(--rarity-rare); }
+        .item.rarity-legendary { border-left: 5px solid var(--rarity-legendary); }
+        
+        .item-name { font-weight: bold; }
+        .item-cost { float: right; color: var(--ticket-color); font-weight: bold; }
+        .item-desc { font-size: 12px; color: #aaa; margin-top: 5px; }
+        
+        .atm-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .atm-actions input {
+            flex-grow: 1; background-color: var(--cell-bg); border: 1px solid var(--border-color);
+            color: var(--text-color); padding: 8px; font-family: 'Roboto Mono', monospace; border-radius: 4px;
+            width: 50%;
+        }
+
+        button {
+            font-family: 'Roboto Mono', monospace; padding: 10px 20px;
+            border: 1px solid var(--border-color); background-color: var(--cell-bg);
+            color: var(--text-color); cursor: pointer; border-radius: 4px;
+            font-size: 16px; transition: all 0.2s;
+        }
+        button:hover:not(:disabled) { background-color: var(--highlight-color); color: var(--bg-color); border-color: var(--highlight-color); }
+        button:disabled { cursor: not-allowed; opacity: 0.5; }
+        
+        #btn-end-turn, #btn-confirm-end-turn { background-color: var(--danger-color); border-color: #ff6b6b; }
+        #btn-end-turn:hover:not(:disabled), #btn-confirm-end-turn:hover:not(:disabled) { background-color: #ff6b6b; border-color: white; color: white; }
+        
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.9); display: flex; justify-content: center;
+            align-items: center; z-index: 1000; text-align: center; padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: var(--panel-bg); padding: 30px; border-radius: 8px;
+            border: 2px solid var(--border-color); max-width: 500px;
+        }
+        .modal-content h2 { margin-bottom: 15px; color: var(--highlight-color); }
+        .modal-content p { margin-bottom: 25px; }
+        .modal-content button { margin: 5px; }
+        .modal-stats { text-align: left; max-width: 300px; margin: 20px auto; display: grid; grid-template-columns: auto 1fr; gap: 8px;}
+        #game-over-screen .modal-content h2, #judgement-modal .modal-content h2.failure { color: var(--danger-color); }
+        .hidden { display: none; }
+        .shake { animation: shake 0.5s infinite; }
+
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0) rotate(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translate(-2px, -2px) rotate(-1deg); }
+            20%, 40%, 60%, 80% { transform: translate(2px, 2px) rotate(1deg); }
+        }
+        @keyframes winPulse { 0% {transform: scale(1.05);} 50% {transform: scale(1.1);} 100% {transform: scale(1.05);} }
+        @keyframes winPulseBig { 0% {transform: scale(1.08);} 50% {transform: scale(1.15);} 100% {transform: scale(1.08);} }
+        @keyframes winPulseHuge { 0% {transform: scale(1.12);} 50% {transform: scale(1.2);} 100% {transform: scale(1.12);} }
