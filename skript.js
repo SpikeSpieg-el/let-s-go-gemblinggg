@@ -837,7 +837,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function initGame() {
         state = {
-            run: 1, targetDebt: 50, turn: 1, coins: 20, bankBalance: 0, tickets: 5,
+            run: 1, targetDebt: 45, turn: 1, coins: 20, bankBalance: 0, tickets: 5,
             spinsLeft: 0, baseInterestRate: 0.40, inventory: [], shop: [], gameover: false, isSpinning: false,
             piggyBank: 0, tempLuck: 0,
             firstSpinUsed: false,
@@ -1005,7 +1005,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.run++;
                 state.turn = 1;
                 // Экспоненциальный рост долга
-                state.targetDebt = Math.floor(state.targetDebt * 2.2 + 1000);
+                state.targetDebt = Math.floor(state.targetDebt * 1.2 + 66);
                 // Увеличиваем цены на пакеты прокрутов
                 CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost + (state.run - 1) * 10;
                 CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost + (state.run - 1) * 10;
