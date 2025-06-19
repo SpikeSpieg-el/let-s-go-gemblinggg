@@ -158,8 +158,10 @@
             padding-bottom: 5px; color: var(--highlight-color);
         }
 
-        .stats-grid { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
-        .stats-grid span:nth-child(odd) { text-align: left; padding-right: 10px; font-weight: 700; }
+        .stats-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 15px; }
+        .stats-grid.compact-stats { gap: 6px 12px; }
+        .stats-grid span:nth-child(odd) { text-align: left; padding-right: 10px; font-weight: 700; color: #ccc; }
+        .stats-grid span:nth-child(even) { font-weight: bold; }
         
         /* --- ИЗМЕНЕННЫЕ СТИЛИ ДЛЯ МАГАЗИНА И ИНВЕНТАРЯ --- */
         .shop-items, .inventory-items {
@@ -858,6 +860,38 @@
             to   { transform: scale(1); opacity: 1; }
         }
 
+        /* Стили для новой секции досрочной выплаты */
+        .early-payoff-section {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        #btn-pay-debt-early {
+            width: 100%;
+            padding: 10px;
+            font-size: 15px;
+            background-color: var(--highlight-color);
+            color: var(--bg-color);
+            border-color: var(--highlight-color);
+            font-weight: bold;
+        }
+
+        #btn-pay-debt-early:disabled {
+            background-color: var(--cell-bg);
+            color: var(--text-color);
+            border-color: var(--border-color);
+            opacity: 0.5;
+        }
+
+        .early-payoff-info {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #aaa;
+            line-height: 1.4;
+        }
+
 @media (max-width: 900px) {
     .game-container {
         flex-direction: column;
@@ -909,7 +943,7 @@
         padding: 6px;
     }
     .stats-grid {
-        font-size: 13px;
+        font-size: 14px;
         gap: 6px;
     }
     .modal-content {
@@ -1010,8 +1044,8 @@
         border-radius: 4px;
     }
     .stats-grid {
-        font-size: 11px;
-        gap: 3px;
+        font-size: 12px;
+        gap: 4px;
     }
     .shop-items, .inventory-items {
         flex-wrap: nowrap;

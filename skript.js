@@ -49,6 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btnEorDeposit: document.getElementById('btn-eor-deposit'),
         btnConfirmEndTurn: document.getElementById('btn-confirm-end-turn'),
         purchaseModalDebt: document.getElementById('purchase-modal-debt'),
+        btnPayDebtEarly: document.getElementById('btn-pay-debt-early'),
+        earlyPayoffBonusInfo: document.getElementById('early-payoff-bonus-info'),
+        earlyPayoffSection: document.getElementById('early-payoff-section'),
+        statDebtStart: document.getElementById('stat-debt-start'),
     };
 
     const CONFIG = {
@@ -960,11 +964,25 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function initGame() {
         state = {
-            run: 1, targetDebt: 45, turn: 1, coins: 20, bankBalance: 0, tickets: 5,
-            spinsLeft: 0, baseInterestRate: 0.40, inventory: [], shop: [], gameover: false, isSpinning: false,
-            piggyBank: 0, tempLuck: 0,
+            run: 1, // <-- теперь всегда сбрасывается на 1
+            targetDebt: 66,
+            turn: 1,
+            coins: 100,
+            bankBalance: 0,
+            tickets: 5,
+            spinsLeft: 0,
+            baseInterestRate: 0.30,
+            inventory: [],
+            shop: [],
+            gameover: false,
+            isSpinning: false,
+            piggyBank: 0,
+            tempLuck: 0,
             firstSpinUsed: false,
         };
+        // Сброс цен на прокруты к базовым значениям
+        CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost;
+        CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost;
         updateInterestRate();
         state.grid = generateGrid();
         
@@ -1090,59 +1108,82 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // НОВАЯ ФУНКЦИЯ ДЛЯ ПЕРЕХОДА НА СЛЕДУЮЩИЙ ЦИКЛ
+    function advanceToNextCycle(bonusCoins = 0, bonusTickets = 0) {
+        const totalMoney = state.coins + state.bankBalance;
+        const standardTickets = 5 + state.run;
+        
+        // Показываем модальное окно с результатами
+        ui.judgementTitle.textContent = "ДОЛГ ВЫПЛАЧЕН";
+        ui.judgementTitle.classList.remove('failure');
+        
+        let bonusText = '';
+        if (bonusCoins > 0 || bonusTickets > 0) {
+            bonusText = `Бонус за быстроту: <span style=\"color:var(--money-color)\">+${bonusCoins}💰</span> и <span style=\"color:var(--ticket-color)\">+${bonusTickets}🎟️</span>.<br>`;
+        }
+        
+        ui.judgementText.innerHTML = `Вы выжили. Весь баланс <span style=\"color:var(--money-color)\">${totalMoney}💰</span> переведен в банк.<br>
+            Стандартная награда: <span style=\"color:var(--ticket-color)\">${standardTickets}🎟️</span>.<br>
+            ${bonusText}`;
+        
+        ui.judgementContinue.onclick = function() {
+            ui.judgementModal.classList.add('hidden');
+            
+            state.run++;
+            state.turn = 1;
+            
+            // Фиксированные значения для первых циклов, далее экспоненциально
+            if (state.run === 2) state.targetDebt = 111;
+            else if (state.run === 3) state.targetDebt = 666;
+            else if (state.run === 4) state.targetDebt = 3333;
+            else if (state.run === 5) state.targetDebt = 8888;
+            else {
+                state.targetDebt = Math.min(Math.floor(state.targetDebt * 2.5 + 10000), 88888888);
+            }
+            
+            // Обновляем цены на прокруты
+            CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost + (state.run - 1) * 10;
+            CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost + (state.run - 1) * 10;
+            
+            state.bankBalance = totalMoney;
+            state.coins = bonusCoins;
+            state.tickets += standardTickets + bonusTickets;
+            state.spinsLeft = 0;
+            
+            updateInterestRate();
+            addLog(`Новый Цикл Долга #${state.run} начался. Цель: ${state.targetDebt}💰.`);
+            if (bonusCoins > 0 || bonusTickets > 0) addLog(`Бонус за быстроту: +${bonusCoins}💰 и +${bonusTickets}🎟️`, 'win');
+            populateShop();
+            startTurn();
+        };
+        
+        ui.judgementModal.classList.remove('hidden');
+    }
+
+    // ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ СУДНОГО ДНЯ
     function judgementDay() {
         const totalMoney = state.coins + state.bankBalance;
         addLog(`СУДНЫЙ ДЕНЬ. Ваша сумма: ${totalMoney}💰. Требуется: ${state.targetDebt}💰.`);
-        // --- ФИНАЛЬНАЯ ЦЕЛЬ ---
-        const FINAL_DEBT = 88888888;
-        if (state.targetDebt >= FINAL_DEBT) {
-            if (totalMoney >= FINAL_DEBT) {
+        
+        if (state.targetDebt >= 88888888) {
+             if (totalMoney >= 88888888) {
                 ui.judgementTitle.textContent = "ПОБЕДА!";
                 ui.judgementTitle.classList.remove('failure');
                 ui.judgementText.innerHTML = `Вы выплатили весь долг! Поздравляем, вы победили!<br>Ваш путь завершён.`;
-                ui.judgementContinue.onclick = () => {
-                    ui.judgementModal.classList.add('hidden');
-                    gameOver();
-                };
-                ui.judgementModal.classList.remove('hidden');
-                return;
-            } else {
+                ui.judgementContinue.onclick = () => { ui.judgementModal.classList.add('hidden'); gameOver(); };
+             } else {
                 ui.judgementTitle.textContent = "ПРОВАЛ";
                 ui.judgementTitle.classList.add('failure');
                 ui.judgementText.textContent = `Вы не смогли выплатить финальный долг. Яма ждет.`;
-                ui.judgementContinue.onclick = () => {
-                    ui.judgementModal.classList.add('hidden');
-                    gameOver();
-                };
-                ui.judgementModal.classList.remove('hidden');
-                return;
-            }
+                ui.judgementContinue.onclick = () => { ui.judgementModal.classList.add('hidden'); gameOver(); };
+             }
+             ui.judgementModal.classList.remove('hidden');
+             return;
         }
+
         if (totalMoney >= state.targetDebt) {
-            const remainder = totalMoney - state.targetDebt;
-            const rewardTickets = 5 + state.run;
-            ui.judgementTitle.textContent = "ДОЛГ ВЫПЛАЧЕН";
-            ui.judgementTitle.classList.remove('failure');
-            ui.judgementText.innerHTML = `Вы выжили. Остаток <span style="color:var(--money-color)">${remainder}💰</span> переведен в банк.<br>Награда: <span style=\"color:var(--ticket-color)\">${rewardTickets}🎟️</span>.`;
-            ui.judgementContinue.onclick = function() {
-                ui.judgementModal.classList.add('hidden');
-                state.run++;
-                state.turn = 1;
-                // Экспоненциальный рост долга
-                state.targetDebt = Math.floor(state.targetDebt * 1.2 + 66);
-                // Увеличиваем цены на пакеты прокрутов
-                CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost + (state.run - 1) * 10;
-                CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost + (state.run - 1) * 10;
-                addLog(`Цены на прокруты выросли! Пакет 7 прокрутов: ${CONFIG.SPIN_PACKAGE_1.cost}💰, пакет 3 прокрутов: ${CONFIG.SPIN_PACKAGE_2.cost}💰`);
-                state.coins = 0;
-                state.bankBalance = state.bankBalance;
-                state.tickets += rewardTickets;
-                state.spinsLeft = 0;
-                updateInterestRate();
-                addLog(`Новый Цикл Долга #${state.run} начался. Цель: ${state.targetDebt}💰.`);
-                populateShop();
-                startTurn();
-            };
+            // На 3-й день бонусов нет, вызываем advanceToNextCycle без доп. параметров
+            advanceToNextCycle(); 
         } else {
             ui.judgementTitle.textContent = "ПРОВАЛ";
             ui.judgementTitle.classList.add('failure');
@@ -1151,7 +1192,87 @@ document.addEventListener('DOMContentLoaded', () => {
                 ui.judgementModal.classList.add('hidden');
                 gameOver();
             };
+            ui.judgementModal.classList.remove('hidden');
         }
+    }
+
+    // НОВАЯ ФУНКЦИЯ ДЛЯ ДОСРОЧНОЙ ВЫПЛАТЫ
+    function payDebtEarly() {
+        if (state.turn >= 3) return; // Бонуса нет на 3-м раунде
+        const totalMoney = state.coins + state.bankBalance;
+        if (totalMoney < state.targetDebt) return; // Проверяем общую сумму
+
+        let bonusCoins = 0;
+        let bonusTickets = 0;
+
+        if (state.turn === 1) {
+            bonusCoins = Math.floor(state.targetDebt * 0.25);
+            bonusTickets = 5 + state.run;
+            addLog('Досрочное погашение в 1-й раунд!', 'win');
+        } else if (state.turn === 2) {
+            bonusCoins = Math.floor(state.targetDebt * 0.10);
+            bonusTickets = 2 + state.run;
+            addLog('Досрочное погашение во 2-й раунд!', 'win');
+        }
+
+        // Сначала используем наличные
+        if (state.coins >= state.targetDebt) {
+            state.coins -= state.targetDebt;
+        } else {
+            // Если наличных не хватает, берем из банка
+            const fromBank = state.targetDebt - state.coins;
+            state.bankBalance -= fromBank;
+            state.coins = 0;
+        }
+        
+        // В банк вносим ровно сумму долга
+        state.bankBalance = state.targetDebt;
+
+        // Показываем модальное окно с результатами
+        ui.judgementTitle.textContent = "ДОЛГ ВЫПЛАЧЕН";
+        ui.judgementTitle.classList.remove('failure');
+        
+        let bonusText = '';
+        if (bonusCoins > 0 || bonusTickets > 0) {
+            bonusText = `Бонус за быстроту: <span style=\"color:var(--money-color)\">+${bonusCoins}💰</span> и <span style=\"color:var(--ticket-color)\">+${bonusTickets}🎟️</span>.<br>`;
+        }
+        
+        ui.judgementText.innerHTML = `Вы выжили. Долг погашен.<br>
+            Стандартная награда: <span style=\"color:var(--ticket-color)\">${5 + state.run}🎟️</span>.<br>
+            ${bonusText}`;
+        
+        ui.judgementContinue.onclick = function() {
+            ui.judgementModal.classList.add('hidden');
+            
+            state.run++;
+            state.turn = 1;
+            
+            // Фиксированные значения для первых циклов, далее экспоненциально
+            if (state.run === 2) state.targetDebt = 111;
+            else if (state.run === 3) state.targetDebt = 666;
+            else if (state.run === 4) state.targetDebt = 3333;
+            else if (state.run === 5) state.targetDebt = 8888;
+            else {
+                state.targetDebt = Math.min(Math.floor(state.targetDebt * 2.5 + 10000), 88888888);
+            }
+            
+            // Обновляем цены на прокруты
+            CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost + (state.run - 1) * 10;
+            CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost + (state.run - 1) * 10;
+            
+            // Банк остается как есть (равен сумме предыдущего долга)
+            // В наличные добавляем бонусные монеты
+            state.coins += bonusCoins;
+            state.tickets += (5 + state.run) + bonusTickets;
+            state.spinsLeft = 0;
+            
+            updateInterestRate();
+            addLog(`Новый Цикл Долга #${state.run} начался. Цель: ${state.targetDebt}💰.`);
+            if (bonusCoins > 0 || bonusTickets > 0) addLog(`Бонус за быстроту: +${bonusCoins}💰 и +${bonusTickets}🎟️`, 'win');
+            populateShop();
+            startTurn();
+        };
+        
         ui.judgementModal.classList.remove('hidden');
     }
     
@@ -1230,6 +1351,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.statRun.textContent = state.run;
         ui.statTurn.textContent = `${state.turn} / 3`;
         ui.statDebt.textContent = `${state.targetDebt}💰`;
+        if (ui.statDebtStart) ui.statDebtStart.textContent = `${state.targetDebt}💰`;
         ui.statCoins.textContent = `${state.coins}💰`;
         ui.bankBalance.textContent = `${state.bankBalance}💰`;
         ui.statTickets.textContent = `${state.tickets}🎟️`;
@@ -1239,13 +1361,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (debtLuck > 0) luckText += ` (+${debtLuck} от долга)`;
         if (state.tempLuck > 0) luckText += ` (+${state.tempLuck})`;
         ui.statLuck.textContent = luckText;
-        // Заменяем прямое обновление на условное
         if (!ui.spinsLeft.querySelector('.spins-counter')) {
             ui.spinsLeft.textContent = state.spinsLeft;
         }
         ui.atmInterestRate.textContent = (state.baseInterestRate * 100).toFixed(0);
         
-        // --- ДОБАВЛЯЕМ ОТОБРАЖЕНИЕ ПРОЦЕНТА И БОНУСА ---
         let bonus = state.inventory.reduce((acc, item) => acc + (item.effect?.interest_rate_bonus || 0), 0);
         let bonusText = '';
         if (bonus > 0) bonusText = ` <span style="color:var(--highlight-color); font-size:12px;">(+${(bonus*100).toFixed(0)}% от предметов)</span>`;
@@ -1253,7 +1373,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let bank = state.bankBalance;
         let profit = Math.floor(bank * percent);
         let profitText = `<div style='font-size:13px; margin-top:4px;'>След. процент: <b style='color:var(--money-color)'>+${profit}💰</b> (${(percent*100).toFixed(0)}%${bonusText})</div>`;
-        // Найти блок под ставкой и добавить/обновить его
         let infoBlock = document.getElementById('interest-info-block');
         if (!infoBlock) {
             infoBlock = document.createElement('div');
@@ -1262,6 +1381,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         infoBlock.innerHTML = profitText;
         
+        // ОБНОВЛЕНИЕ СЕКЦИИ ДОСРОЧНОГО ПОГАШЕНИЯ
+        if (state.turn >= 3) {
+            ui.earlyPayoffSection.style.display = 'none';
+        } else {
+            ui.earlyPayoffSection.style.display = 'block';
+            const totalMoney = state.coins + state.bankBalance;
+            const canAfford = totalMoney >= state.targetDebt; // Проверяем общую сумму
+            ui.btnPayDebtEarly.disabled = !canAfford;
+
+            let bonusInfo = '';
+            if (state.turn === 1) {
+                const bCoins = Math.floor(state.targetDebt * 0.25);
+                const bTickets = 5 + state.run;
+                bonusInfo = `Награда за раунд 1: <b style="color:var(--money-color)">+${bCoins}💰</b> и <b style="color:var(--ticket-color)">+${bTickets}🎟️</b>`;
+            } else if (state.turn === 2) {
+                const bCoins = Math.floor(state.targetDebt * 0.10);
+                const bTickets = 2 + state.run;
+                bonusInfo = `Награда за раунд 2: <b style="color:var(--money-color)">+${bCoins}💰</b> и <b style="color:var(--ticket-color)">+${bTickets}🎟️</b>`;
+            }
+            ui.earlyPayoffBonusInfo.innerHTML = bonusInfo;
+        }
+
         ui.btnEndTurn.disabled = state.isSpinning || state.spinsLeft > 0;
         ui.btnRerollShop.textContent = `Reroll (${CONFIG.REROLL_COST}🎟️)`;
         renderInventory(); 
@@ -1426,7 +1567,12 @@ document.addEventListener('DOMContentLoaded', () => {
             itemDiv.className = `item rarity-${item.rarity}`;
             itemDiv.style.cursor = 'pointer';
             itemDiv.onclick = () => showAmuletPopup(item);
-            itemDiv.innerHTML = `<span class=\"item-name\">${item.name}</span><p class=\"item-desc\">${item.desc}</p>`;
+            let usesInfo = '';
+            if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
+                const maxUses = item.effect.luck_chance.max_uses || item.uses || 10;
+                usesInfo = `<span style='color:#ffab40; font-size:12px; margin-left:8px;'>(Использований: ${item.uses !== undefined ? item.uses : maxUses}/${maxUses})</span>`;
+            }
+            itemDiv.innerHTML = `<span class=\"item-name\">${item.name}</span>${usesInfo}<p class=\"item-desc\">${item.desc}</p>`;
             if(item.id === 'mimic_chest') {
                 let mimicInfo = '';
                 if(item.effect && item.effect.mimic && item.effect.mimic.target) {
@@ -1498,7 +1644,12 @@ document.addEventListener('DOMContentLoaded', () => {
             itemDiv.className = `item rarity-${item.rarity}`;
             itemDiv.style.cursor = 'pointer';
             itemDiv.onclick = () => showAmuletPopup(item);
-            itemDiv.innerHTML = `<span class=\"item-name\">${item.name}</span><p class=\"item-desc\">${item.desc}</p>`;
+            let usesInfo = '';
+            if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
+                const maxUses = item.effect.luck_chance.max_uses || item.uses || 10;
+                usesInfo = `<span style='color:#ffab40; font-size:12px; margin-left:8px;'>(Использований: ${item.uses !== undefined ? item.uses : maxUses}/${maxUses})</span>`;
+            }
+            itemDiv.innerHTML = `<span class=\"item-name\">${item.name}</span>${usesInfo}<p class=\"item-desc\">${item.desc}</p>`;
             ui.planningInventoryItems.appendChild(itemDiv);
         });
     }
@@ -1529,8 +1680,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ СТАВКИ ---
     function updateInterestRate() {
-        // Базовая ставка 40% (0.40)
-        let base = 0.40;
+        // Базовая ставка 30% (0.30)
+        let base = 0.30;
         // Снижение за циклы (run)
         base -= (state.run - 1) * 0.03;
         // Снижение за дни (turn)
@@ -1574,6 +1725,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.btnPlanning.onclick = openPlanningMode;
     ui.btnPlanningReroll.onclick = rerollPlanningShop;
     ui.btnFinishPlanning.onclick = closePlanningMode;
+    ui.btnPayDebtEarly.onclick = payDebtEarly; // Добавляем новый обработчик
 
     ui.startScreen.classList.remove('hidden');
 
