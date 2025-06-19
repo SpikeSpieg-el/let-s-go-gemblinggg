@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return { ...symbol, weight: symbol.weight };
         });
 
-        addLog(`В этот спин удача увеличивает вес символа: ${GRAPHICS[luckySymbolId]}`, 'win');
+        // addLog(`В этот спин удача увеличивает вес символа: ${GRAPHICS[luckySymbolId]}`, 'win');
         // Собираем уникальные веса по id
         const uniqueWeights = {};
         adjustedSymbols.forEach(s => { uniqueWeights[s.id] = s.weight; });
@@ -578,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (finalMultiplier > 1 && totalWinnings > 0) {
             const bonus = Math.floor(totalWinnings * (finalMultiplier - 1));
             totalWinnings += bonus;
-            addLog(`Амулет Фортуны: +${Math.round((finalMultiplier-1)*100)}% бонус! (+${bonus}💰)`, 'win');
+            addLog(`Амулет Фортуны: +25% бонус! (+${bonus}💰)`, 'win');
         }
 
         // --- LAST CHANCE ---

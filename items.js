@@ -33,11 +33,12 @@ const ALL_ITEMS = [
         return 0;
       }
     },
-    
+    { id: 'silver_bell', name: 'Серебряный Колокольчик', desc: 'Символы Колокольчика 🔔 приносят в 1.5 раза больше 💰.', cost: 4, rarity: 'common', effect: { symbol_value_multiplier: { symbol: 'bell', multiplier: 1.5 } } },
+    { id: 'vertical_boost', name: 'Вертикальный Бустер', desc: 'Вертикальные линии получают +2 к множителю.', cost: 4, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Вертикальная"], bonus: 2 } } },
+    { id: 'lucky_five', name: 'Пятёрка Удачи', desc: '5-символьные линии дополнительно дают +2💰.', cost: 3, rarity: 'common', effect: { on_line_win_bonus: { length: 5, coins: 2 } } },
 
     // --- РЕДКИЕ (Rare) ---
     { id: 'golden_ticket', name: 'Золотой билет', desc: '+2 к удаче.', cost: 5, rarity: 'rare', effect: { luck: 2 } },
-    
     { id: 'architect_blueprint', name: 'Чертеж архитектора', desc: 'Горизонтальные и вертикальные линии получают +1 к множителю.', cost: 8, rarity: 'rare', effect: { line_type_multiplier_bonus: { types: ["Горизонтальная", "Вертикальная"], bonus: 1 } } },
     { id: 'cherry_bomb', name: 'Вишневая бомба', desc: 'Линии из Вишен 🍒 дополнительно дают +10💰.', cost: 7, rarity: 'rare', effect: { symbol_win_bonus: { symbol: 'cherry', bonus: 10 } } },
     { id: 'combo_counter', name: 'Множитель Комбо', desc: 'Бонус от КОМБО-выигрышей увеличивается на 50%.', cost: 8, rarity: 'rare', effect: { combo_bonus_multiplier: 1.5 } },
@@ -48,7 +49,10 @@ const ALL_ITEMS = [
     { id: 'shiny_bell', name: 'Блестящий Колокольчик', desc: 'Символы Колокольчика 🔔 приносят в 2 раза больше 💰.', cost: 6, rarity: 'rare', effect: { symbol_value_multiplier: { symbol: 'bell', multiplier: 2 } } },
     { id: 'telescope', name: 'Телескоп', desc: 'Увеличивает множитель линий "Небо/Земля" на +4.', cost: 7, rarity: 'rare', effect: { line_type_multiplier_bonus: { types: ["Небо/Земля"], bonus: 4 } } },
     { id: 'hourglass', name: 'Песочные Часы', desc: 'Дает +1 прокрут за каждые 10 прокрутов, которые вы делаете.', cost: 9, rarity: 'rare', effect: { on_spin_count_bonus: { count: 10, spins: 1 } } },
-    
+    { id: 'lucky_cherry', name: 'Везучая Вишня', desc: 'Символы Вишни 🍒 приносят в 2 раза больше 💰.', cost: 6, rarity: 'rare', effect: { symbol_value_multiplier: { symbol: 'cherry', multiplier: 2 } } },
+    { id: 'zigzag_map', name: 'Карта Зигзага', desc: 'Зиг-Заг линии получают +3 к множителю.', cost: 5, rarity: 'rare', effect: { line_type_multiplier_bonus: { types: ["Зиг-Заг"], bonus: 3 } } },
+    { id: 'ticket_machine', name: 'Машина Талонов', desc: '4-символьные линии дополнительно дают +1🎟️.', cost: 6, rarity: 'rare', effect: { on_line_win_bonus: { length: 4, tickets: 1 } } },
+
     // --- ЛЕГЕНДАРНЫЕ (Legendary) ---
     { id: 'lemon_zest', name: 'Цедра лимона', desc: 'Лимоны 🍋 считаются как Клеверы 🍀 для комбинаций.', cost: 9, rarity: 'legendary', effect: { substitute: { from: 'lemon', to: 'clover' } } },
     { id: 'money_magnet', name: 'Денежный магнит', desc: 'Символы 💰 дают +3💰 за каждый на поле.', cost: 6, rarity: 'legendary', on_spin_bonus: (grid) => grid.filter(s => s.id === 'coins').length * 3 },
@@ -67,5 +71,7 @@ const ALL_ITEMS = [
         return uniqueSymbols.size === 7 ? 100 : 0;
     }},
     { id: 'quantum_entanglement', name: 'Квантовая Запутанность', desc: 'Символы в верхней левой и нижней правой ячейках всегда одинаковы.', cost: 11, rarity: 'legendary', effect: { sync_cells: { cells: [0, 14] } } },
-    { id: 'bank_insurance', name: 'Банковская Страховка', desc: 'Процентная ставка в банке никогда не опускается ниже 20%.', cost: 10, rarity: 'legendary', effect: { min_interest_rate_floor: 0.20 } }
+    { id: 'bank_insurance', name: 'Банковская Страховка', desc: 'Процентная ставка в банке никогда не опускается ниже 20%.', cost: 10, rarity: 'legendary', effect: { min_interest_rate_floor: 0.20 } },
+    { id: 'golden_lemon', name: 'Золотой Лимон', desc: 'Символы Лимона 🍋 приносят в 3 раза больше 💰.', cost: 10, rarity: 'legendary', effect: { symbol_value_multiplier: { symbol: 'lemon', multiplier: 3 } } },
+    { id: 'lucky_seven_bonus', name: 'Бонус Семёрки', desc: '7-символьные линии дополнительно дают +7💰.', cost: 12, rarity: 'legendary', effect: { on_line_win_bonus: { length: 7, coins: 7 } } },
 ];

@@ -156,12 +156,34 @@
 
         .stats-grid { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
         .stats-grid span:nth-child(odd) { text-align: left; padding-right: 10px; font-weight: 700; }
-        .shop-items, .inventory-items { display: flex; flex-direction: column; gap: 10px; max-height: 150px; overflow-y: auto; padding-right: 5px; }
+        
+        /* --- ИЗМЕНЕННЫЕ СТИЛИ ДЛЯ МАГАЗИНА И ИНВЕНТАРЯ --- */
+        .shop-items, .inventory-items {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Магазин: вертикальный список, без прокрутки */
+        .shop-items {
+            flex-direction: column;
+        }
+
+        /* Инвентарь: горизонтальная полка, с переносом строк */
+        .inventory-items {
+            flex-wrap: wrap;
+            
+            overflow-y: auto;
+        }
+        /* ----------------------------------------------- */
 
         .item {
             padding: 10px; border: 1px solid var(--border-color); background-color: var(--cell-bg);
             border-radius: 4px; cursor: pointer; transition: background-color 0.2s, border-color 0.2s;
             position: relative;
+        }
+        .inventory-items .item {
+            flex-grow: 1; /* Позволяет предметам растягиваться */
+            flex-basis: 150px; /* Базовая ширина для каждого предмета */
         }
         .item:hover:not(:disabled) { background-color: #3c3c3c; border-color: var(--highlight-color); }
         .item.rarity-common { border-left: 5px solid var(--rarity-common); }
