@@ -354,10 +354,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         // on_line_win_bonus
         const lineWinBonuses = {};
+        const lineWinTickets = {};
         state.inventory.forEach(item => {
             if (item.effect?.on_line_win_bonus) {
                 const eff = item.effect.on_line_win_bonus;
-                lineWinBonuses[eff.length] = (lineWinBonuses[eff.length] || 0) + eff.bonus;
+                if (eff.bonus) lineWinBonuses[eff.length] = (lineWinBonuses[eff.length] || 0) + eff.bonus;
+                if (eff.tickets) lineWinTickets[eff.length] = (lineWinTickets[eff.length] || 0) + eff.tickets;
             }
         });
 
@@ -408,6 +410,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (lineWinBonuses[comboLength]) {
                             win += lineWinBonuses[comboLength];
                         }
+                        if (lineWinTickets[comboLength]) {
+                            state.tickets += lineWinTickets[comboLength];
+                            addLog(`Принтер Талонов: +${lineWinTickets[comboLength]}🎟️`, 'win');
+                        }
 
                         const symbolWinBonus = state.inventory.filter(item => item.effect?.symbol_win_bonus).reduce((acc, item) => (item.effect.symbol_win_bonus.symbol === currentSymbol.id) ? acc + item.effect.symbol_win_bonus.bonus : acc, 0);
                         win += symbolWinBonus;
@@ -453,6 +459,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     // --- ПРИМЕНЯЕМ on_line_win_bonus ---
                     if (lineWinBonuses[line.positions.length]) {
                         win += lineWinBonuses[line.positions.length];
+                    }
+                    if (lineWinTickets[line.positions.length]) {
+                        state.tickets += lineWinTickets[line.positions.length];
+                        addLog(`Принтер Талонов: +${lineWinTickets[line.positions.length]}🎟️`, 'win');
                     }
 
                     const symbolWinBonus = state.inventory.filter(item => item.effect?.symbol_win_bonus).reduce((acc, item) => (item.effect.symbol_win_bonus.symbol === firstSymbol.id) ? acc + item.effect.symbol_win_bonus.bonus : acc, 0);
@@ -518,6 +528,9 @@ document.addEventListener('DOMContentLoaded', () => {
              }
         });
 
+        // Сохраняем выигрышные линии для on_spin_bonus предметов
+        state.lastWinningLines = winningLinesInfo;
+
         if (winningLinesInfo.length > 1) {
             let comboMultiplier = 1;
             if (hasItem('combo_counter')) {
@@ -556,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(item.id === 'rainbow_clover') {
                     console.log('[DEBUG] Радужный клевер: grid=', state.grid, 'totalWinnings=', totalWinnings);
                 }
-                const bonus = item.on_spin_bonus(state.grid, totalWinnings);
+                const bonus = item.on_spin_bonus(state.grid, totalWinnings, state);
                 if (bonus > 0) { totalWinnings += bonus; addLog(`${item.name}: +${bonus}💰`, 'win'); }
             }
         });
@@ -1396,4 +1409,34 @@ document.addEventListener('DOMContentLoaded', () => {
             updateUI();
         }
     };
+
+    window.showDoubloonPopup = function() {
+        const popup = document.createElement('div');
+        popup.className = 'doubloon-popup';
+        popup.innerHTML = `
+            <div class="doubloon-star">
+                <svg viewBox="0 0 100 100" width="50" height="50" class="doubloon-svg">
+                    <polygon points="50,8 61,38 94,38 67,58 77,90 50,70 23,90 33,58 6,38 39,38" fill="gold" stroke="#fffbe6" stroke-width="2"/>
+                </svg>
+                <span class="doubloon-text">Дублон +1</span>
+            </div>
+        `;
+        // Размещаем поп-ап в левом верхнем углу блока .controls
+        const controls = document.querySelector('.controls');
+        if (controls) {
+            const rect = controls.getBoundingClientRect();
+            popup.style.position = 'fixed';
+            popup.style.top = (rect.top - 10) + 'px';
+            popup.style.left = (rect.left - 10) + 'px';
+            popup.style.transform = 'scale(0)';
+        }
+        document.body.appendChild(popup);
+        setTimeout(() => {
+            popup.classList.add('show');
+            setTimeout(() => {
+                popup.classList.remove('show');
+                setTimeout(() => popup.remove(), 300);
+            }, 1800);
+        }, 100);
+    }
 });

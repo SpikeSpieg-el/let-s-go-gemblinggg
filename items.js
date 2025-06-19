@@ -1,16 +1,39 @@
 const ALL_ITEMS = [
     // --- ОБЫЧНЫЕ (Common) ---
-    { id: 'lucky_clover', name: 'Счастливый клевер', desc: '+1 к удаче.', cost: 3, rarity: 'common', effect: { luck: 1 } },
+    { id: 'lucky_clover', name: 'Счастливый клевер', desc: '+1 к удаче.', cost: 2, rarity: 'common', effect: { luck: 1 } },
     { id: 'scrap_metal', name: 'Копилка', desc: 'Каждый проигрышный спин добавляет 1💰 в Копилку. Разбивается в конце раунда.', cost: 4, rarity: 'common', effect: { on_loss_bonus: 1 } },
-    { id: 'timepiece', name: 'Карманные часы', desc: 'Дает +1 прокрут в начале каждого раунда.', cost: 6, rarity: 'common', effect: { on_round_start_spins: 1 } },
-    { id: 'resellers_ticket', name: 'Билет перекупщика', desc: 'Каждый раз, когда вы обновляете магазин, вы получаете 1🎟️ обратно.', cost: 4, rarity: 'common', effect: { on_reroll_bonus: { tickets: 1 } } },
+    { id: 'timepiece', name: 'Карманные часы', desc: 'Дает +1 прокрут в начале каждого раунда.', cost: 3, rarity: 'common', effect: { on_round_start_spins: 1 } },
+    { id: 'resellers_ticket', name: 'Билет перекупщика', desc: 'Каждый раз, когда вы обновляете магазин, вы получаете 1🎟️ обратно.', cost: 5, rarity: 'common', effect: { on_reroll_bonus: { tickets: 1 } } },
     { id: 'growing_debt', name: 'Растущий Долг', desc: 'Дает +1 к Удаче за каждый пройденный Цикл Долга.\nБонус складывается: на 2-м цикле +2, на 3-м +3 и т.д.', cost: 5, rarity: 'common', effect: { per_run_bonus: { luck: 1 } } },
-    { id: 'lucky_penny', name: 'Счастливая монетка', desc: 'Первый прокрут в каждом раунде всегда бесплатный.', cost: 6, rarity: 'common', effect: { first_spin_free: true } },
+    { id: 'lucky_penny', name: 'Счастливая монетка', desc: 'Первый прокрут в каждом раунде всегда бесплатный.', cost: 3, rarity: 'common', effect: { first_spin_free: true } },
     { id: 'morning_coffee', name: 'Утренний Кофе', desc: 'Дает +3💰 в начале каждого раунда.', cost: 4, rarity: 'common', effect: { on_round_start_coins: 3 } },
     { id: 'coupon_book', name: 'Книжка с купонами', desc: 'Первая перекрутка магазина в каждом раунде бесплатна.', cost: 5, rarity: 'common', effect: { free_reroll_per_round: 1 } },
     { id: 'sticky_fingers', name: 'Липкие Пальцы', desc: '+1💰 за каждую выигрышную линию из 3 символов.', cost: 5, rarity: 'common', effect: { line_length_win_bonus: { length: 3, bonus: 1 } } },
     { id: 'broken_mirror', name: 'Треснувшее Зеркало', desc: 'Увеличивает множитель Диагональных линий на +1.', cost: 4, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Диагональная"], bonus: 1 } } },
-    { id: 'dusty_map', name: 'Пыльная Карта', desc: 'Увеличивает множитель Зиг-Заг линий на +2.', cost: 3, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Зиг-Заг"], bonus: 2 } } },
+    { id: 'dusty_map', name: 'Пыльная Карта', desc: 'Увеличивает множитель Зиг-Заг линий на +2.', cost: 2, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Зиг-Заг"], bonus: 2 } } },
+    { id: 'lack_cat', name: 'Счастивый котик', desc: 'Если есть линия из 5+ символов, увеличивает выигрыш на процентную ставку банка.', cost: 1, rarity: 'common',
+      on_spin_bonus: (grid, winAmount, state) => {
+        // Проверяем, есть ли выигрышная линия из 5 и более символов
+        if (!state || !state.lastWinningLines) return 0;
+        const hasFive = state.lastWinningLines.some(line => line.positions.length >= 5);
+        if (hasFive && winAmount > 0) {
+          // Бонус равен winAmount * процентная ставка банка
+          return Math.floor(winAmount * state.baseInterestRate);
+        }
+        return 0;
+      }
+    },
+    { id: 'doubloon', name: 'Дублон', desc: 'С шансом 10% при каждом прокруте даёт +1 прокрут.', cost: 2, rarity: 'common',
+      on_spin_bonus: (grid, winAmount, state) => {
+        if (Math.random() < 0.1) {
+          if (typeof showDoubloonPopup === 'function') showDoubloonPopup();
+          if (state) state.spinsLeft += 1;
+          return 0;
+        }
+        return 0;
+      }
+    },
+    
 
     // --- РЕДКИЕ (Rare) ---
     { id: 'golden_ticket', name: 'Золотой билет', desc: '+2 к удаче.', cost: 5, rarity: 'rare', effect: { luck: 2 } },
