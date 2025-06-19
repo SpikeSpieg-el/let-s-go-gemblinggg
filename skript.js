@@ -967,25 +967,49 @@ document.addEventListener('DOMContentLoaded', () => {
     function judgementDay() {
         const totalMoney = state.coins + state.bankBalance;
         addLog(`СУДНЫЙ ДЕНЬ. Ваша сумма: ${totalMoney}💰. Требуется: ${state.targetDebt}💰.`);
+        // --- ФИНАЛЬНАЯ ЦЕЛЬ ---
+        const FINAL_DEBT = 88888888;
+        if (state.targetDebt >= FINAL_DEBT) {
+            if (totalMoney >= FINAL_DEBT) {
+                ui.judgementTitle.textContent = "ПОБЕДА!";
+                ui.judgementTitle.classList.remove('failure');
+                ui.judgementText.innerHTML = `Вы выплатили весь долг! Поздравляем, вы победили!<br>Ваш путь завершён.`;
+                ui.judgementContinue.onclick = () => {
+                    ui.judgementModal.classList.add('hidden');
+                    gameOver();
+                };
+                ui.judgementModal.classList.remove('hidden');
+                return;
+            } else {
+                ui.judgementTitle.textContent = "ПРОВАЛ";
+                ui.judgementTitle.classList.add('failure');
+                ui.judgementText.textContent = `Вы не смогли выплатить финальный долг. Яма ждет.`;
+                ui.judgementContinue.onclick = () => {
+                    ui.judgementModal.classList.add('hidden');
+                    gameOver();
+                };
+                ui.judgementModal.classList.remove('hidden');
+                return;
+            }
+        }
         if (totalMoney >= state.targetDebt) {
             const remainder = totalMoney - state.targetDebt;
             const rewardTickets = 5 + state.run;
             ui.judgementTitle.textContent = "ДОЛГ ВЫПЛАЧЕН";
             ui.judgementTitle.classList.remove('failure');
-            ui.judgementText.innerHTML = `Вы выжили. Остаток <span style="color:var(--money-color)">${remainder}💰</span> переведен в банк.<br>Награда: <span style="color:var(--ticket-color)">${rewardTickets}🎟️</span>.`;
-            ui.judgementContinue.onclick = () => {
+            ui.judgementText.innerHTML = `Вы выжили. Остаток <span style="color:var(--money-color)">${remainder}💰</span> переведен в банк.<br>Награда: <span style=\"color:var(--ticket-color)\">${rewardTickets}🎟️</span>.`;
+            ui.judgementContinue.onclick = function() {
                 ui.judgementModal.classList.add('hidden');
                 state.run++;
                 state.turn = 1;
-                state.targetDebt = state.targetDebt + 120; // Добавляем 120 к текущему долгу
-                
+                // Экспоненциальный рост долга
+                state.targetDebt = Math.floor(state.targetDebt * 2.2 + 1000);
                 // Увеличиваем цены на пакеты прокрутов
                 CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost + (state.run - 1) * 10;
                 CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost + (state.run - 1) * 10;
                 addLog(`Цены на прокруты выросли! Пакет 7 прокрутов: ${CONFIG.SPIN_PACKAGE_1.cost}💰, пакет 3 прокрутов: ${CONFIG.SPIN_PACKAGE_2.cost}💰`);
-                
                 state.coins = 0;
-                state.bankBalance = state.bankBalance; // Оставляем текущий баланс банка
+                state.bankBalance = state.bankBalance;
                 state.tickets += rewardTickets;
                 state.spinsLeft = 0;
                 updateInterestRate();
@@ -997,7 +1021,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.judgementTitle.textContent = "ПРОВАЛ";
             ui.judgementTitle.classList.add('failure');
             ui.judgementText.textContent = `Вы не смогли собрать нужную сумму. Яма ждет.`;
-            ui.judgementContinue.onclick = () => {
+            ui.judgementContinue.onclick = function() {
                 ui.judgementModal.classList.add('hidden');
                 gameOver();
             };
@@ -1055,6 +1079,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function buyItem(itemId) {
+        if (state.inventory.length >= 9) {
+            addLog('В инвентаре максимум 9 амулетов!', 'loss');
+            return;
+        }
         const item = state.shop.find(i => i.id === itemId);
         if (!item || state.tickets < item.cost) return addLog('Недостаточно талонов.', 'loss');
         state.tickets -= item.cost;
@@ -1196,15 +1224,83 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- ПОПАП КАРТОЧКИ АМУЛЕТА ---
+    let amuletPopup = null;
+    function showAmuletPopup(item) {
+        if (amuletPopup) amuletPopup.remove();
+        amuletPopup = document.createElement('div');
+        amuletPopup.className = 'amulet-popup-overlay';
+        amuletPopup.innerHTML = `
+            <div class="amulet-popup-card">
+                <div class="amulet-popup-title">${item.name}</div>
+                <div class="amulet-popup-desc">${item.desc}</div>
+                <button class="amulet-popup-remove">Выкинуть</button>
+                <button class="amulet-popup-close">Закрыть</button>
+            </div>
+        `;
+        document.body.appendChild(amuletPopup);
+        // Кнопка закрыть
+        amuletPopup.querySelector('.amulet-popup-close').onclick = () => amuletPopup.remove();
+        // Клик вне карточки
+        amuletPopup.onclick = (e) => { if (e.target === amuletPopup) amuletPopup.remove(); };
+        // Кнопка выкинуть
+        amuletPopup.querySelector('.amulet-popup-remove').onclick = () => {
+            removeAmulet(item.id);
+            amuletPopup.remove();
+        };
+    }
+    function removeAmulet(itemId) {
+        // Находим амулет в инвентаре
+        const idx = state.inventory.findIndex(i => i.id === itemId);
+        if (idx !== -1) {
+            // Удаляем из инвентаря
+            const [removed] = state.inventory.splice(idx, 1);
+            // Возвращаем в пул магазина (ALL_ITEMS)
+            if (!ALL_ITEMS.some(i => i.id === removed.id)) {
+                ALL_ITEMS.push(removed);
+            }
+            // Возврат талонов за редкие и легендарные
+            let refund = 0;
+            if (removed.rarity === 'rare') refund = 2;
+            if (removed.rarity === 'legendary') refund = 3;
+            if (refund > 0) {
+                state.tickets += refund;
+                addLog(`Вы получили обратно ${refund} 🎟️ за выкинутый амулет (${removed.rarity === 'rare' ? 'редкий' : 'легендарный'}).`, 'win');
+            }
+            addLog(`Амулет "${removed.name}" выкинут и снова может появиться в магазине.`, 'loss');
+            updateMimicTarget();
+            updateUI();
+        }
+    }
+
     function renderInventory() {
         ui.inventoryItems.innerHTML = '';
+        let counter = document.getElementById('inventory-counter');
+        if (!counter) {
+            counter = document.createElement('div');
+            counter.id = 'inventory-counter';
+            counter.style.textAlign = 'right';
+            counter.style.fontSize = '13px';
+            counter.style.marginBottom = '4px';
+            ui.inventoryItems.parentElement.insertBefore(counter, ui.inventoryItems);
+        }
+        counter.textContent = `Амулеты: ${state.inventory.length} / 9`;
+        if (state.inventory.length >= 9) {
+            counter.style.color = 'var(--danger-color)';
+            counter.style.fontWeight = 'bold';
+            counter.style.textShadow = '0 0 6px var(--danger-color)';
+        } else {
+            counter.style.color = '';
+            counter.style.fontWeight = '';
+            counter.style.textShadow = '';
+        }
         if (state.inventory.length === 0) ui.inventoryItems.innerHTML = '<p style="text-align:center; color: #777;">Пусто</p>';
         state.inventory.forEach(item => {
             const itemDiv = document.createElement('div');
             itemDiv.className = `item rarity-${item.rarity}`;
-            itemDiv.style.cursor = 'default';
-            itemDiv.innerHTML = `<span class="item-name">${item.name}</span><p class="item-desc">${item.desc}</p>`;
-            // --- ПОДПИСЬ ДЛЯ СУНДУКА-МИМИКА ---
+            itemDiv.style.cursor = 'pointer';
+            itemDiv.onclick = () => showAmuletPopup(item);
+            itemDiv.innerHTML = `<span class=\"item-name\">${item.name}</span><p class=\"item-desc\">${item.desc}</p>`;
             if(item.id === 'mimic_chest') {
                 let mimicInfo = '';
                 if(item.effect && item.effect.mimic && item.effect.mimic.target) {
@@ -1251,12 +1347,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderPlanningInventory() {
         ui.planningInventoryItems.innerHTML = '';
+        let counter = document.getElementById('planning-inventory-counter');
+        if (!counter) {
+            counter = document.createElement('div');
+            counter.id = 'planning-inventory-counter';
+            counter.style.textAlign = 'right';
+            counter.style.fontSize = '13px';
+            counter.style.marginBottom = '4px';
+            ui.planningInventoryItems.parentElement.insertBefore(counter, ui.planningInventoryItems);
+        }
+        counter.textContent = `Амулеты: ${state.inventory.length} / 9`;
+        if (state.inventory.length >= 9) {
+            counter.style.color = 'var(--danger-color)';
+            counter.style.fontWeight = 'bold';
+            counter.style.textShadow = '0 0 6px var(--danger-color)';
+        } else {
+            counter.style.color = '';
+            counter.style.fontWeight = '';
+            counter.style.textShadow = '';
+        }
         if (state.inventory.length === 0) ui.planningInventoryItems.innerHTML = '<p style="text-align:center; color: #777;">Пусто</p>';
         state.inventory.forEach(item => {
             const itemDiv = document.createElement('div');
             itemDiv.className = `item rarity-${item.rarity}`;
-            itemDiv.style.cursor = 'default';
-            itemDiv.innerHTML = `<span class="item-name">${item.name}</span><p class="item-desc">${item.desc}</p>`;
+            itemDiv.style.cursor = 'pointer';
+            itemDiv.onclick = () => showAmuletPopup(item);
+            itemDiv.innerHTML = `<span class=\"item-name\">${item.name}</span><p class=\"item-desc\">${item.desc}</p>`;
             ui.planningInventoryItems.appendChild(itemDiv);
         });
     }

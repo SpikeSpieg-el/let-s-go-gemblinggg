@@ -783,3 +783,66 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .amulet-popup-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .amulet-popup-card {
+            background: var(--cell-bg, #232323);
+            border-radius: 10px;
+            box-shadow: 0 6px 32px #000b, 0 1.5px 6px #0008;
+            padding: 32px 28px 20px 28px;
+            min-width: 260px;
+            max-width: 340px;
+            color: var(--text-color, #fff);
+            position: relative;
+            text-align: center;
+            animation: popup-in 0.18s cubic-bezier(.7,-0.2,.7,1.2);
+        }
+        .amulet-popup-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .amulet-popup-desc {
+            font-size: 1em;
+            margin-bottom: 18px;
+            color: #bdbdbd;
+        }
+        .amulet-popup-remove {
+            background: var(--danger-color, #c82333);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 18px;
+            font-size: 1em;
+            margin-right: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .amulet-popup-remove:hover {
+            background: #a71d2a;
+        }
+        .amulet-popup-close {
+            background: #444;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 18px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .amulet-popup-close:hover {
+            background: #222;
+        }
+        @keyframes popup-in {
+            from { transform: scale(0.8); opacity: 0; }
+            to   { transform: scale(1); opacity: 1; }
+        }
