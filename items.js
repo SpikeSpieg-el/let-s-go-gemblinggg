@@ -1,23 +1,21 @@
 const ALL_ITEMS = [
     // --- ОБЫЧНЫЕ (Common) ---
-    { id: 'lucky_clover', name: 'Счастливый клевер', desc: '+1 к удаче.', cost: 2, rarity: 'common', effect: { luck: 1 } },
-    { id: 'scrap_metal', name: 'Копилка', desc: 'Каждый проигрышный спин добавляет 1💰 в Копилку. Разбивается в конце раунда.', cost: 4, rarity: 'common', effect: { on_loss_bonus: 1 } },
-    { id: 'timepiece', name: 'Карманные часы', desc: 'Дает +1 прокрут в начале каждого раунда.', cost: 3, rarity: 'common', effect: { on_round_start_spins: 1 } },
-    { id: 'resellers_ticket', name: 'Билет перекупщика', desc: 'Каждый раз, когда вы обновляете магазин, вы получаете 1🎟️ обратно.', cost: 5, rarity: 'common', effect: { on_reroll_bonus: { tickets: 1 } } },
-    { id: 'growing_debt', name: 'Растущий Долг', desc: 'Дает +1 к Удаче за каждый пройденный Цикл Долга.\nБонус складывается: на 2-м цикле +2, на 3-м +3 и т.д.', cost: 5, rarity: 'common', effect: { per_run_bonus: { luck: 1 } } },
-    { id: 'lucky_penny', name: 'Счастливая монетка', desc: 'Первый прокрут в каждом раунде всегда бесплатный.', cost: 3, rarity: 'common', effect: { first_spin_free: true } },
-    { id: 'morning_coffee', name: 'Утренний Кофе', desc: 'Дает +3💰 в начале каждого раунда.', cost: 4, rarity: 'common', effect: { on_round_start_coins: 3 } },
-    { id: 'coupon_book', name: 'Книжка с купонами', desc: 'Первая перекрутка магазина в каждом раунде бесплатна.', cost: 5, rarity: 'common', effect: { free_reroll_per_round: 1 } },
-    { id: 'sticky_fingers', name: 'Липкие Пальцы', desc: '+1💰 за каждую выигрышную линию из 3 символов.', cost: 5, rarity: 'common', effect: { line_length_win_bonus: { length: 3, bonus: 1 } } },
-    { id: 'broken_mirror', name: 'Треснувшее Зеркало', desc: 'Увеличивает множитель Диагональных линий на +1.', cost: 4, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Диагональная"], bonus: 1 } } },
-    { id: 'dusty_map', name: 'Пыльная Карта', desc: 'Увеличивает множитель Зиг-Заг линий на +2.', cost: 2, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Зиг-Заг"], bonus: 2 } } },
-    { id: 'lack_cat', name: 'Счастивый котик', desc: 'Если есть линия из 5+ символов, увеличивает выигрыш на процентную ставку банка.', cost: 1, rarity: 'common',
+    { id: 'lucky_clover', name: 'Счастливый клевер', desc: '+1 к удаче.', cost: 1, rarity: 'common', effect: { luck: 1 } },
+    { id: 'scrap_metal', name: 'Копилка', desc: 'Каждый проигрышный прокрут добавляет 1💰 в Копилку. В конце раунда Копилка разбивается.', cost: 3, rarity: 'common', effect: { on_loss_bonus: 1 } },
+    { id: 'timepiece', name: 'Карманные часы', desc: 'В начале каждого раунда даёт +1 прокрут.', cost: 2, rarity: 'common', effect: { on_round_start_spins: 1 } },
+    { id: 'resellers_ticket', name: 'Билет перекупщика', desc: 'За каждый обновлённый магазин возвращает 1🎟️.', cost: 5, rarity: 'common', effect: { on_reroll_bonus: { tickets: 1 } } },
+    { id: 'growing_debt', name: 'Растущий Долг', desc: '+1 к удаче за каждый пройденный Цикл Долга (на 2-м цикле +2, на 3-м +3 и т.д.).', cost: 5, rarity: 'common', effect: { per_run_bonus: { luck: 1 } } },
+    { id: 'lucky_penny', name: 'Счастливая монетка', desc: 'Первый прокрут в каждом раунде бесплатный.', cost: 1, rarity: 'common', effect: { first_spin_free: true } },
+    { id: 'morning_coffee', name: 'Утренний кофе', desc: 'В начале каждого раунда даёт +3💰.', cost: 4, rarity: 'common', effect: { on_round_start_coins: 3 } },
+    { id: 'coupon_book', name: 'Книжка с купонами', desc: 'Первая перекрутка магазина в каждом раунде бесплатна.', cost: 3, rarity: 'common', effect: { free_reroll_per_round: 1 } },
+    { id: 'sticky_fingers', name: 'Липкие пальцы', desc: '+1💰 за каждую выигрышную линию из 3 символов.', cost: 2, rarity: 'common', effect: { line_length_win_bonus: { length: 3, bonus: 1 } } },
+    { id: 'broken_mirror', name: 'Треснувшее зеркало', desc: 'Диагональные линии получают +1 к множителю.', cost: 2, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Диагональная"], bonus: 1 } } },
+    { id: 'dusty_map', name: 'Пыльная карта', desc: 'Зиг-Заг линии получают +2 к множителю.', cost: 3, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Зиг-Заг"], bonus: 2 } } },
+    { id: 'lack_cat', name: 'Счастливый котик', desc: 'Если есть линия из 5+ символов, увеличивает выигрыш на процентную ставку банка.', cost: 1, rarity: 'common',
       on_spin_bonus: (grid, winAmount, state) => {
-        // Проверяем, есть ли выигрышная линия из 5 и более символов
         if (!state || !state.lastWinningLines) return 0;
         const hasFive = state.lastWinningLines.some(line => line.positions.length >= 5);
         if (hasFive && winAmount > 0) {
-          // Бонус равен winAmount * процентная ставка банка
           return Math.floor(winAmount * state.baseInterestRate);
         }
         return 0;
@@ -33,9 +31,9 @@ const ALL_ITEMS = [
         return 0;
       }
     },
-    { id: 'silver_bell', name: 'Серебряный Колокольчик', desc: 'Символы Колокольчика 🔔 приносят в 1.5 раза больше 💰.', cost: 4, rarity: 'common', effect: { symbol_value_multiplier: { symbol: 'bell', multiplier: 1.5 } } },
-    { id: 'vertical_boost', name: 'Вертикальный Бустер', desc: 'Вертикальные линии получают +2 к множителю.', cost: 4, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Вертикальная"], bonus: 2 } } },
-    { id: 'lucky_five', name: 'Пятёрка Удачи', desc: '5-символьные линии дополнительно дают +2💰.', cost: 3, rarity: 'common', effect: { on_line_win_bonus: { length: 5, coins: 2 } } },
+    { id: 'silver_bell', name: 'Серебряный колокольчик', desc: 'Колокольчики 🔔 приносят в 1.5 раза больше 💰.', cost: 4, rarity: 'common', effect: { symbol_value_multiplier: { symbol: 'bell', multiplier: 1.5 } } },
+    { id: 'vertical_boost', name: 'Вертикальный бустер', desc: 'Вертикальные линии получают +2 к множителю.', cost: 4, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Вертикальная"], bonus: 2 } } },
+    { id: 'lucky_five', name: 'Пятёрка удачи', desc: 'Линии из 5 символов дополнительно дают +2💰.', cost: 3, rarity: 'common', effect: { on_line_win_bonus: { length: 5, coins: 2 } } },
 
     // --- РЕДКИЕ (Rare) ---
     { id: 'golden_ticket', name: 'Золотой билет', desc: '+2 к удаче.', cost: 5, rarity: 'rare', effect: { luck: 2 } },
@@ -52,7 +50,7 @@ const ALL_ITEMS = [
     { id: 'lucky_cherry', name: 'Везучая Вишня', desc: 'Символы Вишни 🍒 приносят в 2 раза больше 💰.', cost: 6, rarity: 'rare', effect: { symbol_value_multiplier: { symbol: 'cherry', multiplier: 2 } } },
     { id: 'zigzag_map', name: 'Карта Зигзага', desc: 'Зиг-Заг линии получают +3 к множителю.', cost: 5, rarity: 'rare', effect: { line_type_multiplier_bonus: { types: ["Зиг-Заг"], bonus: 3 } } },
     { id: 'ticket_machine', name: 'Машина Талонов', desc: '4-символьные линии дополнительно дают +1🎟️.', cost: 6, rarity: 'rare', effect: { on_line_win_bonus: { length: 4, tickets: 1 } } },
-
+    
     // --- ЛЕГЕНДАРНЫЕ (Legendary) ---
     { id: 'lemon_zest', name: 'Цедра лимона', desc: 'Лимоны 🍋 считаются как Клеверы 🍀 для комбинаций.', cost: 9, rarity: 'legendary', effect: { substitute: { from: 'lemon', to: 'clover' } } },
     { id: 'money_magnet', name: 'Денежный магнит', desc: 'Символы 💰 дают +3💰 за каждый на поле.', cost: 6, rarity: 'legendary', on_spin_bonus: (grid) => grid.filter(s => s.id === 'coins').length * 3 },
@@ -74,4 +72,12 @@ const ALL_ITEMS = [
     { id: 'bank_insurance', name: 'Банковская Страховка', desc: 'Процентная ставка в банке никогда не опускается ниже 20%.', cost: 10, rarity: 'legendary', effect: { min_interest_rate_floor: 0.20 } },
     { id: 'golden_lemon', name: 'Золотой Лимон', desc: 'Символы Лимона 🍋 приносят в 3 раза больше 💰.', cost: 10, rarity: 'legendary', effect: { symbol_value_multiplier: { symbol: 'lemon', multiplier: 3 } } },
     { id: 'lucky_seven_bonus', name: 'Бонус Семёрки', desc: '7-символьные линии дополнительно дают +7💰.', cost: 12, rarity: 'legendary', effect: { on_line_win_bonus: { length: 7, coins: 7 } } },
+    // --- НОВЫЕ ПРЕДМЕТЫ УДАЧИ ---
+    { id: 'lucky_charm_5', name: 'Клевер Судьбы', desc: '+5 к удаче с шансом 10% при каждом прокруте. После 10 срабатываний ломается', cost: 2, rarity: 'common', uses: 10, effect: { luck_chance: { luck: 5, chance: 0.10, breakable: true, max_uses: 10 } } },
+    { id: 'lucky_charm_3', name: 'Талисман Фортуны', desc: '+3 к удаче с шансом 20% при каждом прокруте. После 8 срабатываний ломается', cost: 1, rarity: 'common', uses: 8, effect: { luck_chance: { luck: 3, chance: 0.20, breakable: true, max_uses: 8 } } },
+    { id: 'lucky_charm_7', name: 'Звезда Везения', desc: '+7 к удаче с шансом 18% при каждом прокруте.', cost: 10, rarity: 'rare', effect: { luck_chance: { luck: 7, chance: 0.18, breakable: false } } },
+    { id: 'lucky_charm_99', name: 'Слеза Богини Удачи', desc: '+99 к удаче с шансом 1% при каждом прокруте.', cost: 20, rarity: 'legendary', effect: { luck_chance: { luck: 99, chance: 0.01, breakable: false } } },
+    // --- ПРЕДМЕТЫ ДЛЯ УВЕЛИЧЕНИЯ ШАНСА ---
+    { id: 'luck_boost_2x', name: 'Кубок Азарта', desc: 'Удваивает шанс срабатывания всех предметов удачи.', cost: 5, rarity: 'rare', effect: { luck_chance_multiplier: 2 } },
+    { id: 'luck_boost_3x', name: 'Зеркало Судьбы', desc: 'Утрояет шанс срабатывания всех предметов удачи.', cost: 7, rarity: 'legendary', effect: { luck_chance_multiplier: 3 } },
 ];

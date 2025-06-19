@@ -859,7 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function startTurn() {
         state.tempLuck = 0;
         state.firstSpinUsed = false;
-        updateInterestRate();
+        // СНАЧАЛА НАЧИСЛЯЕМ ПРОЦЕНТЫ, ПОТОМ ОБНОВЛЯЕМ СТАВКУ
         // --- ЭФФЕКТ: on_round_start_coins ---
         const roundStartCoins = getItemEffectValue('on_round_start_coins', 0);
         if (roundStartCoins > 0) {
@@ -884,6 +884,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 addLog(`Банковский кэшбек: +${interest}💰.`, 'win');
             }
         }
+        // ТОЛЬКО ТЕПЕРЬ обновляем ставку
+        updateInterestRate();
         
         ui.purchaseModalTitle.textContent = `Раунд ${state.turn}. Время закупаться.`;
         ui.purchaseModalCoins.textContent = `${state.coins}💰`;
@@ -1555,4 +1557,60 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1800);
         }, 100);
     }
+
+    // --- ДОБАВЛЯЮ ОТОБРАЖЕНИЕ ДОЛГА НА СТАРТЕ ---
+    function updateStartDebt() {
+        const el = document.getElementById('start-debt-value');
+        if (el) el.textContent = state.targetDebt;
+    }
+    // --- МИНИ-ТУТОРИАЛ ---
+    const tutorialPages = [
+        {
+            title: 'Цель игры',
+            text: 'Ваша задача — выплатить долг за 3 раунда. Каждый цикл долг увеличивается. Достигните 88,888,888💰, чтобы победить!'
+        },
+        {
+            title: 'Прокруты и банк',
+            text: 'Покупайте прокруты за монеты, выигрывайте и вносите деньги в банк. В конце каждого раунда банк приносит проценты.'
+        },
+        {
+            title: 'Амулеты и магазин',
+            text: 'Покупайте амулеты за талоны. Амулеты дают бонусы: больше выигрышей, проценты, уникальные эффекты.'
+        },
+        {
+            title: 'Планирование и удача',
+            text: 'Планируйте покупки, используйте удачу и бонусы, чтобы пройти все циклы и выплатить долг!'
+        }
+    ];
+    let tutorialIndex = 0;
+    function showTutorialPage(idx) {
+        const pages = document.getElementById('tutorial-pages');
+        if (!pages) return;
+        const page = tutorialPages[idx];
+        pages.innerHTML = `<h3>${page.title}</h3><p>${page.text}</p><div style='text-align:center;margin-top:10px;color:#aaa;'>Страница ${idx+1} / ${tutorialPages.length}</div>`;
+        document.getElementById('tutorial-prev').disabled = idx === 0;
+        document.getElementById('tutorial-next').disabled = idx === tutorialPages.length-1;
+    }
+    function openTutorial() {
+        document.getElementById('tutorial-modal').classList.remove('hidden');
+        showTutorialPage(tutorialIndex);
+    }
+    function closeTutorial() {
+        document.getElementById('tutorial-modal').classList.add('hidden');
+    }
+    // --- Навешиваем обработчики для туториала ---
+    const btnShowTutorial = document.getElementById('btn-show-tutorial');
+    if (btnShowTutorial) btnShowTutorial.onclick = openTutorial;
+    const tutorialPrev = document.getElementById('tutorial-prev');
+    const tutorialNext = document.getElementById('tutorial-next');
+    const tutorialClose = document.getElementById('tutorial-close');
+    if (tutorialPrev) tutorialPrev.onclick = () => { if (tutorialIndex > 0) { tutorialIndex--; showTutorialPage(tutorialIndex); } };
+    if (tutorialNext) tutorialNext.onclick = () => { if (tutorialIndex < tutorialPages.length-1) { tutorialIndex++; showTutorialPage(tutorialIndex); } };
+    if (tutorialClose) tutorialClose.onclick = closeTutorial;
+    // Обновлять сумму долга на старте
+    const origInitGame = initGame;
+    initGame = function() {
+        origInitGame.apply(this, arguments);
+        updateStartDebt();
+    };
 });
