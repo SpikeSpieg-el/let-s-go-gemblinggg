@@ -22,15 +22,7 @@ const ALL_ITEMS = [
       }
     },
     { id: 'doubloon', name: 'Дублон', desc: 'С шансом 10% при каждом прокруте даёт +1 прокрут.', cost: 2, rarity: 'common',
-      on_spin_bonus: (grid, winAmount, state) => {
-        if (Math.random() < 0.1) {
-          if (typeof showDoubloonPopup === 'function') showDoubloonPopup();
-          if (state) state.spinsLeft += 1;
-          return 0;
-        }
-        return 0;
-      }
-    },
+      effect: { luck_chance: { chance: 0.1 } } },
     { id: 'silver_bell', name: 'Серебряный колокольчик', desc: 'Колокольчики 🔔 приносят в 1.5 раза больше 💰.', cost: 4, rarity: 'common', effect: { symbol_value_multiplier: { symbol: 'bell', multiplier: 1.5 } } },
     { id: 'vertical_boost', name: 'Вертикальный бустер', desc: 'Вертикальные линии получают +2 к множителю.', cost: 4, rarity: 'common', effect: { line_type_multiplier_bonus: { types: ["Вертикальная"], bonus: 2 } } },
     { id: 'lucky_five', name: 'Пятёрка удачи', desc: 'Линии из 5 символов дополнительно дают +2💰.', cost: 3, rarity: 'common', effect: { on_line_win_bonus: { length: 5, coins: 2 } } },

@@ -68,7 +68,8 @@
             overflow: hidden;
             position: relative;
             aspect-ratio: 1 / 1;
-            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, opacity 0.5s;
+            opacity: 1;
         }
         .slot-cell .reel {
             /* transition убран отсюда и добавляется динамически в JS */
@@ -107,7 +108,10 @@
             z-index: 10;
             animation: winPulseHuge 0.5s ease-in-out;
         }
-
+        .slot-cell.fade-out {
+            opacity: 0 !important;
+            transition: opacity 0.5s;
+        }
 
         .lever-container {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -333,12 +337,17 @@
             pointer-events: none;
             z-index: 1000;
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s, opacity 0.5s;
         }
 
         .combo-text.show {
             opacity: 1;
             animation: comboTextPop 0.5s ease-out;
+        }
+
+        .combo-text.fade-out {
+            opacity: 0 !important;
+            transition: opacity 0.5s;
         }
 
         @keyframes comboTextPop {
@@ -451,13 +460,17 @@
             text-align: center;
             z-index: 1001;
             opacity: 0;
-            transition: all 0.3s ease;
+            transition: all 0.3s ease, opacity 0.5s, transform 0.3s;
         }
 
         .total-win-popup.show {
             transform: translate(-50%, -50%) scale(1);
             opacity: 1;
-            animation: totalWinPulse 1s infinite;
+        }
+
+        .total-win-popup.fade-out {
+            opacity: 0 !important;
+            transition: opacity 0.5s;
         }
 
         .total-win-popup .win-title {
@@ -471,12 +484,6 @@
             color: var(--money-color);
             font-weight: bold;
             text-shadow: 0 0 10px var(--money-color);
-        }
-
-        @keyframes totalWinPulse {
-            0% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.05); }
-            100% { transform: translate(-50%, -50%) scale(1); }
         }
 
         /* Эффект конфетти для большого выигрыша */
@@ -743,13 +750,17 @@
         .doubloon-popup {
             z-index: 2000;
             opacity: 0;
-            transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+            transition: all 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.5s;
             pointer-events: none;
             /* transform и позиционирование теперь задаются в JS */
         }
         .doubloon-popup.show {
             transform: translateY(-50%) scale(1) !important;
             opacity: 1;
+        }
+        .doubloon-popup.fade-out {
+            opacity: 0 !important;
+            transition: opacity 0.5s;
         }
         .doubloon-star {
             width: 150px;

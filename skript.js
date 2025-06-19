@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
         eorDepositAmount: document.getElementById('eor-deposit-amount'),
         btnEorDeposit: document.getElementById('btn-eor-deposit'),
         btnConfirmEndTurn: document.getElementById('btn-confirm-end-turn'),
+        purchaseModalDebt: document.getElementById('purchase-modal-debt'),
     };
 
     const CONFIG = {
@@ -273,11 +274,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Показываем поп-ап
         setTimeout(() => {
             popup.classList.add('show');
-            // Удаляем поп-ап через 2.5 секунды
+            // Удаляем поп-ап через 2 секунды (1.5 сек показа + 0.5 fade-out)
             setTimeout(() => {
                 popup.classList.remove('show');
-                setTimeout(() => popup.remove(), 300);
-            }, 2500);
+                popup.classList.add('fade-out');
+                setTimeout(() => popup.remove(), 1000);
+            }, 1500);
         }, 100);
     }
 
@@ -712,7 +714,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Удаляем текст через некоторое время
                 setTimeout(() => {
                     comboText.classList.remove('show');
-                    setTimeout(() => comboText.remove(), 300);
+                    comboText.classList.add('fade-out');
+                    setTimeout(() => comboText.remove(), 500);
                 }, 1500);
             }, sequenceTime); // Показываем после того, как все символы загорелись
 
@@ -801,6 +804,102 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 400);
     }
 
+    function showLuckChancePopups(triggeredItems) {
+        if (!triggeredItems || triggeredItems.length === 0) return;
+        let idx = 0;
+        function showNext() {
+            const item = triggeredItems[idx];
+            // Создаём попап в стиле дублона, но с кастомным текстом
+            const popup = document.createElement('div');
+            popup.className = 'doubloon-popup';
+            popup.innerHTML = `
+                <div class="doubloon-star">
+                    <svg viewBox="0 0 100 100" width="50" height="50" class="doubloon-svg">
+                        <polygon points="50,8 61,38 94,38 67,58 77,90 50,70 23,90 33,58 6,38 39,38" fill="gold" stroke="#fffbe6" stroke-width="2"/>
+                    </svg>
+                    <span class="doubloon-text">${item.name}${item.id === 'doubloon' ? ': +1 прокрут!' : (item.effect.luck_chance.luck ? `: +${item.effect.luck_chance.luck} к удаче!` : '')}</span>
+                </div>
+            `;
+            // Размещаем поп-ап в левом верхнем углу блока .controls
+            const controls = document.querySelector('.controls');
+            if (controls) {
+                const rect = controls.getBoundingClientRect();
+                popup.style.position = 'fixed';
+                popup.style.top = (rect.top - 10) + 'px';
+                popup.style.left = (rect.left - 10) + 'px';
+                popup.style.transform = 'scale(0)';
+            }
+            document.body.appendChild(popup);
+            setTimeout(() => {
+                popup.classList.add('show');
+                setTimeout(() => {
+                    popup.classList.remove('show');
+                    popup.classList.add('fade-out');
+                    setTimeout(() => {
+                        popup.remove();
+                        idx++;
+                        if (idx < triggeredItems.length) showNext();
+                    }, 500);
+                }, 1200);
+            }, 100);
+        }
+        showNext();
+    }
+
+    function processLuckChanceItems(state) {
+        let chanceMultiplier = 1;
+        state.inventory.forEach(item => {
+            if (item.effect && item.effect.luck_chance_multiplier) {
+                chanceMultiplier *= item.effect.luck_chance_multiplier;
+            }
+        });
+
+        let luckBonus = 0;
+        let itemsToRemove = [];
+        let triggeredItems = [];
+        state.inventory.forEach((item, idx) => {
+            if (item.effect && item.effect.luck_chance) {
+                const eff = item.effect.luck_chance;
+                let chance = eff.chance * chanceMultiplier;
+                if (chance > 1) chance = 1;
+                if (Math.random() < chance) {
+                    triggeredItems.push(item);
+                    // Если предмет даёт luck
+                    if (eff.luck) {
+                        luckBonus += eff.luck;
+                        addLog(`${item.name}: +${eff.luck} к удаче (шанс ${(eff.chance*100).toFixed(1)}% x${chanceMultiplier} = ${(chance*100).toFixed(1)}%)!`, 'win');
+                    }
+                    // Если предмет даёт прокрут (например, Дублон)
+                    if (item.id === 'doubloon') {
+                        state.spinsLeft += 1;
+                        if (typeof showDoubloonPopup === 'function') showDoubloonPopup();
+                        addLog(`${item.name}: +1 прокрут! (шанс ${(eff.chance*100).toFixed(1)}% x${chanceMultiplier} = ${(chance*100).toFixed(1)}%)`, 'win');
+                    }
+                    // Если breakable, уменьшаем uses
+                    if (eff.breakable) {
+                        if (item.uses === undefined) item.uses = eff.max_uses || 1;
+                        item.uses--;
+                        if (item.uses <= 0) {
+                            addLog(`${item.name} сломался!`, 'loss');
+                            itemsToRemove.push(idx);
+                        }
+                    }
+                }
+            }
+        });
+        // Удаляем сломанные предметы
+        for (let i = itemsToRemove.length - 1; i >= 0; i--) {
+            state.inventory.splice(itemsToRemove[i], 1);
+        }
+        if (luckBonus > 0) {
+            state.tempLuck = (state.tempLuck || 0) + luckBonus;
+        }
+        // Показываем попапы, если что-то сработало
+        if (triggeredItems.length > 0) {
+            showLuckChancePopups(triggeredItems);
+        }
+    }
+
     async function spin() {
         if (state.spinsLeft <= 0 || state.gameover || state.isSpinning) return;
         
@@ -815,6 +914,9 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog('Счастливая монетка: первый прокрут бесплатный!', 'win');
         }
         
+        // --- ОБРАБОТКА ПРЕДМЕТОВ С ШАНСОМ ---
+        processLuckChanceItems(state);
+
         const oldSpinsLeft = state.spinsLeft;
         if (!freeSpin) {
             state.spinsLeft--;
@@ -889,6 +991,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         ui.purchaseModalTitle.textContent = `Раунд ${state.turn}. Время закупаться.`;
         ui.purchaseModalCoins.textContent = `${state.coins}💰`;
+        if (ui.purchaseModalDebt) ui.purchaseModalDebt.textContent = `${state.targetDebt}💰`;
 
         // Обновляем текст на кнопках с актуальными ценами
         ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${CONFIG.SPIN_PACKAGE_1.cost}💰)`;
@@ -1553,7 +1656,8 @@ document.addEventListener('DOMContentLoaded', () => {
             popup.classList.add('show');
             setTimeout(() => {
                 popup.classList.remove('show');
-                setTimeout(() => popup.remove(), 300);
+                popup.classList.add('fade-out');
+                setTimeout(() => popup.remove(), 500);
             }, 1800);
         }, 100);
     }
