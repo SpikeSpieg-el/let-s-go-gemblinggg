@@ -53,8 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const CONFIG = {
         ROWS: 3, COLS: 5, REROLL_COST: 2,
         SPIN_ANIMATION_TIME: 1200, 
-        SPIN_PACKAGE_1: { spins: 7, tickets: 1, cost: 10 },
-        SPIN_PACKAGE_2: { spins: 3, tickets: 2, cost: 7 },
+        SPIN_PACKAGE_1: { spins: 7, tickets: 1, cost: 10, base_cost: 10 },
+        SPIN_PACKAGE_2: { spins: 3, tickets: 2, cost: 7, base_cost: 7 },
     };
     const GRAPHICS = {
         lemon: '🍋', cherry: '🍒', clover: '🍀', bell: '🔔', diamond: '💎', coins: '💰', seven: '7️⃣',
@@ -737,7 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const commons = availableItems.filter(i => i.rarity === 'common');
         const rares = availableItems.filter(i => i.rarity === 'rare');
         const legendaries = availableItems.filter(i => i.rarity === 'legendary');
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 5; i++) { // Изменено с 3 на 5
             let pool = [];
             const roll = Math.random();
             if (roll < 0.6 && commons.length > 0) pool = commons;
@@ -874,6 +874,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         ui.purchaseModalTitle.textContent = `Раунд ${state.turn}. Время закупаться.`;
         ui.purchaseModalCoins.textContent = `${state.coins}💰`;
+
+        // Обновляем текст на кнопках с актуальными ценами
+        ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${CONFIG.SPIN_PACKAGE_1.cost}💰)`;
+        ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${CONFIG.SPIN_PACKAGE_2.cost}💰)`;
+        ui.btnBuySpin1.textContent = `1 прокрут (3💰)`;
+
         ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
         ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
         ui.btnBuySpin1.disabled = state.coins < 3 || state.coins >= CONFIG.SPIN_PACKAGE_2.cost;
@@ -958,9 +964,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 ui.judgementModal.classList.add('hidden');
                 state.run++;
                 state.turn = 1;
-                state.targetDebt = Math.floor(state.targetDebt * 1.8 + 20);
+                state.targetDebt = state.targetDebt + 120; // Добавляем 120 к текущему долгу
+                
+                // Увеличиваем цены на пакеты прокрутов
+                CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost + (state.run - 1) * 10;
+                CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost + (state.run - 1) * 10;
+                addLog(`Цены на прокруты выросли! Пакет 7 прокрутов: ${CONFIG.SPIN_PACKAGE_1.cost}💰, пакет 3 прокрутов: ${CONFIG.SPIN_PACKAGE_2.cost}💰`);
+                
                 state.coins = 0;
-                state.bankBalance = remainder;
+                state.bankBalance = state.bankBalance; // Оставляем текущий баланс банка
                 state.tickets += rewardTickets;
                 state.spinsLeft = 0;
                 updateInterestRate();
