@@ -246,6 +246,41 @@ document.addEventListener('DOMContentLoaded', () => {
         return grid;
     }
 
+    function showTotalWinPopup(amount) {
+        // Создаем поп-ап
+        const popup = document.createElement('div');
+        popup.className = 'total-win-popup';
+        popup.innerHTML = `
+            <div class="win-title">ОБЩИЙ ВЫИГРЫШ</div>
+            <div class="win-amount">+${amount}💰</div>
+        `;
+        document.body.appendChild(popup);
+
+        // Создаем конфетти для больших выигрышей
+        if (amount >= 100) {
+            const colors = ['#FFD700', '#00ff7f', '#ff3b3b', '#40c4ff', '#b388ff'];
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = (Math.random() * 1 + 1) + 's';
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 2000);
+            }
+        }
+
+        // Показываем поп-ап
+        setTimeout(() => {
+            popup.classList.add('show');
+            // Удаляем поп-ап через 2.5 секунды
+            setTimeout(() => {
+                popup.classList.remove('show');
+                setTimeout(() => popup.remove(), 300);
+            }, 2500);
+        }, 100);
+    }
+
     function calculateWinnings() {
         let grid = [...state.grid];
         let totalWinnings = 0;
@@ -439,6 +474,34 @@ document.addEventListener('DOMContentLoaded', () => {
             totalWinnings += jackpotWin;
             addLog(`💥 ДЖЕКПОТ!!! 💥 (${topSymbolId} x15): +${jackpotWin}💰`, 'win');
             for(let i=0; i<15; i++) allWinningPositions.add(i);
+            
+            // Создаем эффект джекпота с задержкой
+            setTimeout(() => {
+                const jackpotOverlay = document.createElement('div');
+                jackpotOverlay.className = 'jackpot-overlay';
+                jackpotOverlay.innerHTML = `
+                    <div class="jackpot-content">
+                        <div class="jackpot-title">ДЖЕКПОТ!!!</div>
+                        <div class="jackpot-amount">+${jackpotWin}💰</div>
+                    </div>
+                `;
+                document.body.appendChild(jackpotOverlay);
+                
+                // Создаем взрывающиеся частицы
+                for (let i = 0; i < 50; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'jackpot-particle';
+                    particle.style.setProperty('--angle', `${Math.random() * 360}deg`);
+                    particle.style.setProperty('--delay', `${Math.random() * 0.5}s`);
+                    jackpotOverlay.appendChild(particle);
+                }
+                
+                // Удаляем оверлей через 4 секунды
+                setTimeout(() => {
+                    jackpotOverlay.classList.add('fade-out');
+                    setTimeout(() => jackpotOverlay.remove(), 1000);
+                }, 4000);
+            }, 1000); // Задержка перед показом джекпота
         } else if (topCount >= 12 && topCount < 15) {
             const eyeWin = SYMBOLS.find(s => s.id === topSymbolId).value * 8 * topCount;
             totalWinnings += eyeWin;
@@ -463,6 +526,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const comboBonus = Math.floor(totalWinnings * ((1 + (winningLinesInfo.length - 1) * 0.25 - 1) * comboMultiplier));
             totalWinnings += comboBonus;
             addLog(`🔥 КОМБО x${winningLinesInfo.length}! Бонус: +${comboBonus}💰`, 'win');
+
+            // Задержка для анимации комбо если был джекпот
+            const jackpotDelay = topCount === 15 ? 5500 : 0;
+            
+            setTimeout(() => {
+                highlightWinningCells(Array.from(allWinningPositions), totalWinnings, winningLinesInfo.length > 1, winningLinesInfo);
+
+                // Показываем поп-ап общего выигрыша после всех анимаций только для реального комбо
+                const sequenceTime = allWinningPositions.size * 150 + 2500; // Время последовательности + удержания
+                if (winningLinesInfo.length > 1) {
+                    setTimeout(() => showTotalWinPopup(totalWinnings), sequenceTime);
+                }
+            }, jackpotDelay);
+        } else if (totalWinnings > 0) {
+            const jackpotDelay = topCount === 15 ? 5500 : 0;
+            setTimeout(() => {
+                highlightWinningCells(Array.from(allWinningPositions), totalWinnings, false, winningLinesInfo);
+                // Для больших одиночных выигрышей тоже показываем поп-ап
+                if (totalWinnings >= 50) {
+                    setTimeout(() => showTotalWinPopup(totalWinnings), 2000);
+                }
+            }, jackpotDelay);
         }
 
         state.inventory.forEach(item => {
@@ -497,7 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (totalWinnings > 0) {
             state.coins += totalWinnings;
-            highlightWinningCells(Array.from(allWinningPositions), totalWinnings);
         } else { 
             addLog('Ничего не выпало.');
             if (hasItem('scrap_metal')) {
@@ -508,13 +592,142 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function highlightWinningCells(positions, winAmount) {
+    function highlightWinningCells(positions, winAmount, isCombo = false, winningLines = []) {
         const cells = ui.slotMachine.querySelectorAll('.slot-cell');
         let highlightClass = 'highlight';
+        
+        // Определяем класс подсветки на основе выигрыша
         if (winAmount > 50) highlightClass = 'highlight-huge';
         else if (winAmount > 20) highlightClass = 'highlight-big';
-        positions.forEach(pos => cells[pos]?.classList.add(highlightClass));
-        setTimeout(() => cells.forEach(cell => cell.classList.remove('highlight', 'highlight-big', 'highlight-huge')), 2000);
+
+        // Проверяем, был ли джекпот
+        const isJackpot = positions.length === 15;
+
+        // Добавляем комбо-эффекты только если это действительно комбо (несколько выигрышных линий)
+        let comboLevel;
+        if (isCombo) {
+            if (winningLines.length >= 9) comboLevel = 5;
+            else if (winningLines.length >= 7) comboLevel = 4;
+            else if (winningLines.length >= 5) comboLevel = 3;
+            else if (winningLines.length >= 3) comboLevel = 2;
+            else comboLevel = 1;
+        } else {
+            comboLevel = 0;
+        }
+        
+        if (comboLevel > 0) {
+            ui.slotMachine.classList.add('combo-active');
+            if (isJackpot) ui.slotMachine.classList.add('jackpot');
+            
+            // Последовательная анимация для каждой позиции
+            const sequenceTime = positions.length * 150; // Время на последовательное появление
+            const holdTime = 2500; // Время удержания всех эффектов
+
+            positions.forEach((pos, index) => {
+                setTimeout(() => {
+                    const cell = cells[pos];
+                    if (cell) {
+                        // Добавляем начальную анимацию появления
+                        cell.classList.add('sequential-highlight');
+                        if (isJackpot) cell.classList.add('jackpot');
+                        
+                        // Создаем эффект частиц для больших комбо
+                        if (comboLevel >= 3) {
+                            for (let i = 0; i < 3; i++) {
+                                const particle = document.createElement('div');
+                                particle.className = 'particle' + (isJackpot ? ' jackpot' : '');
+                                cell.appendChild(particle);
+                                setTimeout(() => particle.remove(), 500);
+                            }
+                        }
+
+                        // Для высоких комбо (4-5) добавляем вылетающие монеты
+                        if (comboLevel >= 4) {
+                            // Количество монет зависит от уровня комбо и джекпота
+                            const coinCount = isJackpot ? (comboLevel === 5 ? 12 : 8) : (comboLevel === 5 ? 8 : 5);
+                            
+                            // Создаем монеты с разными задержками
+                            for (let i = 0; i < coinCount; i++) {
+                                setTimeout(() => {
+                                    const coin = document.createElement('div');
+                                    coin.className = 'flying-coin' + (isJackpot ? ' jackpot' : '');
+                                    coin.textContent = '💰';
+                                    // Для 5 уровня делаем более широкий разброс монет
+                                    const angleRange = comboLevel === 5 ? 180 : 120;
+                                    const baseAngle = comboLevel === 5 ? -90 : -60;
+                                    coin.style.setProperty('--angle', `${baseAngle + Math.random() * angleRange}deg`);
+                                    coin.style.setProperty('--speed', `${0.8 + Math.random() * 0.4}s`);
+                                    cell.appendChild(coin);
+                                    
+                                    // Добавляем вращение для монет при 5 уровне или джекпоте
+                                    if (comboLevel === 5 || isJackpot) {
+                                        coin.style.animation = `coinFly var(--speed) ease-out forwards, coinSpin ${0.3 + Math.random() * 0.2}s linear infinite`;
+                                    }
+                                    
+                                    setTimeout(() => coin.remove(), 1000);
+                                }, i * 100);
+                            }
+                        }
+
+                        // После начальной анимации добавляем постоянный эффект комбо
+                        setTimeout(() => {
+                            cell.classList.remove('sequential-highlight');
+                            cell.classList.add(`combo-${comboLevel}`, 'sequential');
+                            if (isJackpot) cell.classList.add('jackpot');
+                            
+                            // Добавляем эффект выигрышного символа
+                            const symbol = cell.querySelector('.symbol');
+                            if (symbol) {
+                                symbol.classList.add('winning');
+                                if (isJackpot) symbol.classList.add('jackpot');
+                            }
+                        }, 500);
+                    }
+                }, index * 150);
+            });
+
+            // Показываем текст комбо с задержкой
+            setTimeout(() => {
+                const comboText = document.createElement('div');
+                comboText.className = 'combo-text';
+                comboText.textContent = `КОМБО x${winningLines.length}!`;
+                document.body.appendChild(comboText);
+                
+                // Анимируем появление текста
+                setTimeout(() => comboText.classList.add('show'), 100);
+                
+                // Удаляем текст через некоторое время
+                setTimeout(() => {
+                    comboText.classList.remove('show');
+                    setTimeout(() => comboText.remove(), 300);
+                }, 1500);
+            }, sequenceTime); // Показываем после того, как все символы загорелись
+
+            // Очищаем все эффекты через 2.5 секунды после завершения последовательной анимации
+            setTimeout(() => {
+                cells.forEach(cell => {
+                    cell.classList.remove('highlight', 'highlight-big', 'highlight-huge');
+                    cell.classList.remove('combo-1', 'combo-2', 'combo-3', 'combo-4', 'combo-5', 'sequential');
+                    cell.classList.remove('sequential-highlight');
+                    const symbol = cell.querySelector('.symbol');
+                    if (symbol) {
+                        symbol.classList.remove('winning');
+                    }
+                });
+                ui.slotMachine.classList.remove('combo-active');
+            }, sequenceTime + holdTime); // Общее время = последовательность + удержание
+
+        } else {
+            // Для одиночных выигрышей просто добавляем базовый класс
+            positions.forEach(pos => cells[pos]?.classList.add(highlightClass));
+            
+            // Очищаем эффекты через 2 секунды для одиночных выигрышей
+            setTimeout(() => {
+                cells.forEach(cell => {
+                    cell.classList.remove('highlight', 'highlight-big', 'highlight-huge');
+                });
+            }, 2000);
+        }
     }
 
     function populateShop() {
@@ -546,11 +759,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    function animateSpinsCounter(oldValue, newValue) {
+        const counter = ui.spinsLeft;
+        const counterRect = counter.getBoundingClientRect();
+        const counterWrapper = document.createElement('div');
+        counterWrapper.className = 'spins-counter';
+        counterWrapper.style.height = `${counterRect.height}px`;
+        
+        // Создаем элементы для старого и нового значения
+        const oldSpan = document.createElement('span');
+        oldSpan.className = 'old-value';
+        oldSpan.textContent = oldValue;
+        
+        const newSpan = document.createElement('span');
+        newSpan.className = 'new-value';
+        newSpan.textContent = newValue;
+        
+        counterWrapper.appendChild(oldSpan);
+        counterWrapper.appendChild(newSpan);
+        
+        // Заменяем содержимое счётчика
+        counter.textContent = '';
+        counter.appendChild(counterWrapper);
+        
+        // Удаляем обёртку и восстанавливаем обычный текст после анимации
+        setTimeout(() => {
+            counter.textContent = newValue;
+        }, 400);
+    }
+
     async function spin() {
         if (state.spinsLeft <= 0 || state.gameover || state.isSpinning) return;
         
         state.isSpinning = true;
         ui.lever.classList.add('pulled');
+        
         // --- ЛОГИКА СЧАСТЛИВОЙ МОНЕТКИ ---
         let freeSpin = false;
         if (hasItem('lucky_penny') && !state.firstSpinUsed) {
@@ -558,15 +801,19 @@ document.addEventListener('DOMContentLoaded', () => {
             state.firstSpinUsed = true;
             addLog('Счастливая монетка: первый прокрут бесплатный!', 'win');
         }
+        
+        const oldSpinsLeft = state.spinsLeft;
         if (!freeSpin) {
             state.spinsLeft--;
         }
-        updateUI(); 
-
+        
+        // Анимируем изменение счётчика прокрутов
+        animateSpinsCounter(oldSpinsLeft, state.spinsLeft);
+        
+        updateUI();
+        
         state.grid = generateGrid();
-        
         await runSpinAnimation();
-        
         calculateWinnings();
         
         state.tempLuck = 0;
@@ -813,7 +1060,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (debtLuck > 0) luckText += ` (+${debtLuck} от долга)`;
         if (state.tempLuck > 0) luckText += ` (+${state.tempLuck})`;
         ui.statLuck.textContent = luckText;
-        ui.spinsLeft.textContent = state.spinsLeft;
+        // Заменяем прямое обновление на условное
+        if (!ui.spinsLeft.querySelector('.spins-counter')) {
+            ui.spinsLeft.textContent = state.spinsLeft;
+        }
         ui.atmInterestRate.textContent = (state.baseInterestRate * 100).toFixed(0);
         
         // --- ДОБАВЛЯЕМ ОТОБРАЖЕНИЕ ПРОЦЕНТА И БОНУСА ---
