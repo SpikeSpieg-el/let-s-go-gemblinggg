@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             symbolValue = Math.floor(symbolValue * symbolMultipliers[currentSymbol.id]);
                         }
 
-                        let win = symbolValue * lineMultiplier;
+                        let win = comboLength * symbolValue * lineMultiplier;
 
                         // --- ПРИМЕНЯЕМ line_length_win_bonus ---
                         if (lineLengthBonuses[comboLength]) {
@@ -448,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         symbolValue = Math.floor(symbolValue * symbolMultipliers[firstSymbol.id]);
                     }
 
-                    let win = symbolValue * lineMultiplier;
+                    let win = line.positions.length * symbolValue * lineMultiplier;
                     
                     // --- ПРИМЕНЯЕМ line_length_win_bonus ---
                     if (lineLengthBonuses[line.positions.length]) {
@@ -658,28 +658,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Для высоких комбо (4-5) добавляем вылетающие монеты
                         if (comboLevel >= 4) {
-                            // Количество монет зависит от уровня комбо и джекпота
                             const coinCount = isJackpot ? (comboLevel === 5 ? 12 : 8) : (comboLevel === 5 ? 8 : 5);
-                            
-                            // Создаем монеты с разными задержками
+                            const cellRect = cell.getBoundingClientRect();
+                            // Центр ячейки
+                            const cellCenterX = cellRect.left + cellRect.width / 2;
+                            const cellCenterY = cellRect.top + cellRect.height / 2;
                             for (let i = 0; i < coinCount; i++) {
                                 setTimeout(() => {
                                     const coin = document.createElement('div');
                                     coin.className = 'flying-coin' + (isJackpot ? ' jackpot' : '');
                                     coin.textContent = '💰';
-                                    // Для 5 уровня делаем более широкий разброс монет
-                                    const angleRange = comboLevel === 5 ? 180 : 120;
-                                    const baseAngle = comboLevel === 5 ? -90 : -60;
-                                    coin.style.setProperty('--angle', `${baseAngle + Math.random() * angleRange}deg`);
-                                    coin.style.setProperty('--speed', `${0.8 + Math.random() * 0.4}s`);
-                                    cell.appendChild(coin);
-                                    
-                                    // Добавляем вращение для монет при 5 уровне или джекпоте
-                                    if (comboLevel === 5 || isJackpot) {
-                                        coin.style.animation = `coinFly var(--speed) ease-out forwards, coinSpin ${0.3 + Math.random() * 0.2}s linear infinite`;
-                                    }
-                                    
-                                    setTimeout(() => coin.remove(), 1000);
+                                    coin.style.position = 'fixed';
+                                    coin.style.left = (cellCenterX - 16) + 'px';
+                                    coin.style.top = (cellCenterY - 16) + 'px';
+                                    coin.style.width = '32px';
+                                    coin.style.height = '32px';
+                                    coin.style.fontSize = '2em';
+                                    coin.style.pointerEvents = 'none';
+                                    coin.style.zIndex = 9999;
+                                    document.body.appendChild(coin);
+                                    // Генерируем угол разлёта (от -70 до +70 градусов относительно вертикали)
+                                    const angle = (-70 + Math.random() * 140) * (Math.PI / 180);
+                                    const radius = 80 + Math.random() * 40; // расстояние разлёта
+                                    const dx = Math.sin(angle) * radius;
+                                    const dy = -Math.cos(angle) * radius; // вверх
+                                    // Первая фаза: разлёт в сторону
+                                    coin.animate([
+                                        { transform: 'translate(0,0) scale(1)', opacity: 1 },
+                                        { transform: `translate(${dx}px,${dy}px) scale(1.1)`, opacity: 1 }
+                                    ], {
+                                        duration: 350,
+                                        easing: 'cubic-bezier(0.5,0,0.7,1)'
+                                    });
+                                    // Вторая фаза: падение вниз и исчезновение
+                                    setTimeout(() => {
+                                        coin.animate([
+                                            { transform: `translate(${dx}px,${dy}px) scale(1.1)`, opacity: 1 },
+                                            { transform: `translate(${dx}px,${dy+180+Math.random()*40}px) scale(0.9)`, opacity: 0 }
+                                        ], {
+                                            duration: 600,
+                                            easing: 'cubic-bezier(0.3,0.7,0.7,1)'
+                                        });
+                                        setTimeout(() => coin.remove(), 600);
+                                    }, 350);
                                 }, i * 100);
                             }
                         }

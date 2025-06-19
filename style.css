@@ -857,3 +857,230 @@
             from { transform: scale(0.8); opacity: 0; }
             to   { transform: scale(1); opacity: 1; }
         }
+
+@media (max-width: 900px) {
+    .game-container {
+        flex-direction: column;
+        padding: 8px;
+        gap: 10px;
+        max-width: 100vw;
+    }
+    .main-panel, .ui-panel {
+        width: 100%;
+        max-width: 100vw;
+    }
+    .main-panel {
+        gap: 10px;
+    }
+    .slot-area {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .slot-machine {
+        padding: 6px;
+        gap: 4px;
+    }
+    .lever-container {
+        margin: 0 auto;
+        padding: 10px 0;
+    }
+    .ui-panel {
+        gap: 10px;
+    }
+    .ui-box {
+        padding: 8px;
+    }
+    .shop-items, .inventory-items {
+        gap: 6px;
+    }
+    .item {
+        padding: 6px;
+        font-size: 14px;
+    }
+    .item-name, .item-cost {
+        font-size: 14px;
+    }
+    .item-desc {
+        font-size: 11px;
+    }
+    .log-panel {
+        height: 90px;
+        font-size: 12px;
+        padding: 6px;
+    }
+    .stats-grid {
+        font-size: 13px;
+        gap: 6px;
+    }
+    .modal-content {
+        padding: 12px;
+        max-width: 95vw;
+    }
+    .combo-text {
+        font-size: 32px;
+    }
+    .total-win-popup .win-title {
+        font-size: 18px;
+    }
+    .total-win-popup .win-amount {
+        font-size: 32px;
+    }
+    html, body {
+        height: auto;
+        min-height: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+}
+
+@media (max-width: 600px) {
+    html, body {
+        height: auto;
+        min-height: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+    .game-container {
+        flex-direction: column;
+        padding: 2px;
+        gap: 4px;
+        max-width: 100vw;
+        overflow-x: auto;
+    }
+    .main-panel, .ui-panel {
+        width: 100vw;
+        max-width: 100vw;
+        min-width: 0;
+    }
+    .main-panel {
+        gap: 4px;
+    }
+    .slot-area {
+        flex-direction: column;
+        gap: 4px;
+        overflow-x: auto;
+    }
+    .slot-machine {
+        padding: 2px;
+        gap: 2px;
+        border-width: 1px;
+        border-radius: 4px;
+        min-width: 0;
+        overflow-x: auto;
+    }
+    .slot-cell {
+        border-width: 1px;
+        border-radius: 2px;
+        min-width: 0;
+    }
+    .lever-container {
+        margin: 0 auto;
+        padding: 4px 0;
+    }
+    .lever {
+        height: 60px;
+        width: 8px;
+    }
+    .lever-handle {
+        width: 18px;
+        height: 18px;
+        top: -7px;
+        left: -5px;
+    }
+    .lever-base {
+        width: 30px;
+        height: 16px;
+    }
+    .controls {
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px;
+        font-size: 13px;
+    }
+    .log-panel {
+        height: 60px;
+        font-size: 11px;
+        padding: 2px;
+    }
+    .ui-panel {
+        gap: 4px;
+    }
+    .ui-box {
+        padding: 4px;
+        border-radius: 4px;
+    }
+    .stats-grid {
+        font-size: 11px;
+        gap: 3px;
+    }
+    .shop-items, .inventory-items {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        gap: 4px;
+        padding-bottom: 2px;
+    }
+    .item {
+        min-width: 110px;
+        max-width: 140px;
+        font-size: 12px;
+        padding: 4px;
+    }
+    .item-name, .item-cost {
+        font-size: 12px;
+    }
+    .item-desc {
+        font-size: 10px;
+    }
+    .modal-content {
+        padding: 6px;
+        max-width: 99vw;
+        font-size: 13px;
+    }
+    .combo-text {
+        font-size: 20px;
+    }
+    .total-win-popup {
+        padding: 10px 12px;
+        border-radius: 8px;
+    }
+    .total-win-popup .win-title {
+        font-size: 13px;
+    }
+    .total-win-popup .win-amount {
+        font-size: 18px;
+    }
+    .jackpot-title {
+        font-size: 38px;
+    }
+    .jackpot-amount {
+        font-size: 22px;
+    }
+    .doubloon-star {
+        width: 60px;
+        height: 60px;
+    }
+    .doubloon-svg {
+        width: 60px;
+        height: 60px;
+    }
+    .doubloon-text {
+        font-size: 10px;
+    }
+    .amulet-popup-card {
+        padding: 10px 6px 8px 6px;
+        min-width: 120px;
+        max-width: 95vw;
+        font-size: 12px;
+    }
+    .amulet-popup-title {
+        font-size: 1em;
+    }
+    .amulet-popup-desc {
+        font-size: 0.9em;
+    }
+    .amulet-popup-remove, .amulet-popup-close {
+        font-size: 0.9em;
+        padding: 4px 8px;
+    }
+}
