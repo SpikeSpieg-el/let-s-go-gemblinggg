@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const GRAPHICS = {
         lemon: '🍋', cherry: '🍒', clover: '🍀', bell: '🔔', diamond: '💎', coins: '💰', seven: '7️⃣',
+        pirate: '🏴‍☠️', // Секретный символ
     };
     const SYMBOLS = [
         { id: 'lemon',    value: 2, weight: 194, graphic: GRAPHICS.lemon },   // 19.4%
@@ -327,6 +328,35 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // --- СЕКРЕТНЫЙ СИМВОЛ: ПИРАТСКИЙ ФЛАГ ---
+        // После генерации обычной сетки, для каждой горизонтальной линии пробуем вставить флаг
+        const pirateSymbol = { id: 'pirate', value: 0, weight: 0, graphic: GRAPHICS.pirate };
+        const pirateMaxCount = 3;
+        let pirateChance = 0.02 + Math.min(totalLuck * 0.005, 0.5 - 0.02); // 2% базово +0.5% за каждую удачу, максимум 50%
+        if (pirateChance > 0.5) pirateChance = 0.5;
+        let piratesPlaced = 0;
+        if (state.run < 3) {
+            // Пиратские флаги не появляются до 3-го цикла
+            console.log('[DEBUG] Пиратский флаг: цикл < 3, не вставляем флаг');
+        } else if (state.pirateFlagCooldown && state.pirateFlagCooldown > 0) {
+            state.pirateFlagCooldown--;
+            console.log('[DEBUG] Пиратский флаг: кулдаун, не вставляем флаг');
+        } else {
+            for (const line of PAYLINES.filter(l => l.scannable && l.type === 'Горизонтальная')) {
+                for (const pos of line.positions) {
+                    if (piratesPlaced >= pirateMaxCount) break;
+                    if (Math.random() < pirateChance) {
+                        grid[pos] = pirateSymbol;
+                        piratesPlaced++;
+                    }
+                }
+            }
+            if (piratesPlaced > 0) {
+                state.pirateFlagCooldown = 1;
+            }
+            console.log(`[DEBUG] Пиратский флаг: вставлено за спин = ${piratesPlaced}`);
+        }
+
         return grid;
     }
 
@@ -371,15 +401,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const wildSymbolId = state.inventory.find(item => item.effect?.wild_symbol)?.effect.wild_symbol;
 
         // --- 0. ПРЕДВАРИТЕЛЬНЫЕ ЭФФЕКТЫ ---
-        state.tempLuck = 0; // Сбрасываем временную удачу от "Пакт Семёрок"
+        state.tempLuck = 0; // Сбрасываем временную удачу от предметов
+        let tempLuckItems = [];
         state.inventory.forEach(item => {
             if (item.effect?.temporary_luck_on_spin) {
                 const symbolId = item.effect.temporary_luck_on_spin;
                 const count = grid.filter(s => s.id === symbolId).length;
-                if (count > 0) { state.tempLuck += count; }
+                if (count > 0) {
+                    state.tempLuck += count;
+                    tempLuckItems.push({ name: item.name, count });
+                }
             }
         });
-        if(state.tempLuck > 0) addLog(`Пакт Семёрок: +${state.tempLuck} к временной удаче.`, 'win');
+        tempLuckItems.forEach(obj => {
+            addLog(`${obj.name}: +${obj.count} к временной удаче.`, 'win');
+        });
 
         const substitutions = state.inventory.filter(item => item.effect?.substitute).map(item => item.effect.substitute);
         if (substitutions.length > 0) {
@@ -470,7 +506,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     win += bonus;
                 }
-                if (lineWinBonuses[winLength]) win += lineWinBonuses[winLength];
+                if (lineWinBonuses[winLength]) {
+                    let bonus = lineWinBonuses[winLength];
+                    bonus = applyCoinDoubler(bonus);
+                    win += bonus;
+                }
                 
                 // --- ПАССИВКА: Звонарь ---
                 if (hasPassive('bell_ringer') && firstSymbol.id === 'bell') {
@@ -563,6 +603,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const [topSymbolId, topCount] = Object.entries(symbolCounts).sort((a,b) => b[1] - a[1])[0] || [null, 0];
 
         if (topCount === 15) {
+            state.consecutiveJackpots = (state.consecutiveJackpots || 0) + 1;
+            if (state.consecutiveJackpots >= 2) {
+                state.pirateFlagSuperChance = true;
+                
+            }
             const jackpotWin = SYMBOLS.find(s => s.id === topSymbolId).value * 10 * topCount;
             totalWinnings += jackpotWin;
             addLog(`💥 ДЖЕКПОТ!!! 💥 (${topSymbolId} x15): +${formatNumberWithComma(jackpotWin)}💰`, 'win');
@@ -733,6 +778,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 addLog(`Копилка: +${formatNumberWithComma(lossBonus)}💰. Всего: ${formatNumberWithComma(state.piggyBank)}💰`);
             }
         }
+
+        // --- 2.1. ПРОВЕРКА СЕКРЕТНОГО СИМВОЛА: ПИРАТСКИЙ ФЛАГ ---
+        for (const line of PAYLINES.filter(l => l.scannable && l.type === 'Горизонтальная')) {
+            const symbolsOnLine = line.positions.map(pos => grid[pos]);
+            let pirateStreak = 0;
+            let pirateCells = [];
+            for (let i = 0; i < symbolsOnLine.length; i++) {
+                if (symbolsOnLine[i].id === 'pirate') {
+                    pirateStreak++;
+                    pirateCells.push(line.positions[i]);
+                    // Если подряд 3
+                    if (pirateStreak === 3) {
+                        const lost = Math.floor(state.coins * 0.6);
+                        if (lost > 0) {
+                            state.coins -= lost;
+                            addLog('Проклятье! Вы потеряли часть монет.', 'loss');
+                        }
+                        highlightCurseCells(pirateCells.slice(-3), 3, lost);
+                        pirateStreak = 0;
+                        pirateCells = [];
+                    }
+                } else {
+                    if (pirateStreak === 1) highlightCurseCells([line.positions[i-1]], 1, 0);
+                    if (pirateStreak === 2) highlightCurseCells([line.positions[i-2], line.positions[i-1]], 2, 0);
+                    pirateStreak = 0;
+                    pirateCells = [];
+                }
+            }
+            // Если линия заканчивается на 1 или 2 подряд
+            if (pirateStreak === 1) highlightCurseCells([line.positions[symbolsOnLine.length-1]], 1, 0);
+            if (pirateStreak === 2) highlightCurseCells([line.positions[symbolsOnLine.length-2], line.positions[symbolsOnLine.length-1]], 2, 0);
+        }
+
+        
+
+        // --- БОНУСЫ ОТ НОВЫХ ПРЕДМЕТОВ ---
+        state.inventory.forEach(item => {
+          if (item.id === 'fruit_salad') {
+            let bonus = applyFruitSaladBonus(grid);
+            bonus = applyCoinDoubler(bonus);
+            if (bonus > 0) { totalWinnings += bonus; addLog(`${item.name}: +${bonus}💰`, 'win'); }
+          }
+          if (item.id === 'sweet_spin') {
+            let bonus = applySweetSpinBonus(grid);
+            bonus = applyCoinDoubler(bonus);
+            if (bonus > 0) { totalWinnings += bonus; addLog(`${item.name}: +${bonus}💰`, 'win'); }
+          }
+          if (item.id === 'clover_field') {
+            let bonus = applyCloverFieldBonus(grid);
+            bonus = applyCoinDoubler(bonus);
+            if (bonus > 0) { totalWinnings += bonus; addLog(`${item.name}: +${bonus}💰`, 'win'); }
+          }
+          if (item.id === 'bookends') {
+            let bonus = applyBookendsBonus(grid);
+            bonus = applyCoinDoubler(bonus);
+            if (bonus > 0) { totalWinnings += bonus; addLog(`${item.name}: +${bonus}💰`, 'win'); }
+          }
+        });
     }
 
     function highlightWinningCells(positions, winAmount, isCombo = false, winningLines = []) {
@@ -876,6 +979,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function highlightCurseCells(pirateCells, pirateCount, lostAmount) {
+        const cells = ui.slotMachine.querySelectorAll('.slot-cell');
+        pirateCells.forEach((pos, idx) => {
+            let className = 'pirate-1';
+            if (pirateCount === 2) className = 'pirate-2';
+            if (pirateCount >= 3) className = 'pirate-3';
+            cells[pos]?.classList.add(className);
+        });
+        if (pirateCount >= 3 && lostAmount > 0) {
+            // Попап
+            const popup = document.createElement('div');
+            popup.className = 'curse-loss-popup';
+            popup.innerHTML = `<div class="curse-title">ПРОКЛЯТЬЕ!</div><div class="curse-hint">Вы потеряли часть монет.</div>`;
+            document.body.appendChild(popup);
+            setTimeout(() => {
+                popup.classList.add('show');
+                setTimeout(() => {
+                    popup.classList.remove('show');
+                    popup.classList.add('fade-out');
+                    setTimeout(() => popup.remove(), 1000);
+                }, 1800);
+            }, 100);
+        }
+        setTimeout(() => {
+            pirateCells.forEach(pos => {
+                cells[pos]?.classList.remove('pirate-1', 'pirate-2', 'pirate-3');
+            });
+        }, 2200);
+    }
+
     function populateShop() {
         state.shop = [];
         const availableItems = [...ALL_ITEMS].filter(item => !hasItem(item.id));
@@ -893,12 +1026,17 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (legendaries.length > 0) pool = legendaries;
             if (pool.length > 0) {
                 const randomIndex = Math.floor(Math.random() * pool.length);
-                state.shop.push(pool[randomIndex]);
-                const idx = availableItems.findIndex(x => x.id === pool[randomIndex].id);
+                const item = pool[randomIndex];
+                // Сброс uses для breakable предметов
+                if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
+                    item.uses = item.effect.luck_chance.max_uses || 1;
+                }
+                state.shop.push(item);
+                const idx = availableItems.findIndex(x => x.id === item.id);
                 if (idx !== -1) availableItems.splice(idx, 1);
-                if (pool === commons) commons.splice(commons.indexOf(pool[randomIndex]), 1);
-                if (pool === rares) rares.splice(rares.indexOf(pool[randomIndex]), 1);
-                if (pool === legendaries) legendaries.splice(legendaries.indexOf(pool[randomIndex]), 1);
+                if (pool === commons) commons.splice(commons.indexOf(item), 1);
+                if (pool === rares) rares.splice(rares.indexOf(item), 1);
+                if (pool === legendaries) legendaries.splice(legendaries.indexOf(item), 1);
             }
         }
     }
@@ -941,7 +1079,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <svg viewBox="0 0 100 100" width="50" height="50" class="doubloon-svg">
                         <polygon points="50,8 61,38 94,38 67,58 77,90 50,70 23,90 33,58 6,38 39,38" fill="gold" stroke="#fffbe6" stroke-width="2"/>
                     </svg>
-                    <span class="doubloon-text">${item.name}${item.id === 'doubloon' ? ': +1 прокрут!' : (item.effect.luck_chance.luck ? `: +${item.effect.luck_chance.luck} к удаче!` : '')}</span>
+                    <span class="doubloon-text">Дублон +1</span>
                 </div>
             `;
             const controls = document.querySelector('.controls');
@@ -1088,6 +1226,10 @@ document.addEventListener('DOMContentLoaded', () => {
             flags: {
                 consecutiveLosses: 0,
             }, 
+            pirateCount: 0, // Счётчик выпавших пиратских символов
+            pirateFlagCooldown: 0, // Кулдаун на выпадение пиратского флага
+            consecutiveJackpots: 0, // Счётчик подряд джекпотов
+            pirateFlagSuperChance: false, // Флаг супер-шанса на флаг
         };
         CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost;
         CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost;
@@ -1154,6 +1296,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         state.chosenPassive = null; // Сброс пассивки для нового выбора
+        state.pirateCount = 0; // Сброс счётчика пиратских символов
 
         updateInterestRate();
         addLog(`Начался Цикл Долга #${state.run}. Цель: ${formatNumberWithComma(state.targetDebt)}💰.`);
@@ -1165,6 +1308,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             startTurn();
         }
+        state.pirateFlagCooldown = 0;
+        state.consecutiveJackpots = 0;
+        state.pirateFlagSuperChance = false;
     }
 
 
@@ -1499,6 +1645,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!item || state.tickets < cost) return addLog('Недостаточно талонов.', 'loss');
         
+        // Сброс uses для breakable предметов при покупке
+        if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
+            item.uses = item.effect.luck_chance.max_uses || 1;
+        }
+
         state.tickets -= cost;
         state.inventory.push(item);
         state.shop = state.shop.filter(i => i.id !== itemId);
@@ -2212,5 +2363,62 @@ document.addEventListener('DOMContentLoaded', () => {
         let base = 9;
         if (hasPassive && hasPassive('inventory_plus_one')) base += 1;
         return base;
+    }
+
+    // === БОНУСЫ ОТ НОВЫХ ПРЕДМЕТОВ ===
+    function applyFruitSaladBonus(grid) {
+      // Фруктовый салат: +1💰 за каждую пару соседних (не по диагонали) 🍋 и 🍒
+      let bonus = 0;
+      const width = 5, height = 3;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = y * width + x;
+          const symbol = grid[idx]?.id;
+          // Вправо
+          if (x < width - 1) {
+            const rightSymbol = grid[idx + 1]?.id;
+            if ((symbol === 'lemon' && rightSymbol === 'cherry') || (symbol === 'cherry' && rightSymbol === 'lemon')) {
+              bonus += 1;
+            }
+          }
+          // Вниз
+          if (y < height - 1) {
+            const downSymbol = grid[idx + width]?.id;
+            if ((symbol === 'lemon' && downSymbol === 'cherry') || (symbol === 'cherry' && downSymbol === 'lemon')) {
+              bonus += 1;
+            }
+          }
+        }
+      }
+      return bonus;
+    }
+
+    function applySweetSpinBonus(grid) {
+      // Сладкий прокрут: если на поле нет Лимонов 🍋, +3💰
+      return grid.some(s => s.id === 'lemon') ? 0 : 3;
+    }
+
+    function applyCloverFieldBonus(grid) {
+      // Клеверное поле: если на поле 5+ Клеверов 🍀, +5💰
+      const cloverCount = grid.filter(s => s.id === 'clover').length;
+      return cloverCount >= 5 ? 5 : 0;
+    }
+
+    function applyBookendsBonus(grid) {
+      // Книжные подпорки: если символы в левом верхнем и правом нижнем углах совпадают, +4💰
+      return (grid[0]?.id && grid[0]?.id === grid[14]?.id) ? 4 : 0;
+    }
+
+    // === ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Проверка удвоителя ===
+    function applyCoinDoubler(bonus) {
+      // Перемножаем все множители среди предметов
+      const multiplier = state.inventory.reduce((acc, item) => {
+        if (item.effect?.double_flat_coin_bonus) {
+          // Если число — используем, если true — считаем как 2 (старые предметы)
+          return acc * (typeof item.effect.double_flat_coin_bonus === 'number' ? item.effect.double_flat_coin_bonus : 2);
+        }
+        return acc;
+      }, 1);
+      return bonus * multiplier;
     }
 });
