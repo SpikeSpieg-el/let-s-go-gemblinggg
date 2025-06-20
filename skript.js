@@ -967,7 +967,7 @@ document.addEventListener('DOMContentLoaded', () => {
             run: 1, // <-- теперь всегда сбрасывается на 1
             targetDebt: 66,
             turn: 1,
-            coins: 100,
+            coins: 20,
             bankBalance: 0,
             tickets: 5,
             spinsLeft: 0,
@@ -1478,15 +1478,101 @@ document.addEventListener('DOMContentLoaded', () => {
         await new Promise(res => setTimeout(res, 200));
     }
 
+    // --- NEW: HELPER FUNCTION TO CREATE ITEM ELEMENTS ---
+    function createItemElement(item, purchaseCallback) {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `item rarity-${item.rarity}`;
+        
+        // Set click handlers
+        if (purchaseCallback) {
+            itemDiv.onclick = () => purchaseCallback(item.id);
+            if (state.tickets < item.cost || state.inventory.length >= 9) {
+                itemDiv.style.opacity = '0.5';
+                itemDiv.style.cursor = 'not-allowed';
+            }
+        } else {
+            itemDiv.style.cursor = 'pointer';
+            itemDiv.onclick = () => showAmuletPopup(item);
+        }
+
+        // Thumbnail
+        const thumbnailDiv = document.createElement('div');
+        thumbnailDiv.className = 'item-thumbnail';
+        const thumbnailValue = item.thumbnail || '?';
+        if (thumbnailValue.endsWith('.png') || thumbnailValue.endsWith('.jpg') || thumbnailValue.endsWith('.gif')) {
+            thumbnailDiv.innerHTML = `<img src="img/${thumbnailValue}" alt="${item.name}" style="width:100%; height:100%; object-fit:cover;">`;
+        } else {
+            thumbnailDiv.textContent = thumbnailValue;
+        }
+
+        // Info container
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'item-info';
+        
+        // Header (Name + Cost)
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'item-header';
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'item-name';
+        nameSpan.textContent = item.name;
+        
+        headerDiv.appendChild(nameSpan);
+
+        if (purchaseCallback && item.cost) {
+            const costSpan = document.createElement('span');
+            costSpan.className = 'item-cost';
+            costSpan.textContent = `${item.cost}🎟️`;
+            headerDiv.appendChild(costSpan);
+        }
+        
+        // Description
+        const descP = document.createElement('p');
+        descP.className = 'item-desc';
+        descP.innerHTML = item.desc; // Use innerHTML to support potential formatting
+        
+        // Assembling info
+        infoDiv.appendChild(headerDiv);
+        infoDiv.appendChild(descP);
+
+        // Add uses info if applicable
+        if (item.effect?.luck_chance?.breakable) {
+            const maxUses = item.effect.luck_chance.max_uses || item.uses || 10;
+            const usesSpan = document.createElement('span');
+            usesSpan.style.cssText = 'color:#ffab40; font-size:11px; margin-top: auto;';
+            usesSpan.textContent = `(Исп: ${item.uses !== undefined ? item.uses : maxUses}/${maxUses})`;
+            infoDiv.appendChild(usesSpan);
+        }
+
+        // Add mimic info if applicable
+        if(item.id === 'mimic_chest') {
+            let mimicInfoText = '';
+            if(item.effect?.mimic?.target) {
+                const target = ALL_ITEMS.find(i => i.id === item.effect.mimic.target);
+                mimicInfoText = target ? `Копирует: <b>${target.name}</b>` : `Цель не найдена`;
+            } else {
+                mimicInfoText = `<i>Нет цели для копирования</i>`;
+            }
+            const mimicDiv = document.createElement('div');
+            mimicDiv.style.cssText = 'color:#b388ff; font-size:11px; margin-top: auto;';
+            mimicDiv.innerHTML = mimicInfoText;
+            infoDiv.appendChild(mimicDiv);
+        }
+
+        // Assembling the final item element
+        itemDiv.appendChild(thumbnailDiv);
+        itemDiv.appendChild(infoDiv);
+
+        return itemDiv;
+    }
+
     function renderShop() {
         ui.shopItems.innerHTML = '';
-        if (state.shop.length === 0) ui.shopItems.innerHTML = '<p style="text-align:center; color: #777;">Пусто</p>';
+        if (state.shop.length === 0) {
+            ui.shopItems.innerHTML = '<p style="text-align:center; color: #777;">Пусто</p>';
+        }
         state.shop.forEach(item => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = `item rarity-${item.rarity}`;
-            itemDiv.onclick = () => buyItem(item.id);
-            itemDiv.innerHTML = `<span class="item-cost">${item.cost}🎟️</span><span class="item-name">${item.name}</span><p class="item-desc">${item.desc}</p>`;
-            if (state.tickets < item.cost) itemDiv.style.opacity = '0.5';
+            const itemDiv = createItemElement(item, buyItem);
             ui.shopItems.appendChild(itemDiv);
         });
     }
@@ -1497,12 +1583,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (amuletPopup) amuletPopup.remove();
         amuletPopup = document.createElement('div');
         amuletPopup.className = 'amulet-popup-overlay';
+        
+        const thumbnailValue = item.thumbnail || '?';
+        let thumbnailHTML = '';
+        if (thumbnailValue.endsWith('.png') || thumbnailValue.endsWith('.jpg') || thumbnailValue.endsWith('.gif')) {
+            thumbnailHTML = `<img src="img/${thumbnailValue}" alt="${item.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+        } else {
+            thumbnailHTML = thumbnailValue;
+        }
+        
         amuletPopup.innerHTML = `
             <div class="amulet-popup-card">
+                <div class="amulet-popup-thumbnail">${thumbnailHTML}</div>
                 <div class="amulet-popup-title">${item.name}</div>
                 <div class="amulet-popup-desc">${item.desc}</div>
-                <button class="amulet-popup-remove">Выкинуть</button>
-                <button class="amulet-popup-close">Закрыть</button>
+                <div style="margin-top: 20px;">
+                    <button class="amulet-popup-remove">Выкинуть</button>
+                    <button class="amulet-popup-close">Закрыть</button>
+                </div>
             </div>
         `;
         document.body.appendChild(amuletPopup);
@@ -1561,32 +1659,11 @@ document.addEventListener('DOMContentLoaded', () => {
             counter.style.fontWeight = '';
             counter.style.textShadow = '';
         }
-        if (state.inventory.length === 0) ui.inventoryItems.innerHTML = '<p style="text-align:center; color: #777;">Пусто</p>';
+        if (state.inventory.length === 0) {
+            ui.inventoryItems.innerHTML = '<p style="text-align:center; color: #777; grid-column: 1 / -1;">Пусто</p>';
+        }
         state.inventory.forEach(item => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = `item rarity-${item.rarity}`;
-            itemDiv.style.cursor = 'pointer';
-            itemDiv.onclick = () => showAmuletPopup(item);
-            let usesInfo = '';
-            if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
-                const maxUses = item.effect.luck_chance.max_uses || item.uses || 10;
-                usesInfo = `<span style='color:#ffab40; font-size:12px; margin-left:8px;'>(Использований: ${item.uses !== undefined ? item.uses : maxUses}/${maxUses})</span>`;
-            }
-            itemDiv.innerHTML = `<span class=\"item-name\">${item.name}</span>${usesInfo}<p class=\"item-desc\">${item.desc}</p>`;
-            if(item.id === 'mimic_chest') {
-                let mimicInfo = '';
-                if(item.effect && item.effect.mimic && item.effect.mimic.target) {
-                    const target = ALL_ITEMS.find(i => i.id === item.effect.mimic.target);
-                    if(target) {
-                        mimicInfo = `<div style='color:#b388ff; font-size:12px; margin-top:6px;'>Работает: копирует <b>${target.name}</b></div>`;
-                    } else {
-                        mimicInfo = `<div style='color:#b388ff; font-size:12px; margin-top:6px;'>Работает: цель не найдена</div>`;
-                    }
-                } else {
-                    mimicInfo = `<div style='color:#b388ff; font-size:12px; margin-top:6px;'>Работает: нет цели для копирования</div>`;
-                }
-                itemDiv.innerHTML += mimicInfo;
-            }
+            const itemDiv = createItemElement(item, null);
             ui.inventoryItems.appendChild(itemDiv);
         });
     }
@@ -1606,13 +1683,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderPlanningShop() {
         ui.planningShopItems.innerHTML = '';
-        if (state.shop.length === 0) ui.planningShopItems.innerHTML = '<p style="text-align:center; color: #777;">Пусто</p>';
+        if (state.shop.length === 0) {
+            ui.planningShopItems.innerHTML = '<p style="text-align:center; color: #777;">Пусто</p>';
+        }
         state.shop.forEach(item => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = `item rarity-${item.rarity}`;
-            itemDiv.onclick = () => buyItem(item.id);
-            itemDiv.innerHTML = `<span class="item-cost">${item.cost}🎟️</span><span class="item-name">${item.name}</span><p class="item-desc">${item.desc}</p>`;
-            if (state.tickets < item.cost) itemDiv.style.opacity = '0.5';
+            const itemDiv = createItemElement(item, buyItem);
             ui.planningShopItems.appendChild(itemDiv);
         });
     }
@@ -1638,18 +1713,11 @@ document.addEventListener('DOMContentLoaded', () => {
             counter.style.fontWeight = '';
             counter.style.textShadow = '';
         }
-        if (state.inventory.length === 0) ui.planningInventoryItems.innerHTML = '<p style="text-align:center; color: #777;">Пусто</p>';
+        if (state.inventory.length === 0) {
+            ui.planningInventoryItems.innerHTML = '<p style="text-align:center; color: #777; grid-column: 1 / -1;">Пусто</p>';
+        }
         state.inventory.forEach(item => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = `item rarity-${item.rarity}`;
-            itemDiv.style.cursor = 'pointer';
-            itemDiv.onclick = () => showAmuletPopup(item);
-            let usesInfo = '';
-            if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
-                const maxUses = item.effect.luck_chance.max_uses || item.uses || 10;
-                usesInfo = `<span style='color:#ffab40; font-size:12px; margin-left:8px;'>(Использований: ${item.uses !== undefined ? item.uses : maxUses}/${maxUses})</span>`;
-            }
-            itemDiv.innerHTML = `<span class=\"item-name\">${item.name}</span>${usesInfo}<p class=\"item-desc\">${item.desc}</p>`;
+            const itemDiv = createItemElement(item, null);
             ui.planningInventoryItems.appendChild(itemDiv);
         });
     }

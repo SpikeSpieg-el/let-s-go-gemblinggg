@@ -1,896 +1,953 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
 
-        :root {
-            --bg-color: #111;
-            --cell-bg: #222;
-            --panel-bg: #1a1a1a;
-            --text-color: #e0e0e0;
-            --highlight-color: #00ff7f;
-            --danger-color: #ff3b3b;
-            --money-color: #ffd700;
-            --ticket-color: #b388ff;
-            --luck-color: #40c4ff;
-            --border-color: #444;
-            --rarity-common: #aaa;
-            --rarity-rare: #536dfe;
-            --rarity-legendary: #ffab40;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: 'Roboto Mono', monospace;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-            background-image: radial-gradient(circle, #222 1px, transparent 1px);
-            background-size: 25px 25px;
-        }
-
-        .game-container {
-            display: flex;
-            gap: 20px;
-            padding: 20px;
-            width: 100%;
-            max-width: 1300px;
-        }
-
-        .main-panel {
-            flex-grow: 1; display: flex; flex-direction: column; gap: 20px;
-        }
-        
-        .slot-area {
-            display: flex;
-            align-items: stretch;
-            gap: 20px;
-        }
-
-        .slot-machine {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            padding: 15px;
-            border: 2px solid var(--border-color);
-            background-color: var(--panel-bg);
-            border-radius: 8px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.7);
-            flex-grow: 1;
-        }
-
-        .slot-cell {
-            background-color: var(--cell-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
-            aspect-ratio: 1 / 1;
-            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, opacity 0.5s;
-            opacity: 1;
-        }
-        .slot-cell .reel {
-            /* transition убран отсюда и добавляется динамически в JS */
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 2000%; /* 20 картинок */
-        }
-        .slot-cell .symbol {
-            width: 100%; 
-            height: 5%; /* 1/20 */
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 2em;
-            padding: 10%;
-        }
-
-        .slot-cell.highlight {
-            box-shadow: 0 0 15px var(--highlight-color);
-            border-color: var(--highlight-color);
-            transform: scale(1.05);
-            z-index: 10;
-            animation: winPulse 0.5s ease-in-out;
-        }
-        .slot-cell.highlight-big {
-            box-shadow: 0 0 20px var(--money-color);
-            border-color: var(--money-color);
-            transform: scale(1.08);
-            z-index: 10;
-            animation: winPulseBig 0.5s ease-in-out;
-        }
-        .slot-cell.highlight-huge {
-            box-shadow: 0 0 25px var(--ticket-color);
-            border-color: var(--ticket-color);
-            transform: scale(1.12);
-            z-index: 10;
-            animation: winPulseHuge 0.5s ease-in-out;
-        }
-        .slot-cell.fade-out {
-            opacity: 0 !important;
-            transition: opacity 0.5s;
-        }
-
-        .lever-container {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background-color: var(--panel-bg); border: 2px solid var(--border-color);
-            padding: 20px 15px; border-radius: 8px;
-        }
-        .lever-base { width: 50px; height: 30px; background: #333; border-radius: 5px 5px 0 0; }
-        .lever {
-            width: 12px; height: 100px; background: #666;
-            position: relative; cursor: pointer; transition: transform 0.2s;
-            transform-origin: bottom center;
-        }
-        .lever-handle {
-            width: 30px; height: 30px; background: var(--danger-color);
-            border-radius: 50%; position: absolute; top: -15px; left: -9px;
-        }
-        .lever.pulled { transform: rotate(45deg); cursor: not-allowed; }
-        .lever:not(.pulled):hover { transform: scale(1.1); }
-
-        .controls {
-            padding: 15px; border: 2px solid var(--border-color); background-color: var(--panel-bg);
-            border-radius: 8px; text-align: center;
-            display: flex; justify-content: space-around; align-items: center;
-        }
-
-        .log-panel {
-            height: 150px; padding: 15px; border: 2px solid var(--border-color);
-            background-color: var(--panel-bg); border-radius: 8px; overflow-y: auto;
-            font-size: 14px; display: flex; flex-direction: column-reverse;
-        }
-        .log-panel p { margin-bottom: 5px; }
-
-        .ui-panel {
-            width: 350px; display: flex; flex-direction: column;
-            gap: 20px; flex-shrink: 0;
-        }
-
-        .ui-box {
-            padding: 15px; border: 2px solid var(--border-color);
-            background-color: var(--panel-bg); border-radius: 8px;
-        }
-        .ui-box h3 {
-            margin-bottom: 10px; border-bottom: 1px solid var(--border-color);
-            padding-bottom: 5px; color: var(--highlight-color);
-        }
-
-        .stats-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 15px; }
-        .stats-grid.compact-stats { gap: 6px 12px; }
-        .stats-grid span:nth-child(odd) { text-align: left; padding-right: 10px; font-weight: 700; color: #ccc; }
-        .stats-grid span:nth-child(even) { font-weight: bold; }
-        
-        /* --- ИЗМЕНЕННЫЕ СТИЛИ ДЛЯ МАГАЗИНА И ИНВЕНТАРЯ --- */
-        .shop-items, .inventory-items {
-            display: flex;
-            gap: 10px;
-        }
-        
-        /* Магазин: вертикальный список, без прокрутки */
-        .shop-items {
-            flex-direction: column;
-        }
-
-        /* Инвентарь: горизонтальная полка, с переносом строк */
-        .inventory-items {
-            flex-wrap: wrap;
-            
-            overflow-y: auto;
-        }
-        /* ----------------------------------------------- */
-
-        .item {
-            padding: 10px; border: 1px solid var(--border-color); background-color: var(--cell-bg);
-            border-radius: 4px; cursor: pointer; transition: background-color 0.2s, border-color 0.2s;
-            position: relative;
-        }
-        .inventory-items .item {
-            flex-grow: 1; /* Позволяет предметам растягиваться */
-            flex-basis: 150px; /* Базовая ширина для каждого предмета */
-        }
-        .item:hover:not(:disabled) { background-color: #3c3c3c; border-color: var(--highlight-color); }
-        .item.rarity-common { border-left: 5px solid var(--rarity-common); }
-        .item.rarity-rare { border-left: 5px solid var(--rarity-rare); }
-        .item.rarity-legendary { border-left: 5px solid var(--rarity-legendary); }
-        
-        .item-name { font-weight: bold; }
-        .item-cost { float: right; color: var(--ticket-color); font-weight: bold; }
-        .item-desc { font-size: 12px; color: #aaa; margin-top: 5px; }
-        
-        .atm-actions { display: flex; gap: 10px; margin-top: 10px; }
-        .atm-actions input {
-            flex-grow: 1; background-color: var(--cell-bg); border: 1px solid var(--border-color);
-            color: var(--text-color); padding: 8px; font-family: 'Roboto Mono', monospace; border-radius: 4px;
-            width: 50%;
-        }
-
-        button {
-            font-family: 'Roboto Mono', monospace; padding: 10px 20px;
-            border: 1px solid var(--border-color); background-color: var(--cell-bg);
-            color: var(--text-color); cursor: pointer; border-radius: 4px;
-            font-size: 16px; transition: all 0.2s;
-        }
-        button:hover:not(:disabled) { background-color: var(--highlight-color); color: var(--bg-color); border-color: var(--highlight-color); }
-        button:disabled { cursor: not-allowed; opacity: 0.5; }
-        
-        #btn-end-turn, #btn-confirm-end-turn { background-color: var(--danger-color); border-color: #ff6b6b; }
-        #btn-end-turn:hover:not(:disabled), #btn-confirm-end-turn:hover:not(:disabled) { background-color: #ff6b6b; border-color: white; color: white; }
-        
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.9); display: flex; justify-content: center;
-            align-items: center; z-index: 1000; text-align: center; padding: 20px;
-            backdrop-filter: blur(5px);
-        }
-        .modal-content {
-            background-color: var(--panel-bg); padding: 30px; border-radius: 8px;
-            border: 2px solid var(--border-color); max-width: 500px;
-        }
-        .modal-content h2 { margin-bottom: 15px; color: var(--highlight-color); }
-        .modal-content p { margin-bottom: 25px; }
-        .modal-content button { margin: 5px; }
-        .modal-stats { text-align: left; max-width: 300px; margin: 20px auto; display: grid; grid-template-columns: auto 1fr; gap: 8px;}
-        #game-over-screen .modal-content h2, #judgement-modal .modal-content h2.failure { color: var(--danger-color); }
-        .hidden { display: none; }
-        .shake { animation: shake 0.5s infinite; }
-
-        @keyframes shake {
-            0%, 100% { transform: translate(0, 0) rotate(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translate(-2px, -2px) rotate(-1deg); }
-            20%, 40%, 60%, 80% { transform: translate(2px, 2px) rotate(1deg); }
-        }
-        @keyframes winPulse { 0% {transform: scale(1.05);} 50% {transform: scale(1.1);} 100% {transform: scale(1.05);} }
-        @keyframes winPulseBig { 0% {transform: scale(1.08);} 50% {transform: scale(1.15);} 100% {transform: scale(1.08);} }
-        @keyframes winPulseHuge { 0% {transform: scale(1.12);} 50% {transform: scale(1.2);} 100% {transform: scale(1.12);} }
-
-        .style2-switch-btn {
-            background: var(--cell-bg);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-family: 'Roboto Mono', monospace;
-            font-size: 16px;
-            padding: 10px 20px;
-            cursor: pointer;
-            transition: background 0.2s, color 0.2s, border-color 0.2s;
-            letter-spacing: 1px;
-        }
-        .style2-switch-btn:hover:not(:disabled) {
-            background: var(--highlight-color);
-            color: var(--bg-color);
-            border-color: var(--highlight-color);
-        }
-
-        /* Стилизация скроллбаров */
-        ::-webkit-scrollbar {
-            width: 10px;
-            background: var(--panel-bg);
-            border-radius: 8px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 8px;
-            transition: background 0.2s;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--highlight-color);
-        }
-        ::-webkit-scrollbar-corner {
-            background: var(--panel-bg);
-        }
-
-        /* Для Firefox */
-        * {
-            scrollbar-width: thin;
-            scrollbar-color: var(--border-color) var(--panel-bg);
-        }
-
-        /* Комбо эффекты */
-        @keyframes comboShake {
-            0%, 100% { transform: translate(0, 0) rotate(0); }
-            25% { transform: translate(-3px, -2px) rotate(-1deg); }
-            75% { transform: translate(3px, 2px) rotate(1deg); }
-        }
-
-        @keyframes comboGlow {
-            0%, 100% { box-shadow: 0 0 15px var(--highlight-color); }
-            50% { box-shadow: 0 0 30px var(--highlight-color), 0 0 50px var(--money-color); }
-        }
-
-        @keyframes comboRainbow {
-            0% { border-color: #ff0000; }
-            20% { border-color: #ffd700; }
-            40% { border-color: #00ff00; }
-            60% { border-color: #00ffff; }
-            80% { border-color: #ff00ff; }
-            100% { border-color: #ff0000; }
-        }
-
-        @keyframes comboPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        .combo-1 { animation: comboShake 0.5s infinite; }
-        .combo-2 { animation: comboGlow 1s infinite; }
-        .combo-3 { animation: comboRainbow 2s infinite; border-width: 3px; }
-        .combo-4 { 
-            animation: comboPulse 0.5s infinite, comboGlow 1s infinite, comboRainbow 2s infinite;
-            border-width: 4px;
-        }
-        .combo-5 { 
-            animation: comboShake 0.3s infinite, comboGlow 0.7s infinite, comboRainbow 1.5s infinite;
-            border-width: 5px;
-            filter: brightness(1.2);
-        }
-
-        .combo-text {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 48px;
-            font-weight: bold;
-            color: var(--highlight-color);
-            text-shadow: 0 0 10px var(--money-color);
-            pointer-events: none;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s, opacity 0.5s;
-        }
-
-        .combo-text.show {
-            opacity: 1;
-            animation: comboTextPop 0.5s ease-out;
-        }
-
-        .combo-text.fade-out {
-            opacity: 0 !important;
-            transition: opacity 0.5s;
-        }
-
-        @keyframes comboTextPop {
-            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        }
-
-        /* Эффект свечения для всей слот-машины */
-        .slot-machine.combo-active {
-            box-shadow: 0 0 30px rgba(0, 255, 127, 0.3);
-            transition: box-shadow 0.3s ease;
-        }
-
-        /* Эффект для выигрышных символов */
-        .symbol.winning {
-            animation: symbolWin 0.5s infinite;
-        }
-
-        @keyframes symbolWin {
-            0%, 100% { transform: scale(1); filter: brightness(1); }
-            50% { transform: scale(1.1); filter: brightness(1.3); }
-        }
-
-        /* Последовательная анимация для комбо */
-        @keyframes sequentialPop {
-            0% { 
-                transform: scale(1);
-                filter: brightness(1);
-            }
-            50% { 
-                transform: scale(1.3);
-                filter: brightness(1.5);
-            }
-            100% { 
-                transform: scale(1);
-                filter: brightness(1);
-            }
-        }
-
-        @keyframes sequentialGlow {
-            0% {
-                box-shadow: 0 0 5px transparent;
-            }
-            50% {
-                box-shadow: 0 0 20px var(--highlight-color), 0 0 40px var(--money-color);
-            }
-            100% {
-                box-shadow: 0 0 5px transparent;
-            }
-        }
-
-        .slot-cell.sequential-highlight {
-            animation: sequentialPop 0.5s ease-out, sequentialGlow 0.5s ease-out;
-        }
-
-        /* Модифицируем существующие комбо для последовательности */
-        .combo-1.sequential { animation: comboShake 0.5s infinite 0.5s; }
-        .combo-2.sequential { animation: comboGlow 1s infinite 0.5s; }
-        .combo-3.sequential { 
-            animation: comboRainbow 2s infinite 0.5s; 
-            border-width: 3px;
-        }
-        .combo-4.sequential { 
-            animation: comboPulse 0.5s infinite 0.5s, comboGlow 1s infinite 0.5s, comboRainbow 2s infinite 0.5s;
-            border-width: 4px;
-            filter: brightness(1.1);
-        }
-        .combo-5.sequential { 
-            animation: comboShake 0.3s infinite 0.5s, comboGlow 0.7s infinite 0.5s, comboRainbow 1.5s infinite 0.5s;
-            border-width: 5px;
-            filter: brightness(1.3);
-            box-shadow: 0 0 30px var(--money-color), 0 0 50px var(--highlight-color);
-        }
-
-        /* Добавляем эффект частиц для больших комбо */
-        @keyframes particle {
-            0% {
-                transform: translate(-50%, -50%) scale(0);
-                opacity: 1;
-            }
-            100% {
-                transform: translate(-50%, -50%) scale(2);
-                opacity: 0;
-            }
-        }
-
-        .particle {
-            position: absolute;
-            pointer-events: none;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: var(--highlight-color);
-            left: 50%;
-            top: 50%;
-            animation: particle 0.5s ease-out forwards;
-        }
-
-        /* Стили для поп-апа общего выигрыша */
-        .total-win-popup {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            background: rgba(0, 0, 0, 0.9);
-            border: 3px solid var(--money-color);
-            border-radius: 15px;
-            padding: 30px 50px;
-            text-align: center;
-            z-index: 1001;
-            opacity: 0;
-            transition: all 0.3s ease, opacity 0.5s, transform 0.3s;
-        }
-
-        .total-win-popup.show {
-            transform: translate(-50%, -50%) scale(1);
-            opacity: 1;
-        }
-
-        .total-win-popup.fade-out {
-            opacity: 0 !important;
-            transition: opacity 0.5s;
-        }
-
-        .total-win-popup .win-title {
-            font-size: 24px;
-            color: var(--highlight-color);
-            margin-bottom: 15px;
-        }
-
-        .total-win-popup .win-amount {
-            font-size: 48px;
-            color: var(--money-color);
-            font-weight: bold;
-            text-shadow: 0 0 10px var(--money-color);
-        }
-
-        /* Эффект конфетти для большого выигрыша */
-        .confetti {
-            position: fixed;
-            width: 10px;
-            height: 10px;
-            pointer-events: none;
-            z-index: 1000;
-            animation: confettiFall 2s linear forwards;
-        }
-
-        @keyframes confettiFall {
-            0% { transform: translateY(-100vh) rotate(0deg); }
-            100% { transform: translateY(100vh) rotate(720deg); }
-        }
-
-        /* Стили для анимации счётчика прокрутов */
-        .spins-counter {
-            position: relative;
-            display: inline-block;
-            min-width: 1.5em;
-        }
-
-        .spins-counter .old-value,
-        .spins-counter .new-value {
-            position: absolute;
-            left: 0;
-            width: 100%;
-            text-align: center;
-            font-weight: bold;
-        }
-
-        .spins-counter .old-value {
-            animation: spinNumberFallOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-            color: var(--danger-color);
-        }
-
-        .spins-counter .new-value {
-            animation: spinNumberFallIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-            color: var(--text-color);
-            opacity: 0;
-        }
-
-        @keyframes spinNumberFallOut {
-            0% {
-                transform: translateY(0);
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(30px);
-                opacity: 0;
-            }
-        }
-
-        @keyframes spinNumberFallIn {
-            0% {
-                transform: translateY(-30px);
-                opacity: 0;
-            }
-            100% {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        /* Элегантные частицы */
-        .spin-particle {
-            position: absolute;
-            pointer-events: none;
-            border-radius: 50%;
-            background: transparent;
-            border: 2px solid var(--highlight-color);
-            opacity: 0;
-        }
-
-        @keyframes particleExpand {
-            0% {
-                transform: translate(-50%, -50%) scale(0.5);
-                opacity: 0.8;
-                border-width: 2px;
-            }
-            100% {
-                transform: translate(-50%, -50%) scale(2);
-                opacity: 0;
-                border-width: 0;
-            }
-        }
-
-        /* Мерцающий ореол */
-        .spins-counter::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 100%;
-            height: 100%;
-            transform: translate(-50%, -50%);
-            background: radial-gradient(circle, var(--highlight-color) 0%, transparent 70%);
-            opacity: 0;
-            pointer-events: none;
-            animation: glowPulse 1s ease-out forwards;
-        }
-
-        @keyframes glowPulse {
-            0% {
-                opacity: 0.3;
-                transform: translate(-50%, -50%) scale(0.8);
-            }
-            50% {
-                opacity: 0.1;
-                transform: translate(-50%, -50%) scale(1.2);
-            }
-            100% {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(1.5);
-            }
-        }
-
-        /* Улучшенные стили для джекпота */
-        .jackpot-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 1000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            animation: jackpotFadeIn 0.5s ease-out;
-            backdrop-filter: blur(10px);
-        }
-
-        .jackpot-overlay.fade-out {
-            animation: jackpotFadeOut 1s ease-in forwards;
-        }
-
-        .jackpot-content {
-            text-align: center;
-            animation: jackpotPulse 0.5s infinite alternate;
-            position: relative;
-            z-index: 1001;
-        }
-
-        .jackpot-title {
-            font-size: 96px;
-            color: #FFD700;
-            text-shadow: 0 0 30px #FFD700, 0 0 60px #FFD700;
-            margin-bottom: 30px;
-            animation: jackpotShake 0.1s infinite, jackpotGlow 1s infinite alternate;
-            font-weight: bold;
-        }
-
-        .jackpot-amount {
-            font-size: 64px;
-            color: #fff;
-            text-shadow: 0 0 20px #fff, 0 0 40px var(--money-color);
-            animation: jackpotAmountPulse 1s infinite alternate;
-        }
-
-        .jackpot-particle {
-            position: absolute;
-            width: 15px;
-            height: 15px;
-            background: linear-gradient(45deg, #FFD700, #FFA500);
-            border-radius: 50%;
-            left: 50%;
-            top: 50%;
-            transform-origin: center;
-            animation: particleExplode 2s ease-out forwards;
-            animation-delay: var(--delay);
-            box-shadow: 0 0 20px #FFD700;
-        }
-
-        @keyframes jackpotFadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes jackpotFadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-
-        @keyframes jackpotPulse {
-            from { transform: scale(1); }
-            to { transform: scale(1.1); }
-        }
-
-        @keyframes jackpotShake {
-            0% { transform: translate(-1px, -1px) rotate(0); }
-            25% { transform: translate(1px, 1px) rotate(1deg); }
-            50% { transform: translate(-1px, 1px) rotate(-1deg); }
-            75% { transform: translate(1px, -1px) rotate(1deg); }
-            100% { transform: translate(-1px, -1px) rotate(0); }
-        }
-
-        @keyframes jackpotGlow {
-            0% { text-shadow: 0 0 30px #FFD700, 0 0 60px #FFD700; }
-            100% { text-shadow: 0 0 50px #FFD700, 0 0 100px #FFD700, 0 0 150px #FFD700; }
-        }
-
-        @keyframes jackpotAmountPulse {
-            0% { transform: scale(1); filter: brightness(1); }
-            100% { transform: scale(1.1); filter: brightness(1.3); }
-        }
-
-        @keyframes particleExplode {
-            0% {
-                transform: rotate(var(--angle)) translateY(0) scale(1);
-                opacity: 1;
-            }
-            100% {
-                transform: rotate(var(--angle)) translateY(1000px) scale(0);
-                opacity: 0;
-            }
-        }
-
-        /* Стили для вылетающих монет */
-        .flying-coin {
-            position: absolute;
-            font-size: 24px;
-            left: 50%;
-            top: 50%;
-            transform-origin: center;
-            pointer-events: none;
-            animation: coinFly var(--speed) ease-out forwards;
-            text-shadow: 0 0 10px var(--money-color);
-        }
-
-        @keyframes coinFly {
-            0% {
-                transform: translate(-50%, -50%) rotate(0deg) scale(1);
-                opacity: 1;
-            }
-            100% {
-                transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-100px) scale(0);
-                opacity: 0;
-            }
-        }
-
-        @keyframes coinSpin {
-            from { transform: translate(-50%, -50%) rotate(0deg); }
-            to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-
-        /* Улучшенные стили для комбо при джекпоте */
-        .combo-5.sequential.jackpot { 
-            animation: comboShake 0.2s infinite 0.5s, comboGlow 0.5s infinite 0.5s, comboRainbow 1s infinite 0.5s;
-            border-width: 6px;
-            filter: brightness(1.4);
-            box-shadow: 0 0 40px var(--money-color), 0 0 80px var(--highlight-color);
-        }
-
-        /* Улучшенные стили для монет при джекпоте */
-        .flying-coin.jackpot {
-            font-size: 32px;
-            filter: brightness(1.3);
-            text-shadow: 0 0 20px var(--money-color), 0 0 40px var(--highlight-color);
-        }
-
-        .doubloon-popup {
-            z-index: 2000;
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.5s;
-            pointer-events: none;
-            /* transform и позиционирование теперь задаются в JS */
-        }
-        .doubloon-popup.show {
-            transform: translateY(-50%) scale(1) !important;
-            opacity: 1;
-        }
-        .doubloon-popup.fade-out {
-            opacity: 0 !important;
-            transition: opacity 0.5s;
-        }
-        .doubloon-star {
-            width: 150px;
-            height: 150px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-        .doubloon-svg {
-            width: 250px;
-            height: 250px;
-            display: block;
-            animation: doubloon-rotate 3s linear infinite;
-        }
-        .doubloon-text {
-            position: absolute;
-            left: 45%;
-            top: 45%;
-            transform: translate(-50%, -50%);
-            color: #fffbe6;
-            font-size: 16px;
-            font-weight: bold;
-            text-shadow: 0 0 6px #bfa700, 0 0 2px #fff;
-            letter-spacing: 1px;
-            pointer-events: none;
-            user-select: none;
-            white-space: nowrap;
-        }
-        @keyframes doubloon-rotate {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .amulet-popup-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.55);
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .amulet-popup-card {
-            background: var(--cell-bg, #232323);
-            border-radius: 10px;
-            box-shadow: 0 6px 32px #000b, 0 1.5px 6px #0008;
-            padding: 32px 28px 20px 28px;
-            min-width: 260px;
-            max-width: 340px;
-            color: var(--text-color, #fff);
-            position: relative;
-            text-align: center;
-            animation: popup-in 0.18s cubic-bezier(.7,-0.2,.7,1.2);
-        }
-        .amulet-popup-title {
-            font-size: 1.3em;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .amulet-popup-desc {
-            font-size: 1em;
-            margin-bottom: 18px;
-            color: #bdbdbd;
-        }
-        .amulet-popup-remove {
-            background: var(--danger-color, #c82333);
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            padding: 8px 18px;
-            font-size: 1em;
-            margin-right: 10px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .amulet-popup-remove:hover {
-            background: #a71d2a;
-        }
-        .amulet-popup-close {
-            background: #444;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            padding: 8px 18px;
-            font-size: 1em;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .amulet-popup-close:hover {
-            background: #222;
-        }
-        @keyframes popup-in {
-            from { transform: scale(0.8); opacity: 0; }
-            to   { transform: scale(1); opacity: 1; }
-        }
-
-        /* Стили для новой секции досрочной выплаты */
-        .early-payoff-section {
-            margin-top: 15px;
-            padding-top: 12px;
-            border-top: 1px solid var(--border-color);
-            text-align: center;
-        }
-
-        #btn-pay-debt-early {
-            width: 100%;
-            padding: 10px;
-            font-size: 15px;
-            background-color: var(--highlight-color);
-            color: var(--bg-color);
-            border-color: var(--highlight-color);
-            font-weight: bold;
-        }
-
-        #btn-pay-debt-early:disabled {
-            background-color: var(--cell-bg);
-            color: var(--text-color);
-            border-color: var(--border-color);
-            opacity: 0.5;
-        }
-
-        .early-payoff-info {
-            margin-top: 8px;
-            font-size: 13px;
-            color: #aaa;
-            line-height: 1.4;
-        }
+:root {
+    --bg-color: #111;
+    --cell-bg: #222;
+    --panel-bg: #1a1a1a;
+    --text-color: #e0e0e0;
+    --highlight-color: #00ff7f;
+    --danger-color: #ff3b3b;
+    --money-color: #ffd700;
+    --ticket-color: #b388ff;
+    --luck-color: #40c4ff;
+    --border-color: #444;
+    --rarity-common: #aaa;
+    --rarity-rare: #536dfe;
+    --rarity-legendary: #ffab40;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Roboto Mono', monospace;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+    background-image: radial-gradient(circle, #222 1px, transparent 1px);
+    background-size: 25px 25px;
+}
+
+.game-container {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    width: 100%;
+    max-width: 1300px;
+}
+
+.main-panel {
+    flex-grow: 1; display: flex; flex-direction: column; gap: 20px;
+}
+
+.slot-area {
+    display: flex;
+    align-items: stretch;
+    gap: 20px;
+}
+
+.slot-machine {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    padding: 15px;
+    border: 2px solid var(--border-color);
+    background-color: var(--panel-bg);
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.7);
+    flex-grow: 1;
+}
+
+.slot-cell {
+    background-color: var(--cell-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 1 / 1;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, opacity 0.5s;
+    opacity: 1;
+}
+.slot-cell .reel {
+    /* transition убран отсюда и добавляется динамически в JS */
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2000%; /* 20 картинок */
+}
+.slot-cell .symbol {
+    width: 100%; 
+    height: 5%; /* 1/20 */
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 2em;
+    padding: 10%;
+}
+
+.slot-cell.highlight {
+    box-shadow: 0 0 15px var(--highlight-color);
+    border-color: var(--highlight-color);
+    transform: scale(1.05);
+    z-index: 10;
+    animation: winPulse 0.5s ease-in-out;
+}
+.slot-cell.highlight-big {
+    box-shadow: 0 0 20px var(--money-color);
+    border-color: var(--money-color);
+    transform: scale(1.08);
+    z-index: 10;
+    animation: winPulseBig 0.5s ease-in-out;
+}
+.slot-cell.highlight-huge {
+    box-shadow: 0 0 25px var(--ticket-color);
+    border-color: var(--ticket-color);
+    transform: scale(1.12);
+    z-index: 10;
+    animation: winPulseHuge 0.5s ease-in-out;
+}
+.slot-cell.fade-out {
+    opacity: 0 !important;
+    transition: opacity 0.5s;
+}
+
+.lever-container {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background-color: var(--panel-bg); border: 2px solid var(--border-color);
+    padding: 20px 15px; border-radius: 8px;
+}
+.lever-base { width: 50px; height: 30px; background: #333; border-radius: 5px 5px 0 0; }
+.lever {
+    width: 12px; height: 100px; background: #666;
+    position: relative; cursor: pointer; transition: transform 0.2s;
+    transform-origin: bottom center;
+}
+.lever-handle {
+    width: 30px; height: 30px; background: var(--danger-color);
+    border-radius: 50%; position: absolute; top: -15px; left: -9px;
+}
+.lever.pulled { transform: rotate(45deg); cursor: not-allowed; }
+.lever:not(.pulled):hover { transform: scale(1.1); }
+
+.controls {
+    padding: 15px; border: 2px solid var(--border-color); background-color: var(--panel-bg);
+    border-radius: 8px; text-align: center;
+    display: flex; justify-content: space-around; align-items: center;
+}
+
+.log-panel {
+    height: 150px; padding: 15px; border: 2px solid var(--border-color);
+    background-color: var(--panel-bg); border-radius: 8px; overflow-y: auto;
+    font-size: 14px; display: flex; flex-direction: column-reverse;
+}
+.log-panel p { margin-bottom: 5px; }
+
+.ui-panel {
+    width: 350px; display: flex; flex-direction: column;
+    gap: 20px; flex-shrink: 0;
+}
+
+.ui-box {
+    padding: 15px; border: 2px solid var(--border-color);
+    background-color: var(--panel-bg); border-radius: 8px;
+}
+.ui-box h3 {
+    margin-bottom: 10px; border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px; color: var(--highlight-color);
+}
+
+.stats-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 15px; }
+.stats-grid.compact-stats { gap: 6px 12px; }
+.stats-grid span:nth-child(odd) { text-align: left; padding-right: 10px; font-weight: 700; color: #ccc; }
+.stats-grid span:nth-child(even) { font-weight: bold; }
+
+/* --- NEW ITEM & LAYOUT STYLES --- */
+.shop-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.inventory-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+    align-content: start;
+    min-height: 100px;
+}
+.item {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    background-color: var(--cell-bg);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+}
+.item:hover:not(:disabled) { 
+    background-color: #3c3c3c; 
+    border-color: var(--highlight-color);
+    transform: translateY(-2px);
+}
+.item.rarity-common { border-left: 5px solid var(--rarity-common); }
+.item.rarity-rare { border-left: 5px solid var(--rarity-rare); }
+.item.rarity-legendary { border-left: 5px solid var(--rarity-legendary); }
+
+.item-thumbnail {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    background-color: #111;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8em;
+    user-select: none;
+    text-align: center;
+}
+.item-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0; /* Prevents flex items from overflowing */
+}
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.item-name {
+    font-weight: bold;
+    flex-grow: 1;
+}
+.item-cost {
+    color: var(--ticket-color);
+    font-weight: bold;
+    white-space: nowrap;
+    margin-left: 8px;
+}
+.item-desc {
+    font-size: 12px;
+    color: #aaa;
+    line-height: 1.4;
+}
+
+.atm-actions { display: flex; gap: 10px; margin-top: 10px; }
+.atm-actions input {
+    flex-grow: 1; background-color: var(--cell-bg); border: 1px solid var(--border-color);
+    color: var(--text-color); padding: 8px; font-family: 'Roboto Mono', monospace; border-radius: 4px;
+    width: 50%;
+}
+
+button {
+    font-family: 'Roboto Mono', monospace; padding: 10px 20px;
+    border: 1px solid var(--border-color); background-color: var(--cell-bg);
+    color: var(--text-color); cursor: pointer; border-radius: 4px;
+    font-size: 16px; transition: all 0.2s;
+}
+button:hover:not(:disabled) { background-color: var(--highlight-color); color: var(--bg-color); border-color: var(--highlight-color); }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+
+#btn-end-turn, #btn-confirm-end-turn { background-color: var(--danger-color); border-color: #ff6b6b; }
+#btn-end-turn:hover:not(:disabled), #btn-confirm-end-turn:hover:not(:disabled) { background-color: #ff6b6b; border-color: white; color: white; }
+
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.9); display: flex; justify-content: center;
+    align-items: center; z-index: 1000; text-align: center; padding: 20px;
+    backdrop-filter: blur(5px);
+}
+.modal-content {
+    background-color: var(--panel-bg); padding: 30px; border-radius: 8px;
+    border: 2px solid var(--border-color); max-width: 500px;
+}
+.modal-content h2 { margin-bottom: 15px; color: var(--highlight-color); }
+.modal-content p { margin-bottom: 25px; }
+.modal-content button { margin: 5px; }
+.modal-stats { text-align: left; max-width: 300px; margin: 20px auto; display: grid; grid-template-columns: auto 1fr; gap: 8px;}
+#game-over-screen .modal-content h2, #judgement-modal .modal-content h2.failure { color: var(--danger-color); }
+.hidden { display: none; }
+.shake { animation: shake 0.5s infinite; }
+
+@keyframes shake {
+    0%, 100% { transform: translate(0, 0) rotate(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translate(-2px, -2px) rotate(-1deg); }
+    20%, 40%, 60%, 80% { transform: translate(2px, 2px) rotate(1deg); }
+}
+@keyframes winPulse { 0% {transform: scale(1.05);} 50% {transform: scale(1.1);} 100% {transform: scale(1.05);} }
+@keyframes winPulseBig { 0% {transform: scale(1.08);} 50% {transform: scale(1.15);} 100% {transform: scale(1.08);} }
+@keyframes winPulseHuge { 0% {transform: scale(1.12);} 50% {transform: scale(1.2);} 100% {transform: scale(1.12);} }
+
+.style2-switch-btn {
+    background: var(--cell-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 16px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    letter-spacing: 1px;
+}
+.style2-switch-btn:hover:not(:disabled) {
+    background: var(--highlight-color);
+    color: var(--bg-color);
+    border-color: var(--highlight-color);
+}
+
+/* Стилизация скроллбаров */
+::-webkit-scrollbar {
+    width: 10px;
+    background: var(--panel-bg);
+    border-radius: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--highlight-color);
+}
+::-webkit-scrollbar-corner {
+    background: var(--panel-bg);
+}
+
+/* Для Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--panel-bg);
+}
+
+/* Комбо эффекты */
+@keyframes comboShake {
+    0%, 100% { transform: translate(0, 0) rotate(0); }
+    25% { transform: translate(-3px, -2px) rotate(-1deg); }
+    75% { transform: translate(3px, 2px) rotate(1deg); }
+}
+
+@keyframes comboGlow {
+    0%, 100% { box-shadow: 0 0 15px var(--highlight-color); }
+    50% { box-shadow: 0 0 30px var(--highlight-color), 0 0 50px var(--money-color); }
+}
+
+@keyframes comboRainbow {
+    0% { border-color: #ff0000; }
+    20% { border-color: #ffd700; }
+    40% { border-color: #00ff00; }
+    60% { border-color: #00ffff; }
+    80% { border-color: #ff00ff; }
+    100% { border-color: #ff0000; }
+}
+
+@keyframes comboPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.combo-1 { animation: comboShake 0.5s infinite; }
+.combo-2 { animation: comboGlow 1s infinite; }
+.combo-3 { animation: comboRainbow 2s infinite; border-width: 3px; }
+.combo-4 { 
+    animation: comboPulse 0.5s infinite, comboGlow 1s infinite, comboRainbow 2s infinite;
+    border-width: 4px;
+}
+.combo-5 { 
+    animation: comboShake 0.3s infinite, comboGlow 0.7s infinite, comboRainbow 1.5s infinite;
+    border-width: 5px;
+    filter: brightness(1.2);
+}
+
+.combo-text {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 48px;
+    font-weight: bold;
+    color: var(--highlight-color);
+    text-shadow: 0 0 10px var(--money-color);
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s, opacity 0.5s;
+}
+
+.combo-text.show {
+    opacity: 1;
+    animation: comboTextPop 0.5s ease-out;
+}
+
+.combo-text.fade-out {
+    opacity: 0 !important;
+    transition: opacity 0.5s;
+}
+
+@keyframes comboTextPop {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* Эффект свечения для всей слот-машины */
+.slot-machine.combo-active {
+    box-shadow: 0 0 30px rgba(0, 255, 127, 0.3);
+    transition: box-shadow 0.3s ease;
+}
+
+/* Эффект для выигрышных символов */
+.symbol.winning {
+    animation: symbolWin 0.5s infinite;
+}
+
+@keyframes symbolWin {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.1); filter: brightness(1.3); }
+}
+
+/* Последовательная анимация для комбо */
+@keyframes sequentialPop {
+    0% { 
+        transform: scale(1);
+        filter: brightness(1);
+    }
+    50% { 
+        transform: scale(1.3);
+        filter: brightness(1.5);
+    }
+    100% { 
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+@keyframes sequentialGlow {
+    0% {
+        box-shadow: 0 0 5px transparent;
+    }
+    50% {
+        box-shadow: 0 0 20px var(--highlight-color), 0 0 40px var(--money-color);
+    }
+    100% {
+        box-shadow: 0 0 5px transparent;
+    }
+}
+
+.slot-cell.sequential-highlight {
+    animation: sequentialPop 0.5s ease-out, sequentialGlow 0.5s ease-out;
+}
+
+/* Модифицируем существующие комбо для последовательности */
+.combo-1.sequential { animation: comboShake 0.5s infinite 0.5s; }
+.combo-2.sequential { animation: comboGlow 1s infinite 0.5s; }
+.combo-3.sequential { 
+    animation: comboRainbow 2s infinite 0.5s; 
+    border-width: 3px;
+}
+.combo-4.sequential { 
+    animation: comboPulse 0.5s infinite 0.5s, comboGlow 1s infinite 0.5s, comboRainbow 2s infinite 0.5s;
+    border-width: 4px;
+    filter: brightness(1.1);
+}
+.combo-5.sequential { 
+    animation: comboShake 0.3s infinite 0.5s, comboGlow 0.7s infinite 0.5s, comboRainbow 1.5s infinite 0.5s;
+    border-width: 5px;
+    filter: brightness(1.3);
+    box-shadow: 0 0 30px var(--money-color), 0 0 50px var(--highlight-color);
+}
+
+/* Добавляем эффект частиц для больших комбо */
+@keyframes particle {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2);
+        opacity: 0;
+    }
+}
+
+.particle {
+    position: absolute;
+    pointer-events: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--highlight-color);
+    left: 50%;
+    top: 50%;
+    animation: particle 0.5s ease-out forwards;
+}
+
+/* Стили для поп-апа общего выигрыша */
+.total-win-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: rgba(0, 0, 0, 0.9);
+    border: 3px solid var(--money-color);
+    border-radius: 15px;
+    padding: 30px 50px;
+    text-align: center;
+    z-index: 1001;
+    opacity: 0;
+    transition: all 0.3s ease, opacity 0.5s, transform 0.3s;
+}
+
+.total-win-popup.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+}
+
+.total-win-popup.fade-out {
+    opacity: 0 !important;
+    transition: opacity 0.5s;
+}
+
+.total-win-popup .win-title {
+    font-size: 24px;
+    color: var(--highlight-color);
+    margin-bottom: 15px;
+}
+
+.total-win-popup .win-amount {
+    font-size: 48px;
+    color: var(--money-color);
+    font-weight: bold;
+    text-shadow: 0 0 10px var(--money-color);
+}
+
+/* Эффект конфетти для большого выигрыша */
+.confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    z-index: 1000;
+    animation: confettiFall 2s linear forwards;
+}
+
+@keyframes confettiFall {
+    0% { transform: translateY(-100vh) rotate(0deg); }
+    100% { transform: translateY(100vh) rotate(720deg); }
+}
+
+/* Стили для анимации счётчика прокрутов */
+.spins-counter {
+    position: relative;
+    display: inline-block;
+    min-width: 1.5em;
+}
+
+.spins-counter .old-value,
+.spins-counter .new-value {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-weight: bold;
+}
+
+.spins-counter .old-value {
+    animation: spinNumberFallOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    color: var(--danger-color);
+}
+
+.spins-counter .new-value {
+    animation: spinNumberFallIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    color: var(--text-color);
+    opacity: 0;
+}
+
+@keyframes spinNumberFallOut {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+}
+
+@keyframes spinNumberFallIn {
+    0% {
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Элегантные частицы */
+.spin-particle {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    background: transparent;
+    border: 2px solid var(--highlight-color);
+    opacity: 0;
+}
+
+@keyframes particleExpand {
+    0% {
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 0.8;
+        border-width: 2px;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2);
+        opacity: 0;
+        border-width: 0;
+    }
+}
+
+/* Мерцающий ореол */
+.spins-counter::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, var(--highlight-color) 0%, transparent 70%);
+    opacity: 0;
+    pointer-events: none;
+    animation: glowPulse 1s ease-out forwards;
+}
+
+@keyframes glowPulse {
+    0% {
+        opacity: 0.3;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    50% {
+        opacity: 0.1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.5);
+    }
+}
+
+/* Улучшенные стили для джекпота */
+.jackpot-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: jackpotFadeIn 0.5s ease-out;
+    backdrop-filter: blur(10px);
+}
+
+.jackpot-overlay.fade-out {
+    animation: jackpotFadeOut 1s ease-in forwards;
+}
+
+.jackpot-content {
+    text-align: center;
+    animation: jackpotPulse 0.5s infinite alternate;
+    position: relative;
+    z-index: 1001;
+}
+
+.jackpot-title {
+    font-size: 96px;
+    color: #FFD700;
+    text-shadow: 0 0 30px #FFD700, 0 0 60px #FFD700;
+    margin-bottom: 30px;
+    animation: jackpotShake 0.1s infinite, jackpotGlow 1s infinite alternate;
+    font-weight: bold;
+}
+
+.jackpot-amount {
+    font-size: 64px;
+    color: #fff;
+    text-shadow: 0 0 20px #fff, 0 0 40px var(--money-color);
+    animation: jackpotAmountPulse 1s infinite alternate;
+}
+
+.jackpot-particle {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    background: linear-gradient(45deg, #FFD700, #FFA500);
+    border-radius: 50%;
+    left: 50%;
+    top: 50%;
+    transform-origin: center;
+    animation: particleExplode 2s ease-out forwards;
+    animation-delay: var(--delay);
+    box-shadow: 0 0 20px #FFD700;
+}
+
+@keyframes jackpotFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes jackpotFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes jackpotPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.1); }
+}
+
+@keyframes jackpotShake {
+    0% { transform: translate(-1px, -1px) rotate(0); }
+    25% { transform: translate(1px, 1px) rotate(1deg); }
+    50% { transform: translate(-1px, 1px) rotate(-1deg); }
+    75% { transform: translate(1px, -1px) rotate(1deg); }
+    100% { transform: translate(-1px, -1px) rotate(0); }
+}
+
+@keyframes jackpotGlow {
+    0% { text-shadow: 0 0 30px #FFD700, 0 0 60px #FFD700; }
+    100% { text-shadow: 0 0 50px #FFD700, 0 0 100px #FFD700, 0 0 150px #FFD700; }
+}
+
+@keyframes jackpotAmountPulse {
+    0% { transform: scale(1); filter: brightness(1); }
+    100% { transform: scale(1.1); filter: brightness(1.3); }
+}
+
+@keyframes particleExplode {
+    0% {
+        transform: rotate(var(--angle)) translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: rotate(var(--angle)) translateY(1000px) scale(0);
+        opacity: 0;
+    }
+}
+
+/* Стили для вылетающих монет */
+.flying-coin {
+    position: absolute;
+    font-size: 24px;
+    left: 50%;
+    top: 50%;
+    transform-origin: center;
+    pointer-events: none;
+    animation: coinFly var(--speed) ease-out forwards;
+    text-shadow: 0 0 10px var(--money-color);
+}
+
+@keyframes coinFly {
+    0% {
+        transform: translate(-50%, -50%) rotate(0deg) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-100px) scale(0);
+        opacity: 0;
+    }
+}
+
+@keyframes coinSpin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Улучшенные стили для комбо при джекпоте */
+.combo-5.sequential.jackpot { 
+    animation: comboShake 0.2s infinite 0.5s, comboGlow 0.5s infinite 0.5s, comboRainbow 1s infinite 0.5s;
+    border-width: 6px;
+    filter: brightness(1.4);
+    box-shadow: 0 0 40px var(--money-color), 0 0 80px var(--highlight-color);
+}
+
+/* Улучшенные стили для монет при джекпоте */
+.flying-coin.jackpot {
+    font-size: 32px;
+    filter: brightness(1.3);
+    text-shadow: 0 0 20px var(--money-color), 0 0 40px var(--highlight-color);
+}
+
+.doubloon-popup {
+    z-index: 2000;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.5s;
+    pointer-events: none;
+    /* transform и позиционирование теперь задаются в JS */
+}
+.doubloon-popup.show {
+    transform: translateY(-50%) scale(1) !important;
+    opacity: 1;
+}
+.doubloon-popup.fade-out {
+    opacity: 0 !important;
+    transition: opacity 0.5s;
+}
+.doubloon-star {
+    width: 150px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+.doubloon-svg {
+    width: 250px;
+    height: 250px;
+    display: block;
+    animation: doubloon-rotate 3s linear infinite;
+}
+.doubloon-text {
+    position: absolute;
+    left: 45%;
+    top: 45%;
+    transform: translate(-50%, -50%);
+    color: #fffbe6;
+    font-size: 16px;
+    font-weight: bold;
+    text-shadow: 0 0 6px #bfa700, 0 0 2px #fff;
+    letter-spacing: 1px;
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+}
+@keyframes doubloon-rotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* NEW POPUP STYLES */
+.amulet-popup-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+.amulet-popup-card {
+    background: var(--cell-bg, #232323);
+    border-radius: 10px;
+    box-shadow: 0 6px 32px #000b, 0 1.5px 6px #0008;
+    padding: 24px;
+    min-width: 280px;
+    max-width: 360px;
+    color: var(--text-color, #fff);
+    position: relative;
+    text-align: center;
+    animation: popup-in 0.2s cubic-bezier(.7,-0.2,.7,1.2);
+    border: 1px solid var(--border-color);
+}
+.amulet-popup-thumbnail {
+    width: 96px;
+    height: 96px;
+    background-color: #111;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4em;
+    margin: 0 auto 20px auto;
+    user-select: none;
+}
+.amulet-popup-title {
+    font-size: 1.4em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: var(--highlight-color);
+}
+.amulet-popup-desc {
+    font-size: 1em;
+    margin-bottom: 24px;
+    color: #bdbdbd;
+    line-height: 1.5;
+}
+.amulet-popup-remove {
+    background: var(--danger-color, #c82333);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 18px;
+    font-size: 1em;
+    margin-right: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.amulet-popup-remove:hover {
+    background: #a71d2a;
+}
+.amulet-popup-close {
+    background: #444;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 18px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.amulet-popup-close:hover {
+    background: #222;
+}
+@keyframes popup-in {
+    from { transform: scale(0.8); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+}
+
+/* Стили для новой секции досрочной выплаты */
+.early-payoff-section {
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+
+#btn-pay-debt-early {
+    width: 100%;
+    padding: 10px;
+    font-size: 15px;
+    background-color: var(--highlight-color);
+    color: var(--bg-color);
+    border-color: var(--highlight-color);
+    font-weight: bold;
+}
+
+#btn-pay-debt-early:disabled {
+    background-color: var(--cell-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+    opacity: 0.5;
+}
+
+.early-payoff-info {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1.4;
+}
 
 @media (max-width: 900px) {
     .game-container {
@@ -927,11 +984,19 @@
     .shop-items, .inventory-items {
         gap: 6px;
     }
+    .inventory-items {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
     .item {
         padding: 6px;
         font-size: 14px;
     }
-    .item-name, .item-cost {
+    .item-thumbnail {
+        width: 40px;
+        height: 40px;
+        font-size: 1.5em;
+    }
+    .item-name {
         font-size: 14px;
     }
     .item-desc {
@@ -1047,20 +1112,27 @@
         font-size: 12px;
         gap: 4px;
     }
-    .shop-items, .inventory-items {
+    .shop-items, .planning-shop-items {
         flex-wrap: nowrap;
         overflow-x: auto;
         overflow-y: hidden;
         gap: 4px;
-        padding-bottom: 2px;
+        padding-bottom: 4px;
+    }
+    .inventory-items {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 4px;
     }
     .item {
-        min-width: 110px;
-        max-width: 140px;
-        font-size: 12px;
-        padding: 4px;
+        padding: 6px;
+        gap: 8px;
     }
-    .item-name, .item-cost {
+    .item-thumbnail {
+        width: 36px;
+        height: 36px;
+        font-size: 1.4em;
+    }
+    .item-name {
         font-size: 12px;
     }
     .item-desc {

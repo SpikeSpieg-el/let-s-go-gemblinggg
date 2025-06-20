@@ -9,30 +9,44 @@
 <body>
 
     <!-- КНОПКА ДЛЯ МЕНЮ РАЗРАБОТЧИКА -->
-    <button id="dev-menu-btn" style="position:fixed;top:10px;right:10px;z-index:1000;padding:7px 16px;font-size:15px;">Dev</button>
-    <button id="switch-style2-btn" class="style2-switch-btn" style="position:fixed;top:10px;right:70px;z-index:1000;">Style 2</button>
+    <button id="dev-menu-btn">Dev</button>
+    <!-- <button id="switch-style2-btn" class="style2-switch-btn" style="position:fixed;top:10px;right:70px;z-index:1000;">Style 2</button> -->
     <div id="dev-menu-modal" class="modal-overlay hidden">
         <div class="modal-content" style="max-width:400px;">
             <h2>Меню разработчика</h2>
             <div id="dev-menu-content">
-                <button id="dev-add-coins">+1000 монет</button>
-                <button id="dev-add-tickets">+100 талонов</button>
-                <button id="dev-set-interest">Сделать ставку 50%</button>
-                <div style="margin:10px 0;">
-                    <label for="dev-item-select">Выдать предмет:</label>
-                    <select id="dev-item-select"></select>
-                    <button id="dev-give-item">Выдать</button>
+                <div class="dev-section">
+                    <h3>Ресурсы</h3>
+                    <div class="dev-buttons">
+                        <button id="dev-add-coins" class="dev-button money">+1000 монет</button>
+                        <button id="dev-add-tickets" class="dev-button ticket">+100 талонов</button>
+                        <button id="dev-set-interest" class="dev-button">Сделать ставку 50%</button>
+                    </div>
                 </div>
-                <div style="margin:15px 0 5px 0; font-weight:bold;">Шансы выпадения символов:</div>
-                <div id="dev-symbol-chances"></div>
-                <button id="dev-apply-chances" style="margin-top:10px;">Применить шансы</button>
-                <div style="margin:15px 0 5px 0; font-weight:bold;">Редактор удачи:</div>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <label for="dev-luck-input">Временная удача:</label>
-                    <input type="number" id="dev-luck-input" style="width:60px;">
-                    <button id="dev-apply-luck">Применить</button>
+
+                <div class="dev-section">
+                    <h3>Предметы</h3>
+                    <div class="dev-item-control">
+                        <select id="dev-item-select" class="dev-select"></select>
+                        <button id="dev-give-item" class="dev-button">Выдать</button>
+                    </div>
                 </div>
-                <button id="dev-close-menu" style="margin-top:20px;">Закрыть</button>
+
+                <div class="dev-section">
+                    <h3>Настройка шансов</h3>
+                    <div id="dev-symbol-chances" class="dev-chances"></div>
+                    <button id="dev-apply-chances" class="dev-button">Применить шансы</button>
+                </div>
+
+                <div class="dev-section">
+                    <h3>Удача</h3>
+                    <div class="dev-luck-control">
+                        <input type="number" id="dev-luck-input" class="dev-input" placeholder="Значение удачи">
+                        <button id="dev-apply-luck" class="dev-button">Применить</button>
+                    </div>
+                </div>
+
+                <button id="dev-close-menu" class="dev-button dev-close">Закрыть</button>
             </div>
         </div>
     </div>
@@ -60,20 +74,18 @@
 
         <div class="ui-panel">
             <div class="ui-box">
-                <h3>Состояние</h3>
+                <h3>Состояние Цикл <span id="stat-run" style="color: var(--highlight-color);">1</span></h3>
                 <div class="stats-grid compact-stats">
-                    <span>Цикл Долга:</span><span id="stat-run">1</span>
                     <span>Раунд:</span><span id="stat-turn">1 / 3</span>
-                    <span style="color: var(--danger-color);">ЦЕЛЬ:</span><span id="stat-debt" style="color: var(--danger-color);">50</span>
                     <span style="color: var(--money-color);">Наличные:</span><span id="stat-coins" style="color: var(--money-color);">0</span>
                     <span style="color: var(--ticket-color);">Талоны:</span><span id="stat-tickets" style="color: var(--ticket-color);">0</span>
                     <span style="color: var(--luck-color);">Удача:</span><span id="stat-luck" style="color: var(--luck-color);">0</span>
                 </div>
             </div>
             <div class="ui-box">
-                <h3>Банк</h3>
+                <h3>Банк <span id="bank-balance" style="color: var(--money-color);">0</span></h3>
                 <div class="stats-grid">
-                    <span>Баланс:</span><span id="bank-balance" style="color: var(--money-color);">0</span>
+                    <span>ЦЕЛЬ:</span><span id="stat-debt" style="color: var(--danger-color);">50</span>
                     <span>Ставка:</span><span><span id="atm-interest-rate">3</span>%</span>
                 </div>
                 <div class="atm-actions">
@@ -187,21 +199,122 @@
     <script src="items.js"></script>
     <script src="skript.js"></script>
     <script>
-      document.getElementById('switch-style2-btn').onclick = function() {
-        window.location.href = 'style2/index_style2.html';
-      };
-      const startDebtEl = document.getElementById('stat-debt-start');
-      if (startDebtEl) {
-          const debtElements = document.querySelectorAll('#stat-debt');
-          if (debtElements.length > 0) {
-              startDebtEl.textContent = debtElements[0].textContent;
-          }
-      }
+      // document.getElementById('switch-style2-btn').onclick = function() {
+      //   window.location.href = 'style2/index_style2.html';
+      // };
+      // const startDebtEl = document.getElementById('stat-debt-start');
+      // if (startDebtEl) {
+      //     const debtElements = document.querySelectorAll('#stat-debt');
+      //     if (debtElements.length > 0) {
+      //         startDebtEl.textContent = debtElements[0].textContent;
+      //     }
+      // }
     </script>
     <style>
     @keyframes debt-pulse {
       0% { filter: brightness(1); transform: scale(1); }
       100% { filter: brightness(1.5); transform: scale(1.08); }
+    }
+    .dev-section {
+        margin: 15px 0;
+        padding: 15px;
+        background: var(--cell-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+    .dev-section h3 {
+        margin: 0 0 10px 0;
+        color: var(--highlight-color);
+        font-size: 1.1em;
+    }
+    .dev-buttons {
+        display: grid;
+        gap: 8px;
+    }
+    .dev-button {
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        background: var(--button-bg);
+        color: var(--text-color);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+    .dev-button:hover {
+        background: var(--button-hover-bg);
+    }
+    .dev-button.money {
+        color: var(--money-color);
+        border-color: var(--money-color);
+    }
+    .dev-button.ticket {
+        color: var(--ticket-color);
+        border-color: var(--ticket-color);
+    }
+    .dev-item-control, .dev-luck-control {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    .dev-select, .dev-input {
+        flex: 1;
+        padding: 8px;
+        background: var(--input-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        border-radius: 4px;
+    }
+    .dev-select option {
+        /* Браузеры по-разному обрабатывают стили опций, 
+           поэтому для надежности задаем стандартный вид */
+        background: #242424;
+        color: #eaeaea;
+    }
+    .dev-chances {
+        margin: 10px 0;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+    }
+    .dev-chances label {
+        justify-self: start;
+    }
+    .dev-chances input {
+         width: 60px;
+         padding: 4px;
+         background: var(--input-bg);
+         border: 1px solid var(--border-color);
+         color: var(--text-color);
+         border-radius: 3px;
+    }
+    .dev-close {
+        width: 100%;
+        margin-top: 20px;
+        background: var(--danger-color);
+        color: #fff;
+        border: none;
+    }
+    .dev-close:hover {
+         filter: brightness(1.2);
+    }
+    #dev-menu-btn {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        padding: 7px 16px;
+        font-size: 15px;
+        background: #222;
+        color: #fff;
+        border: 1px solid #444;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background-color 0.2s;
+    }
+    #dev-menu-btn:hover {
+        background: #333;
     }
     </style>
 </body>
