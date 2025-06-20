@@ -47,10 +47,17 @@ const ALL_ITEMS = [
   { id: 'lemon_zest', name: 'Цедра лимона', desc: 'Лимоны 🍋 считаются как Клеверы 🍀 для комбинаций.', cost: 9, rarity: 'legendary', thumbnail: 'image3.png', effect: { substitute: { from: 'lemon', to: 'clover' } } },
   { id: 'money_magnet', name: 'Денежный магнит', desc: 'Символы 💰 дают +3💰 за каждый на поле.', cost: 6, rarity: 'legendary', thumbnail: '🧲', 
     on_spin_bonus: (grid, winAmount, state) => {
-        let bonus = grid.filter(s => s.id === 'coins').length * 3;
+        let bonus = 0;
+        const coinSymbols = grid.filter(s => s && s.id === 'coins').length;
+        if (coinSymbols > 0) {
+            bonus += coinSymbols * 3;
+        }
         // Пассивка "Магнитная личность"
         if (state.chosenPassive && state.chosenPassive.id === 'magnetic_personality') {
-            bonus += grid.filter(s => s.id === 'diamond').length * 1;
+            const diamondSymbols = grid.filter(s => s && s.id === 'diamond').length;
+            if (diamondSymbols > 0) {
+                bonus += diamondSymbols * 1;
+            }
         }
         return bonus;
     }

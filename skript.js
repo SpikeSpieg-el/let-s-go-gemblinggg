@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let weightedSymbols = [];
     let devDebugLuck = false;
 
-    function showPassiveChoiceModal() {
+    function showPassiveChoiceModal(excludeIds = []) {
         let modal = document.getElementById('passive-choice-modal');
         if (modal) modal.remove();
 
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.id = 'passive-choice-modal';
         modal.className = 'passive-choice-modal';
 
-        const passives = getRandomPassives(3);
+        const passives = getRandomPassives(3, excludeIds);
         let choicesHTML = '';
 
         const typeMap = {
@@ -175,6 +175,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function hasItem(itemId) {
         return state.inventory && state.inventory.some(item => item.id === itemId);
     }
+
+    function hasPassive(passiveId) {
+        return state.chosenPassive && state.chosenPassive.id === passiveId;
+    }
+
     function getItemEffectValue(effectKey, defaultValue, accumulator = 'sum') {
         let items = [...state.inventory];
         // mimic: копируем эффект другого предмета
@@ -182,8 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mimicItem) {
             const targetId = mimicItem.effect.mimic.target;
             const target = ALL_ITEMS.find(i => i.id === targetId);
-            // --- ОТЛАДКА ДЛЯ СУНДУКА-МИМИКА ---
-            console.log('[DEBUG] Сундук-Мимик: mimicItem=', mimicItem, 'targetId=', targetId, 'target=', target);
             if (target) items.push({...target, id: 'mimic_copy'});
         }
         return items.reduce((acc, item) => {
@@ -221,12 +224,20 @@ document.addEventListener('DOMContentLoaded', () => {
         updateWeightedSymbols(); // Обновляем пул символов перед генерацией
 
         let tempLuck = 0;
+        
+        // --- ПАССИВКА: Удача новичка ---
+        if (hasPassive('beginners_luck_passive') && state.flags.isFirstSpinOfRound) {
+            tempLuck += 10;
+            addLog(`Удача новичка: +10 к удаче на первый прокрут!`, 'win');
+            state.flags.isFirstSpinOfRound = false; // Используем бонус
+        }
+
         if(hasItem('blood_ritual')) {
             const effect = ALL_ITEMS.find(i => i.id === 'blood_ritual').effect.on_spin_sacrifice;
             // --- ПАССИВКА: Фокус ритуалиста ---
             let cost = effect.cost;
             let bonusLuck = effect.bonus.luck;
-            if (state.chosenPassive && state.chosenPassive.id === 'ritualist_focus') {
+            if (hasPassive('ritualist_focus')) {
                 cost = Math.max(0, cost - 1);
                 bonusLuck += 2;
             }
@@ -239,14 +250,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         const perRunLuck = hasItem('growing_debt') ? getItemEffectValue('per_run_bonus.luck', 0, 'sum') * state.run : 0;
-        if (hasItem('growing_debt')) {
-            console.log('[DEBUG] Растущий Долг: +', getItemEffectValue('per_run_bonus.luck', 0, 'sum'), 'к удаче за каждый цикл. Текущий цикл:', state.run, '=> бонус:', perRunLuck);
+        
+        // --- ПАССИВКА: Гордость барахольщика ---
+        let hoarderLuck = 0;
+        if (hasPassive('hoarders_pride')) {
+            hoarderLuck = Math.max(0, 9 - state.inventory.length);
         }
+        
+        const totalLuck = (state.permanentLuckBonus || 0) + getItemEffectValue('luck', 0) + state.tempLuck + tempLuck + perRunLuck + hoarderLuck + (state.cherryLuckBonus || 0);
 
-        const totalLuck = getItemEffectValue('luck', 0) + state.tempLuck + tempLuck + perRunLuck + (state.cherryLuckBonus || 0);
         if (state.cherryLuckBonus > 0) {
             addLog(`Вишнёвая удача: +${state.cherryLuckBonus} к удаче на этот спин.`, 'win');
             state.cherryLuckBonus = 0; // Используем бонус
+        }
+        if (hoarderLuck > 0) {
+            addLog(`Гордость барахольщика: +${hoarderLuck} к удаче за пустые слоты.`, 'win');
         }
         
         // --- НОВАЯ ЛОГИКА: удача влияет только на один случайный символ ---
@@ -260,16 +278,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return { ...symbol, weight: symbol.weight };
         });
-
-        const uniqueWeights = {};
-        adjustedSymbols.forEach(s => { uniqueWeights[s.id] = s.weight; });
-        const weightsDebug = Object.entries(uniqueWeights)
-            .map(([id, w]) => `${GRAPHICS[id]}:${w}`)
-            .join(' ');
-        console.log(`[DEBUG] В этот спин удача увеличивает вес символа: ${GRAPHICS[luckySymbolId]}. Веса: ${weightsDebug}`);
-        if (hasItem('twins_mirror')) {
-            console.log('[DEBUG] Зеркало Близнецов: горизонтальные линии выплат работают в обе стороны.');
-        }
 
         if (devDebugLuck) {
             let uniqueWeights = {};
@@ -287,6 +295,16 @@ document.addEventListener('DOMContentLoaded', () => {
             adjustedWeightedSymbols[Math.floor(Math.random() * adjustedWeightedSymbols.length)]
         );
 
+        // --- ПАССИВКА: Центральный элемент ---
+        if (hasPassive('middle_man') && Math.random() < 0.5) {
+            const highValueSymbols = SYMBOLS.filter(s => ['diamond', 'coins', 'seven'].includes(s.id));
+            if (highValueSymbols.length > 0) {
+                const randomHighSymbol = highValueSymbols[Math.floor(Math.random() * highValueSymbols.length)];
+                grid[7] = randomHighSymbol; // 7 - это центральная ячейка (индекс)
+                addLog(`Центральный элемент сработал! В центре появился ${randomHighSymbol.graphic}.`, 'win');
+            }
+        }
+        
         // --- ЭФФЕКТ: guarantee_symbol ---
         const guarantee = state.inventory.find(item => item.effect?.guarantee_symbol);
         if (guarantee) {
@@ -298,9 +316,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 grid[positions[idx]] = SYMBOLS.find(s => s.id === symbol);
                 positions.splice(idx, 1);
             }
-            if(guarantee.id === 'seven_magnet') {
-                console.log('[DEBUG] Магнит Семёрок: grid после гарантии =', grid);
-            }
         }
         // --- ЭФФЕКТ: sync_cells ---
         const sync = state.inventory.find(item => item.effect?.sync_cells);
@@ -309,7 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (Array.isArray(positions) && positions.length > 0 && grid.length > 0) {
                 const symbol = grid[positions[0]];
                 positions.forEach(pos => grid[pos] = symbol);
-                console.log('[Квантовая Запутанность] Синхронизированы позиции', positions, 'Символ:', symbol);
             }
         }
 
@@ -409,9 +423,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (item.effect?.line_length_win_bonus) {
                 const eff = item.effect.line_length_win_bonus;
                 lineLengthBonuses[eff.length] = (lineLengthBonuses[eff.length] || 0) + eff.bonus;
-                if(item.id === 'sticky_fingers') {
-                    console.log('[DEBUG] Липкие Пальцы: найден эффект line_length_win_bonus', eff, 'item:', item);
-                }
             }
         });
         const lineWinBonuses = {};
@@ -426,6 +437,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
         activePaylines.forEach(line => {
             const symbolsOnLine = line.positions.map(pos => grid[pos]);
+            
+            const processWin = (firstSymbol, winLength, lineMultiplier) => {
+                 let win = 0;
+                 
+                 // --- ПАССИВКА: Огранщик алмазов ---
+                if (hasPassive('diamond_cutter') && firstSymbol.id === 'diamond') {
+                    lineMultiplier += winLength;
+                }
+                // --- ПАССИВКА: Почти получилось ---
+                if (hasPassive('almost_there') && winLength === 4) {
+                    lineMultiplier += 1;
+                }
+                
+                let symbolValue = firstSymbol.value;
+                if (hasPassive('seven_symphony') && firstSymbol.id === 'seven') {
+                    symbolValue = Math.floor(symbolValue * 1.5);
+                }
+                
+                let itemMultiplier = symbolMultipliers[firstSymbol.id] || 1;
+                if (hasPassive('golden_touch') && firstSymbol.id === 'lemon' && hasItem('golden_lemon')) {
+                    itemMultiplier += 1;
+                }
+                symbolValue = Math.floor(symbolValue * itemMultiplier);
+
+                win = winLength * symbolValue * lineMultiplier;
+                
+                if (lineLengthBonuses[winLength]) {
+                    let bonus = lineLengthBonuses[winLength];
+                    if (hasPassive('sticky_fingers_plus') && winLength === 3 && hasItem('sticky_fingers')) {
+                        bonus += 1;
+                    }
+                    win += bonus;
+                }
+                if (lineWinBonuses[winLength]) win += lineWinBonuses[winLength];
+                
+                // --- ПАССИВКА: Звонарь ---
+                if (hasPassive('bell_ringer') && firstSymbol.id === 'bell') {
+                    const bellCount = grid.filter(s => s && s.id === 'bell').length;
+                    win += bellCount;
+                }
+                // --- ПАССИВКА: Процветание ---
+                if (hasPassive('prosperity_clover') && firstSymbol.id === 'clover') {
+                    const coinCount = grid.filter(s => s && s.id === 'coins').length;
+                    win += (coinCount * 2);
+                }
+                
+                if (lineWinTickets[winLength]) {
+                    state.tickets += lineWinTickets[winLength];
+                    addLog(`Талоны: +${lineWinTickets[winLength]}🎟️ за линию x${winLength}.`, 'win');
+                }
+                // --- ПАССИВКА: Геолог ---
+                if (hasPassive('geologist') && line.type === 'Небо/Земля') {
+                    state.tickets += 3;
+                    addLog(`Геолог: +3🎟️ за линию "${line.name}"!`, 'win');
+                }
+
+                const symbolWinBonus = state.inventory.filter(item => item.effect?.symbol_win_bonus).reduce((acc, item) => (item.effect.symbol_win_bonus.symbol === firstSymbol.id) ? acc + item.effect.symbol_win_bonus.bonus : acc, 0);
+                win += symbolWinBonus;
+
+                if (hasPassive('lucky_bomb') && firstSymbol.id === 'cherry' && hasItem('cherry_bomb')) {
+                    state.tickets += 1;
+                    addLog(`Счастливая бомба: +1🎟️ за линию вишен!`, 'win');
+                }
+                
+                return win;
+            };
 
             if (line.scannable) {
                 const lengthMultipliers = { 3: 1, 4: 2, 5: 3 };
@@ -443,53 +520,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (comboLength >= 3) {
                         let lineMultiplier = lengthMultipliers[comboLength];
-                        
                         const typeBonus = state.inventory.filter(item => item.effect?.line_type_multiplier_bonus).reduce((acc, item) => item.effect.line_type_multiplier_bonus.types.some(type => line.type === type) ? acc + item.effect.line_type_multiplier_bonus.bonus : acc, 0);
                         lineMultiplier += typeBonus;
                         
                         const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => (item.effect.line_length_multiplier_bonus.length === comboLength) ? acc * item.effect.line_length_multiplier_bonus.multiplier : acc, 1);
                         lineMultiplier *= lengthBonus;
 
-                        let symbolValue = currentSymbol.value;
-                        // --- ПАССИВКА: Симфония семёрок ---
-                        if (state.chosenPassive && state.chosenPassive.id === 'seven_symphony' && currentSymbol.id === 'seven') {
-                            symbolValue = Math.floor(symbolValue * 1.5);
-                        }
-                        
-                        let itemMultiplier = symbolMultipliers[currentSymbol.id] || 1;
-                        // --- ПАССИВКА: Золотое прикосновение ---
-                        if (state.chosenPassive && state.chosenPassive.id === 'golden_touch' && currentSymbol.id === 'lemon' && hasItem('golden_lemon')) {
-                            itemMultiplier += 1;
-                        }
-                        symbolValue = Math.floor(symbolValue * itemMultiplier);
-
-                        let win = comboLength * symbolValue * lineMultiplier;
-
-                        if (lineLengthBonuses[comboLength]) {
-                            let bonus = lineLengthBonuses[comboLength];
-                             // --- ПАССИВКА: Очень липкие пальцы ---
-                            if (state.chosenPassive && state.chosenPassive.id === 'sticky_fingers_plus' && comboLength === 3 && hasItem('sticky_fingers')) {
-                                bonus += 1; // 1 (base) + 1 (passive) = 2
-                            }
-                            win += bonus;
-                        }
-
-                        if (lineWinBonuses[comboLength]) {
-                            win += lineWinBonuses[comboLength];
-                        }
-                        if (lineWinTickets[comboLength]) {
-                            state.tickets += lineWinTickets[comboLength];
-                            addLog(`Талоны: +${lineWinTickets[comboLength]}🎟️ за линию x${comboLength}.`, 'win');
-                        }
-
-                        const symbolWinBonus = state.inventory.filter(item => item.effect?.symbol_win_bonus).reduce((acc, item) => (item.effect.symbol_win_bonus.symbol === currentSymbol.id) ? acc + item.effect.symbol_win_bonus.bonus : acc, 0);
-                        win += symbolWinBonus;
-
-                        // --- ПАССИВКА: Счастливая бомба ---
-                        if (state.chosenPassive && state.chosenPassive.id === 'lucky_bomb' && currentSymbol.id === 'cherry' && hasItem('cherry_bomb')) {
-                            state.tickets += 1;
-                            addLog(`Счастливая бомба: +1🎟️ за линию вишен!`, 'win');
-                        }
+                        let win = processWin(currentSymbol, comboLength, lineMultiplier);
                         
                         const winningPositions = line.positions.slice(i, i + comboLength);
                         winningLinesInfo.push({ name: `${line.name} (x${comboLength})`, symbol: currentSymbol.id, win, positions: winningPositions });
@@ -512,46 +549,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => (item.effect.line_length_multiplier_bonus.length === line.positions.length) ? acc * item.effect.line_length_multiplier_bonus.multiplier : acc, 1);
                     lineMultiplier *= lengthBonus;
 
-                    let symbolValue = firstSymbol.value;
-                    // --- ПАССИВКА: Симфония семёрок ---
-                    if (state.chosenPassive && state.chosenPassive.id === 'seven_symphony' && firstSymbol.id === 'seven') {
-                        symbolValue = Math.floor(symbolValue * 1.5);
-                    }
-
-                    let itemMultiplier = symbolMultipliers[firstSymbol.id] || 1;
-                    // --- ПАССИВКА: Золотое прикосновение ---
-                    if (state.chosenPassive && state.chosenPassive.id === 'golden_touch' && firstSymbol.id === 'lemon' && hasItem('golden_lemon')) {
-                        itemMultiplier += 1;
-                    }
-                    symbolValue = Math.floor(symbolValue * itemMultiplier);
-
-                    let win = line.positions.length * symbolValue * lineMultiplier;
+                    let win = processWin(firstSymbol, line.positions.length, lineMultiplier);
                     
-                    if (lineLengthBonuses[line.positions.length]) {
-                        let bonus = lineLengthBonuses[line.positions.length];
-                         // --- ПАССИВКА: Очень липкие пальцы ---
-                        if (state.chosenPassive && state.chosenPassive.id === 'sticky_fingers_plus' && line.positions.length === 3 && hasItem('sticky_fingers')) {
-                            bonus += 1;
-                        }
-                        win += bonus;
-                    }
-                    if (lineWinBonuses[line.positions.length]) {
-                        win += lineWinBonuses[line.positions.length];
-                    }
-                    if (lineWinTickets[line.positions.length]) {
-                        state.tickets += lineWinTickets[line.positions.length];
-                        addLog(`Талоны: +${lineWinTickets[line.positions.length]}🎟️ за линию x${line.positions.length}.`, 'win');
-                    }
-
-                    const symbolWinBonus = state.inventory.filter(item => item.effect?.symbol_win_bonus).reduce((acc, item) => (item.effect.symbol_win_bonus.symbol === firstSymbol.id) ? acc + item.effect.symbol_win_bonus.bonus : acc, 0);
-                    win += symbolWinBonus;
-
-                    // --- ПАССИВКА: Счастливая бомба ---
-                    if (state.chosenPassive && state.chosenPassive.id === 'lucky_bomb' && firstSymbol.id === 'cherry' && hasItem('cherry_bomb')) {
-                        state.tickets += 1;
-                        addLog(`Счастливая бомба: +1🎟️ за линию вишен!`, 'win');
-                    }
-
                     totalWinnings += win;
                     winningLinesInfo.push({ name: line.name, symbol: firstSymbol.id, win, positions: line.positions });
                     line.positions.forEach(pos => allWinningPositions.add(pos));
@@ -616,14 +615,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasItem('combo_counter')) {
                 comboMultiplier = state.inventory.find(item => item.id === 'combo_counter')?.effect?.combo_bonus_multiplier || 1.5;
             }
-            // --- ПАССИВКА: Король комбо ---
             let baseComboRate = 0.25;
-            if (state.chosenPassive && state.chosenPassive.id === 'combo_king') {
+            if (hasPassive('combo_king')) {
                 baseComboRate = 0.40;
             }
             const comboBonus = Math.floor(totalWinnings * ((1 + (winningLinesInfo.length - 1) * baseComboRate - 1) * comboMultiplier));
             totalWinnings += comboBonus;
             addLog(`🔥 КОМБО x${winningLinesInfo.length}! Бонус: +${formatNumberWithComma(comboBonus)}💰`, 'win');
+
+            // --- ПАССИВКА: Цепная реакция ---
+            if (hasPassive('chain_reaction')) {
+                let ticketBonus = 0;
+                for(let i = 0; i < winningLinesInfo.length; i++) {
+                    if (Math.random() < 0.10) {
+                        ticketBonus++;
+                    }
+                }
+                if (ticketBonus > 0) {
+                    state.tickets += ticketBonus;
+                    addLog(`Цепная реакция: +${ticketBonus}🎟️ за комбо!`, 'win');
+                }
+            }
 
             const jackpotDelay = topCount === 15 ? 5500 : 0;
             
@@ -647,8 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // --- PASSIVE BONUSES ---
         if (state.chosenPassive) {
-            // Клеверный бонус: +1💰 per clover on a winning spin
-            if (state.chosenPassive.id === 'clover_bonus' && totalWinnings > 0) {
+            if (hasPassive('clover_bonus') && totalWinnings > 0) {
                 const cloverCount = grid.filter(s => s.id === 'clover').length;
                 if (cloverCount > 0) {
                     const bonus = cloverCount;
@@ -656,8 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     addLog(`Клеверный бонус: +${formatNumberWithComma(bonus)}💰 за клеверы.`, 'win');
                 }
             }
-            // --- ПАССИВКА: Дичайший клевер ---
-            if (state.chosenPassive.id === 'wilder_clover' && hasItem('wild_clover')) {
+            if (hasPassive('wilder_clover') && hasItem('wild_clover')) {
                 const cloverCount = grid.filter(s => s.id === 'clover').length;
                 if (cloverCount > 0) {
                     totalWinnings += cloverCount;
@@ -665,8 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Вишнёвая удача: +1 luck for next spin per cherry
-            if (state.chosenPassive.id === 'cherry_luck') {
+            if (hasPassive('cherry_luck')) {
                 const cherryCount = grid.filter(s => s.id === 'cherry').length;
                 if (cherryCount > 0) {
                     state.cherryLuckBonus = (state.cherryLuckBonus || 0) + cherryCount;
@@ -677,9 +686,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         state.inventory.forEach(item => {
             if (item.on_spin_bonus) {
-                if(item.id === 'rainbow_clover') {
-                    console.log('[DEBUG] Радужный клевер: grid=', state.grid, 'totalWinnings=', totalWinnings);
-                }
                 const bonus = item.on_spin_bonus(state.grid, totalWinnings, state);
                 if (bonus > 0) { totalWinnings += bonus; addLog(`${item.name}: +${formatNumberWithComma(bonus)}💰`, 'win'); }
             }
@@ -705,12 +711,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (totalWinnings > 0) {
             state.coins += totalWinnings;
+            state.flags.consecutiveLosses = 0; // Сброс счетчика проигрышей
         } else { 
             addLog('Ничего не выпало.');
+            // --- ПАССИВКА: Обучение на ошибках ---
+            if (hasPassive('learning_from_mistakes')) {
+                state.flags.consecutiveLosses++;
+                if (state.flags.consecutiveLosses >= 5) {
+                    state.permanentLuckBonus++;
+                    addLog(`Обучение на ошибках: +1 к перманентной удаче!`, 'win');
+                    state.flags.consecutiveLosses = 0;
+                }
+            }
+
             if (hasItem('scrap_metal')) {
                 let lossBonus = getItemEffectValue('on_loss_bonus', 0);
-                // --- ПАССИВКА: Профессиональная копилка ---
-                if (state.chosenPassive && state.chosenPassive.id === 'piggy_bank_pro') {
+                if (hasPassive('piggy_bank_pro')) {
                     lossBonus *= 2;
                 }
                 state.piggyBank += lossBonus;
@@ -968,11 +984,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (item.effect && item.effect.luck_chance) {
                 const eff = item.effect.luck_chance;
                 let chance = eff.chance * chanceMultiplier;
-                // --- ПАССИВКА: Восторг игрока ---
-                if (state.chosenPassive && state.chosenPassive.id === 'gamblers_delight' && item.id === 'doubloon') {
+                if (hasPassive('gamblers_delight') && item.id === 'doubloon') {
                     chance *= 2;
                 }
                 if (chance > 1) chance = 1;
+
                 if (Math.random() < chance) {
                     triggeredItems.push(item);
                     if (eff.luck) {
@@ -991,6 +1007,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             addLog(`${item.name} сломался!`, 'loss');
                             itemsToRemove.push(idx);
                         }
+                    }
+                } else {
+                    // --- ПАССИВКА: Предвкушение ---
+                    if (hasPassive('anticipation')) {
+                        state.coins += 1;
+                        addLog(`Предвкушение: +1💰 за несработавший шанс "${item.name}".`, 'win');
                     }
                 }
             }
@@ -1061,8 +1083,11 @@ document.addEventListener('DOMContentLoaded', () => {
             firstSpinUsed: false,
             chosenPassive: null,
             cherryLuckBonus: 0,
-            passiveInterestBonus: 0, // для пассивки interest_spike
-            flags: {}, // для флагов пассивок (на 1 раунд)
+            permanentLuckBonus: 0,
+            passiveInterestBonus: 0, 
+            flags: {
+                consecutiveLosses: 0,
+            }, 
         };
         CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost;
         CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost;
@@ -1073,7 +1098,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         addLog(`Начался Цикл Долга #${state.run}. Цель: ${state.targetDebt}💰 за 3 дня.`);
         
-        // --- ИСПРАВЛЕНИЕ: Генерируем сетку ДО первой отрисовки ---
         state.grid = generateGrid();
 
         updateInterestRate();
@@ -1084,8 +1108,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Функция для перехода на СЛЕДУЮЩИЙ ЦИКЛ
     function startNewCycle(bonusCoins = 0, bonusTickets = 0) {
+        const lastPassiveId = state.chosenPassive ? state.chosenPassive.id : null;
+        
         state.run++;
         state.turn = 1;
+        
+        // --- ПАССИВКА: Прощение долга ---
+        if (state.flags.nextDebtReduced) {
+            const oldDebt = state.targetDebt;
+            state.targetDebt = Math.floor(state.targetDebt * 0.9);
+            addLog(`Прощение долга: ваш следующий долг снижен с ${formatNumberWithComma(oldDebt)} до ${formatNumberWithComma(state.targetDebt)}!`, 'win');
+            state.flags.nextDebtReduced = false; // Используем флаг
+        }
         
         // Расчет нового долга
         if (state.run === 2) state.targetDebt = 111;
@@ -1096,6 +1130,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost + (state.run - 1) * 10;
         CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost + (state.run - 1) * 10;
+        if(hasPassive('bulk_buyer')) CONFIG.SPIN_PACKAGE_1.cost = Math.max(1, CONFIG.SPIN_PACKAGE_1.cost - 2);
+
 
         // Перенос и сброс состояния
         state.bankBalance += state.coins;
@@ -1106,6 +1142,17 @@ document.addEventListener('DOMContentLoaded', () => {
         state.firstSpinUsed = false;
         state.tempLuck = 0;
         state.cherryLuckBonus = 0;
+        
+        // --- ПАССИВКА: Опытный ветеран ---
+        if (hasPassive('seasoned_veteran') && state.run >= 2) {
+            const commonItems = ALL_ITEMS.filter(i => i.rarity === 'common' && !hasItem(i.id));
+            if (commonItems.length > 0) {
+                const randomItem = commonItems[Math.floor(Math.random() * commonItems.length)];
+                state.inventory.push(randomItem);
+                addLog(`Опытный ветеран: вы получили случайный амулет "${randomItem.name}"!`, 'win');
+            }
+        }
+
         state.chosenPassive = null; // Сброс пассивки для нового выбора
 
         updateInterestRate();
@@ -1113,9 +1160,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if(bonusCoins > 0 || bonusTickets > 0) addLog(`Бонус за быстроту: +${formatNumberWithComma(bonusCoins)}💰 и +${formatNumberWithComma(bonusTickets)}🎟️`, 'win');
         populateShop();
         
-        // КЛЮЧЕВОЙ МОМЕНТ: Показываем выбор пассивки или начинаем раунд
-        if (state.run >= 2 && !state.chosenPassive) {
-            showPassiveChoiceModal();
+        if (state.run >= 2) {
+            showPassiveChoiceModal(lastPassiveId ? [lastPassiveId] : []);
         } else {
             startTurn();
         }
@@ -1127,14 +1173,43 @@ document.addEventListener('DOMContentLoaded', () => {
         state.firstSpinUsed = false;
         // --- СБРОС ФЛАГОВ ДЛЯ ПАССИВОК НА 1 РАУНД ---
         if (state.chosenPassive) {
-            if (state.chosenPassive.id === 'bankers_friend') state.flags.firstDepositThisRound = true;
-            if (state.chosenPassive.id === 'shopaholic') state.flags.firstPurchaseThisRound = true;
-            if (state.chosenPassive.id === 'reroll_master') state.flags.firstRerollUsed = false;
-            if (state.chosenPassive.id === 'lucky_start') {
+            if (hasPassive('bankers_friend')) state.flags.firstDepositThisRound = true;
+            if (hasPassive('shopaholic')) state.flags.firstPurchaseThisRound = true;
+            if (hasPassive('reroll_master')) state.flags.firstRerollUsed = false;
+            if (hasPassive('beginners_luck_passive')) state.flags.isFirstSpinOfRound = true;
+            if (hasPassive('lucky_start')) {
                 state.tempLuck += 3;
                 addLog(`Удачный старт: +3 к временной удаче на этот раунд.`, 'win');
             }
         }
+        
+        // --- ПАССИВКА: Ликвидатор талонов ---
+        if (hasPassive('ticket_liquidator') && state.tickets > 0) {
+            const amountToConvert = parseInt(prompt(`Ликвидатор талонов: сколько талонов (до 5) вы хотите обменять на монеты (1к1)? У вас ${state.tickets}🎟️.`, "0"), 10);
+            if (!isNaN(amountToConvert) && amountToConvert > 0) {
+                const finalAmount = Math.min(amountToConvert, 5, state.tickets);
+                if (finalAmount > 0) {
+                    state.tickets -= finalAmount;
+                    state.coins += finalAmount;
+                    addLog(`Ликвидатор талонов: обменяно ${finalAmount}🎟️ на ${finalAmount}💰.`, 'win');
+                }
+            }
+        }
+
+        // --- ПАССИВКА: Техническое обслуживание ---
+        if (hasPassive('maintenance')) {
+            let repairedCount = 0;
+            state.inventory.forEach(item => {
+                if (item.effect?.luck_chance?.breakable && item.uses < item.effect.luck_chance.max_uses) {
+                    if (Math.random() < 0.25) {
+                        item.uses++;
+                        repairedCount++;
+                        addLog(`Техобслуживание: амулет "${item.name}" восстановлен на 1 использование.`, 'win');
+                    }
+                }
+            });
+        }
+
 
         const roundStartCoins = getItemEffectValue('on_round_start_coins', 0);
         if (roundStartCoins > 0) {
@@ -1147,10 +1222,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         let roundStartSpins = getItemEffectValue('on_round_start_spins', 0);
-        // --- ПАССИВКА: Точность часовщика ---
-        if (hasItem('timepiece') && state.chosenPassive && state.chosenPassive.id === 'watchmaker_precision') {
+        if (hasItem('timepiece') && hasPassive('watchmaker_precision')) {
             if (Math.random() < 0.5) {
-                roundStartSpins += 1; // +1 дополнительно к базовому +1
+                roundStartSpins += 1;
                 addLog(`Точность часовщика: +1 дополнительный прокрут!`, 'win');
             }
         }
@@ -1172,19 +1246,20 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.purchaseModalCoins.textContent = `${formatNumberWithComma(state.coins)}💰`;
         if (ui.purchaseModalDebt) ui.purchaseModalDebt.textContent = `${formatNumberWithComma(state.targetDebt)}💰`;
 
-        ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${CONFIG.SPIN_PACKAGE_1.cost}💰)`;
+        let package1Cost = CONFIG.SPIN_PACKAGE_1.cost;
+        if(hasPassive('bulk_buyer')) package1Cost = Math.max(1, CONFIG.SPIN_PACKAGE_1.base_cost - 2 + (state.run - 1) * 10);
+        ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${package1Cost}💰)`;
         ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${CONFIG.SPIN_PACKAGE_2.cost}💰)`;
         
-        // --- ПАССИВКА: Экономный игрок ---
         let singleSpinCost = 3;
-        if (state.chosenPassive && state.chosenPassive.id === 'frugal_spinner') {
+        if (hasPassive('frugal_spinner')) {
             singleSpinCost = 2;
         }
         ui.btnBuySpin1.textContent = `1 прокрут (${singleSpinCost}💰)`;
         ui.btnBuySpin1.disabled = state.coins < singleSpinCost || state.coins >= CONFIG.SPIN_PACKAGE_2.cost;
 
 
-        ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
+        ui.btnBuySpins7.disabled = state.coins < package1Cost;
         ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
         
         if (state.coins < CONFIG.SPIN_PACKAGE_2.cost) {
@@ -1200,9 +1275,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function buySpins(pkg) {
         if (pkg === 'single') {
-            // --- ПАССИВКА: Экономный игрок ---
             let cost = 3;
-            if (state.chosenPassive && state.chosenPassive.id === 'frugal_spinner') {
+            if (hasPassive('frugal_spinner')) {
                 cost = 2;
             }
             if (state.coins >= cost) {
@@ -1217,8 +1291,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (pkg) {
-            if (state.coins >= pkg.cost) {
-                state.coins -= pkg.cost;
+            let finalCost = pkg.cost;
+            if (pkg === CONFIG.SPIN_PACKAGE_1 && hasPassive('bulk_buyer')) {
+                 finalCost = Math.max(1, CONFIG.SPIN_PACKAGE_1.base_cost - 2 + (state.run - 1) * 10);
+            }
+
+            if (state.coins >= finalCost) {
+                state.coins -= finalCost;
                 state.spinsLeft += pkg.spins;
                 state.tickets += pkg.tickets;
                 addLog(`Куплено: ${pkg.spins} прокрутов и ${pkg.tickets} талон(а/ов).`);
@@ -1230,11 +1309,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function endTurn() {
         if (state.isSpinning) return;
-        const spinBonus = getItemEffectValue('on_spin_count_bonus', 0);
-        if (spinBonus > 0 && state.spinsLeft === 0) {
-            state.coins += spinBonus;
-            addLog(`Бонус за все использованные спины: +${formatNumberWithComma(spinBonus)}💰.`, 'win');
-        }
         ui.eorTitle.textContent = `Конец Раунда ${state.turn}`;
         ui.eorCoins.textContent = `${formatNumberWithComma(state.coins)}💰`;
         ui.eorBank.textContent = `${formatNumberWithComma(state.bankBalance)}💰`;
@@ -1242,6 +1316,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function confirmEndTurn() {
+        // --- ПАССИВКА: Просчитанный риск ---
+        if (hasPassive('calculated_risk') && state.spinsLeft === 0) {
+            state.coins += 5;
+            addLog('Просчитанный риск: +5💰 за окончание раунда с 0 прокрутов.', 'win');
+        }
         if (hasItem('scrap_metal') && state.piggyBank > 0) {
             addLog(`💥 Копилка разбита! Вы получили +${formatNumberWithComma(state.piggyBank)}💰.`, 'win');
             state.coins += state.piggyBank;
@@ -1308,8 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog('Досрочное погашение во 2-й раунд!', 'win');
         }
         
-        // --- ПАССИВКА: Ранняя пташка ---
-        if (state.chosenPassive && state.chosenPassive.id === 'early_bird') {
+        if (hasPassive('early_bird')) {
             const oldCoins = bonusCoins;
             const oldTickets = bonusTickets;
             bonusCoins = Math.floor(bonusCoins * 1.5);
@@ -1333,8 +1411,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let finalAmount = amount;
         let bonusApplied = false;
-        // --- ПАССИВКА: Друг банкира ---
-        if (state.chosenPassive && state.chosenPassive.id === 'bankers_friend' && state.flags.firstDepositThisRound) {
+        if (hasPassive('bankers_friend') && state.flags.firstDepositThisRound) {
             finalAmount = Math.floor(amount * 1.10);
             state.flags.firstDepositThisRound = false; // Использовать флаг
             bonusApplied = true;
@@ -1342,6 +1419,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         state.coins -= amount;
         state.bankBalance += finalAmount;
+
+        // --- ПАССИВКА: Крупный инвестор ---
+        if (hasPassive('major_investor') && amount >= 100) {
+            state.tickets += 1;
+            addLog('Крупный инвестор: +1🎟️ за крупный вклад!', 'win');
+        }
         
         if (bonusApplied) {
             addLog(`Внесено: ${formatNumberWithComma(amount)}💰. Друг Банкира добавил 10%, зачислено: ${formatNumberWithComma(finalAmount)}💰.`, 'win');
@@ -1359,8 +1442,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function rerollShop() {
         let cost = CONFIG.REROLL_COST;
         let bonusApplied = false;
-        // --- ПАССИВКА: Мастер Реролла ---
-        if (state.chosenPassive && state.chosenPassive.id === 'reroll_master' && !state.flags.firstRerollUsed) {
+        if (hasPassive('reroll_master') && !state.flags.firstRerollUsed) {
             cost = Math.max(0, cost - 1);
             bonusApplied = true;
         }
@@ -1396,18 +1478,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function buyItem(itemId) {
-        if (state.inventory.length >= 9) {
-            addLog('В инвентаре максимум 9 амулетов!', 'loss');
+        if (state.inventory.length >= getMaxInventorySize()) {
+            addLog(`В инвентаре максимум ${getMaxInventorySize()} амулетов!`, 'loss');
             return;
         }
         const item = state.shop.find(i => i.id === itemId);
         
         let cost = item.cost;
         let bonusApplied = false;
-        // --- ПАССИВКА: Шопоголик ---
-        if (state.chosenPassive && state.chosenPassive.id === 'shopaholic' && state.flags.firstPurchaseThisRound) {
+        if (hasPassive('shopaholic') && state.flags.firstPurchaseThisRound) {
             cost = Math.max(1, item.cost - 2);
             state.flags.firstPurchaseThisRound = false;
+            bonusApplied = true;
+        }
+        // --- ПАССИВКА: Специалист по бартеру ---
+        if (hasPassive('barterer') && item.cost >= 5) {
+            cost = Math.max(1, cost - 1);
             bonusApplied = true;
         }
 
@@ -1440,7 +1526,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function updateUI() {
-        if (!state || Object.keys(state).length === 0) return; // Guard against updates before state is ready
+        if (!state || Object.keys(state).length === 0) return;
         ui.statRun.textContent = state.run;
         ui.statTurn.textContent = `${state.turn} / 3`;
         ui.statDebt.textContent = `${formatNumberWithComma(state.targetDebt)}💰`;
@@ -1448,14 +1534,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.statCoins.textContent = `${formatNumberWithComma(state.coins)}💰`;
         ui.bankBalance.textContent = `${formatNumberWithComma(state.bankBalance)}💰`;
         ui.statTickets.textContent = `${formatNumberWithComma(state.tickets)}🎟️`;
-        const baseLuck = getItemEffectValue('luck', 0);
-        const debtLuck = getItemEffectValue('per_run_bonus.luck', 0) * state.run;
+        
+        const baseLuck = getItemEffectValue('luck', 0) + (state.permanentLuckBonus || 0);
+        const debtLuck = getItemEffectValue('per_run_bonus.luck', 0, 'sum') * state.run;
+
         let luckText = `${baseLuck}`;
         if (debtLuck > 0) luckText += ` (+${formatNumberWithComma(debtLuck)} от долга)`;
         if (state.tempLuck > 0) luckText += ` (+${formatNumberWithComma(state.tempLuck)})`;
         if (state.cherryLuckBonus > 0) luckText += ` (+${state.cherryLuckBonus} Вишнёвая удача)`;
         ui.statLuck.textContent = luckText;
-        // Удаляем отдельный блок cherry-luck-info, если он был
+        
         let cherryLuckInfo = document.getElementById('cherry-luck-info');
         if (cherryLuckInfo) cherryLuckInfo.remove();
         ui.atmInterestRate.textContent = (state.baseInterestRate * 100).toFixed(0);
@@ -1533,7 +1621,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reelSymbols.push(finalGrid[i]);
 
             reelSymbols.forEach(symbol => {
-                if (!symbol) { // Guard against undefined symbols, which was the source of the crash
+                if (!symbol) { 
                     console.error("Attempted to render an undefined symbol. Grid:", finalGrid, "Weighted Symbols:", weightedSymbols);
                     return; 
                 }
@@ -1579,9 +1667,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const itemDiv = document.createElement('div');
         itemDiv.className = `item rarity-${item.rarity}`;
         
+        let currentCost = item.cost;
+        if(purchaseCallback && hasPassive('barterer') && item.cost >= 5) {
+            currentCost = Math.max(1, currentCost - 1);
+        }
+
         if (purchaseCallback) {
             itemDiv.onclick = () => purchaseCallback(item.id);
-            if (state.tickets < item.cost || state.inventory.length >= 9) {
+            if (state.tickets < currentCost || state.inventory.length >= getMaxInventorySize()) {
                 itemDiv.style.opacity = '0.5';
                 itemDiv.style.cursor = 'not-allowed';
             }
@@ -1614,7 +1707,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (purchaseCallback && item.cost) {
             const costSpan = document.createElement('span');
             costSpan.className = 'item-cost';
-            costSpan.textContent = `${item.cost}🎟️`;
+            costSpan.textContent = `${currentCost}🎟️`;
+            if (currentCost < item.cost) {
+                costSpan.innerHTML += ` <s style="opacity:0.6">${item.cost}🎟️</s>`;
+            }
             headerDiv.appendChild(costSpan);
         }
         
@@ -1728,8 +1824,8 @@ document.addEventListener('DOMContentLoaded', () => {
             counter.style.marginBottom = '4px';
             ui.inventoryItems.parentElement.insertBefore(counter, ui.inventoryItems);
         }
-        counter.textContent = `Амулеты: ${state.inventory.length} / 9`;
-        if (state.inventory.length >= 9) {
+        counter.textContent = `Амулеты: ${state.inventory.length} / ${getMaxInventorySize()}`;
+        if (state.inventory.length >= getMaxInventorySize()) {
             counter.style.color = 'var(--danger-color)';
             counter.style.fontWeight = 'bold';
             counter.style.textShadow = '0 0 6px var(--danger-color)';
@@ -1782,8 +1878,8 @@ document.addEventListener('DOMContentLoaded', () => {
             counter.style.marginBottom = '4px';
             ui.planningInventoryItems.parentElement.insertBefore(counter, ui.planningInventoryItems);
         }
-        counter.textContent = `Амулеты: ${state.inventory.length} / 9`;
-        if (state.inventory.length >= 9) {
+        counter.textContent = `Амулеты: ${state.inventory.length} / ${getMaxInventorySize()}`;
+        if (state.inventory.length >= getMaxInventorySize()) {
             counter.style.color = 'var(--danger-color)';
             counter.style.fontWeight = 'bold';
             counter.style.textShadow = '0 0 6px var(--danger-color)';
@@ -1815,25 +1911,30 @@ document.addEventListener('DOMContentLoaded', () => {
             updateUI();
         } else { addLog('Недостаточно талонов.', 'loss'); }
     }
-
+    
     function getMinInterestRate() {
         let min = 0.03;
         const bonus = state.inventory.reduce((acc, item) => acc + (item.effect?.interest_rate_bonus || 0), 0);
         const floor = state.inventory.reduce((acc, item) => acc + (item.effect?.min_interest_rate_floor || 0), 0);
-        return min + bonus + floor;
+        
+        let passiveMin = 0;
+        if (hasItem('vault_key') && hasPassive('vault_insurance_passive')) {
+             passiveMin = Math.max(passiveMin, 0.10);
+        }
+        if (hasPassive('financial_literacy')) {
+            passiveMin = Math.max(passiveMin, 0.05);
+        }
+
+        return min + bonus + floor + passiveMin;
     }
 
     function updateInterestRate() {
-        let base = 0.30 + (state.passiveInterestBonus || 0); // Пассивка interest_spike
+        let base = 0.30 + (state.passiveInterestBonus || 0);
         base -= (state.run - 1) * 0.03;
         base -= (state.turn - 1) * 0.10;
         
         let minRate = getMinInterestRate();
-        // --- ПАССИВКА: Страхование вклада ---
-        if (hasItem('vault_key') && state.chosenPassive && state.chosenPassive.id === 'vault_insurance_passive') {
-             minRate = Math.max(minRate, 0.10);
-        }
-
+        
         if (base < minRate) base = minRate;
         state.baseInterestRate = base;
     }
@@ -1845,10 +1946,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (candidates.length > 0) {
                 const target = candidates[Math.floor(Math.random() * candidates.length)];
                 mimicItem.effect.mimic = { target: target.id };
-                console.log('[DEBUG] Сундук-Мимик выбрал цель:', target);
             } else {
                 mimicItem.effect.mimic = { target: undefined };
-                console.log('[DEBUG] Сундук-Мимик: нет других амулетов для копирования');
             }
         }
     }
@@ -2106,5 +2205,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (type === 'loss') logEntry.style.color = 'var(--danger-color)';
         ui.logPanel.insertBefore(logEntry, ui.logPanel.firstChild);
         if (ui.logPanel.children.length > 50) ui.logPanel.removeChild(ui.logPanel.lastChild);
+    }
+
+    // --- ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Максимальный размер инвентаря ---
+    function getMaxInventorySize() {
+        let base = 9;
+        if (hasPassive && hasPassive('inventory_plus_one')) base += 1;
+        return base;
     }
 });
