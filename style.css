@@ -1404,3 +1404,25 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     font-weight: bold;
     text-shadow: 0 0 10px #d50000, 0 0 20px #ff1744;
 }
+
+.echo-stone-multiplier {
+    position: absolute;
+    bottom: 5px;
+    right: 8px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    transform: scale(0.9);
+    opacity: 0.7;
+}
+
+.echo-stone-multiplier.active {
+    transform: scale(1.1);
+    opacity: 1;
+    color: var(--highlight-color);
+    text-shadow: 0 0 5px var(--highlight-color);
+}

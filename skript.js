@@ -872,6 +872,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // [NEW] Логика 'Эхо-Камень'
+        if (hasItem('echo_stone') && state.echoStoneMultiplier > 1 && totalWinnings > 0) {
+            const multiplier = state.echoStoneMultiplier;
+            const bonus = Math.floor(totalWinnings * (multiplier - 1));
+            totalWinnings += bonus;
+            addLog(`Эхо-Камень: Множитель x${multiplier}! (+${formatNumberWithComma(bonus)}💰)`, 'win');
+            animateInventoryItem('echo_stone');
+        }
+
         totalWinnings = Math.floor(totalWinnings);
         
         // --- Анимация выигрыша ---
@@ -1293,6 +1302,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function spin() {
         if (state.spinsLeft <= 0 || state.gameover || state.isSpinning) return;
+        
+        // [NEW] Reset Echo Stone state for the new spin
+        state.activatedItemsThisSpin = new Set();
+        state.echoStoneMultiplier = 1;
+        updateEchoStoneDisplay();
 
         state.isSpinning = true;
         ui.lever.classList.add('pulled');
@@ -1386,6 +1400,8 @@ document.addEventListener('DOMContentLoaded', () => {
             winStreak: 0,
             roundSpinsMade: 0,
             totalSpinsMade: 0,
+            activatedItemsThisSpin: new Set(),
+            echoStoneMultiplier: 1,
         };
         CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost;
         CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost;
@@ -2671,6 +2687,29 @@ document.addEventListener('DOMContentLoaded', () => {
                  el.classList.remove('item-activated');
             }
         }, 800); // Длительность должна совпадать с анимацией в CSS
+
+        // [NEW] Echo Stone logic
+        if (hasItem('echo_stone') && itemId !== 'echo_stone' && state.activatedItemsThisSpin) {
+            if (!state.activatedItemsThisSpin.has(itemId)) {
+                state.activatedItemsThisSpin.add(itemId);
+                state.echoStoneMultiplier = 1 + state.activatedItemsThisSpin.size;
+                updateEchoStoneDisplay();
+            }
+        }
       }
+    }
+
+    function updateEchoStoneDisplay() {
+        if (!hasItem('echo_stone')) return;
+        const multiplier = state.echoStoneMultiplier || 1;
+        const echoStones = document.querySelectorAll("[data-item-id='echo_stone'] .echo-stone-multiplier");
+        echoStones.forEach(el => {
+            el.textContent = `x${multiplier}`;
+            if (multiplier > 1) {
+                el.classList.add('active');
+            } else {
+                el.classList.remove('active');
+            }
+        });
     }
 });
