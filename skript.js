@@ -223,10 +223,18 @@ document.addEventListener('DOMContentLoaded', () => {
         let tempLuck = 0;
         if(hasItem('blood_ritual')) {
             const effect = ALL_ITEMS.find(i => i.id === 'blood_ritual').effect.on_spin_sacrifice;
-            if(state.coins >= effect.condition_coin){
-                state.coins -= effect.cost;
-                tempLuck += effect.bonus.luck;
-                addLog(`Кровавый Ритуал: -${effect.cost}💰, +${effect.bonus.luck} к удаче на этот спин.`, 'win');
+            // --- ПАССИВКА: Фокус ритуалиста ---
+            let cost = effect.cost;
+            let bonusLuck = effect.bonus.luck;
+            if (state.chosenPassive && state.chosenPassive.id === 'ritualist_focus') {
+                cost = Math.max(0, cost - 1);
+                bonusLuck += 2;
+            }
+
+            if(state.coins >= cost){
+                state.coins -= cost;
+                tempLuck += bonusLuck;
+                addLog(`Кровавый Ритуал: -${cost}💰, +${bonusLuck} к удаче на этот спин.`, 'win');
             }
         }
         
@@ -443,18 +451,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         lineMultiplier *= lengthBonus;
 
                         let symbolValue = currentSymbol.value;
-                        if (symbolMultipliers[currentSymbol.id]) {
-                            symbolValue = Math.floor(symbolValue * symbolMultipliers[currentSymbol.id]);
+                        // --- ПАССИВКА: Симфония семёрок ---
+                        if (state.chosenPassive && state.chosenPassive.id === 'seven_symphony' && currentSymbol.id === 'seven') {
+                            symbolValue = Math.floor(symbolValue * 1.5);
                         }
+                        
+                        let itemMultiplier = symbolMultipliers[currentSymbol.id] || 1;
+                        // --- ПАССИВКА: Золотое прикосновение ---
+                        if (state.chosenPassive && state.chosenPassive.id === 'golden_touch' && currentSymbol.id === 'lemon' && hasItem('golden_lemon')) {
+                            itemMultiplier += 1;
+                        }
+                        symbolValue = Math.floor(symbolValue * itemMultiplier);
 
                         let win = comboLength * symbolValue * lineMultiplier;
 
                         if (lineLengthBonuses[comboLength]) {
-                            win += lineLengthBonuses[comboLength];
-                            if (hasItem('sticky_fingers') && comboLength === 3) {
-                                console.log('[DEBUG] Липкие Пальцы: добавлен бонус', lineLengthBonuses[comboLength], 'к линии', line.name, 'символ', currentSymbol.id, 'win:', win);
+                            let bonus = lineLengthBonuses[comboLength];
+                             // --- ПАССИВКА: Очень липкие пальцы ---
+                            if (state.chosenPassive && state.chosenPassive.id === 'sticky_fingers_plus' && comboLength === 3 && hasItem('sticky_fingers')) {
+                                bonus += 1; // 1 (base) + 1 (passive) = 2
                             }
+                            win += bonus;
                         }
+
                         if (lineWinBonuses[comboLength]) {
                             win += lineWinBonuses[comboLength];
                         }
@@ -465,6 +484,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         const symbolWinBonus = state.inventory.filter(item => item.effect?.symbol_win_bonus).reduce((acc, item) => (item.effect.symbol_win_bonus.symbol === currentSymbol.id) ? acc + item.effect.symbol_win_bonus.bonus : acc, 0);
                         win += symbolWinBonus;
+
+                        // --- ПАССИВКА: Счастливая бомба ---
+                        if (state.chosenPassive && state.chosenPassive.id === 'lucky_bomb' && currentSymbol.id === 'cherry' && hasItem('cherry_bomb')) {
+                            state.tickets += 1;
+                            addLog(`Счастливая бомба: +1🎟️ за линию вишен!`, 'win');
+                        }
                         
                         const winningPositions = line.positions.slice(i, i + comboLength);
                         winningLinesInfo.push({ name: `${line.name} (x${comboLength})`, symbol: currentSymbol.id, win, positions: winningPositions });
@@ -488,17 +513,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     lineMultiplier *= lengthBonus;
 
                     let symbolValue = firstSymbol.value;
-                    if (symbolMultipliers[firstSymbol.id]) {
-                        symbolValue = Math.floor(symbolValue * symbolMultipliers[firstSymbol.id]);
+                    // --- ПАССИВКА: Симфония семёрок ---
+                    if (state.chosenPassive && state.chosenPassive.id === 'seven_symphony' && firstSymbol.id === 'seven') {
+                        symbolValue = Math.floor(symbolValue * 1.5);
                     }
+
+                    let itemMultiplier = symbolMultipliers[firstSymbol.id] || 1;
+                    // --- ПАССИВКА: Золотое прикосновение ---
+                    if (state.chosenPassive && state.chosenPassive.id === 'golden_touch' && firstSymbol.id === 'lemon' && hasItem('golden_lemon')) {
+                        itemMultiplier += 1;
+                    }
+                    symbolValue = Math.floor(symbolValue * itemMultiplier);
 
                     let win = line.positions.length * symbolValue * lineMultiplier;
                     
                     if (lineLengthBonuses[line.positions.length]) {
-                        win += lineLengthBonuses[line.positions.length];
-                        if (hasItem('sticky_fingers') && line.positions.length === 3) {
-                            console.log('[DEBUG] Липкие Пальцы: добавлен бонус', lineLengthBonuses[line.positions.length], 'к линии', line.name, 'символ', firstSymbol.id, 'win:', win);
+                        let bonus = lineLengthBonuses[line.positions.length];
+                         // --- ПАССИВКА: Очень липкие пальцы ---
+                        if (state.chosenPassive && state.chosenPassive.id === 'sticky_fingers_plus' && line.positions.length === 3 && hasItem('sticky_fingers')) {
+                            bonus += 1;
                         }
+                        win += bonus;
                     }
                     if (lineWinBonuses[line.positions.length]) {
                         win += lineWinBonuses[line.positions.length];
@@ -510,6 +545,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const symbolWinBonus = state.inventory.filter(item => item.effect?.symbol_win_bonus).reduce((acc, item) => (item.effect.symbol_win_bonus.symbol === firstSymbol.id) ? acc + item.effect.symbol_win_bonus.bonus : acc, 0);
                     win += symbolWinBonus;
+
+                    // --- ПАССИВКА: Счастливая бомба ---
+                    if (state.chosenPassive && state.chosenPassive.id === 'lucky_bomb' && firstSymbol.id === 'cherry' && hasItem('cherry_bomb')) {
+                        state.tickets += 1;
+                        addLog(`Счастливая бомба: +1🎟️ за линию вишен!`, 'win');
+                    }
 
                     totalWinnings += win;
                     winningLinesInfo.push({ name: line.name, symbol: firstSymbol.id, win, positions: line.positions });
@@ -575,7 +616,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasItem('combo_counter')) {
                 comboMultiplier = state.inventory.find(item => item.id === 'combo_counter')?.effect?.combo_bonus_multiplier || 1.5;
             }
-            const comboBonus = Math.floor(totalWinnings * ((1 + (winningLinesInfo.length - 1) * 0.25 - 1) * comboMultiplier));
+            // --- ПАССИВКА: Король комбо ---
+            let baseComboRate = 0.25;
+            if (state.chosenPassive && state.chosenPassive.id === 'combo_king') {
+                baseComboRate = 0.40;
+            }
+            const comboBonus = Math.floor(totalWinnings * ((1 + (winningLinesInfo.length - 1) * baseComboRate - 1) * comboMultiplier));
             totalWinnings += comboBonus;
             addLog(`🔥 КОМБО x${winningLinesInfo.length}! Бонус: +${formatNumberWithComma(comboBonus)}💰`, 'win');
 
@@ -608,6 +654,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     const bonus = cloverCount;
                     totalWinnings += bonus;
                     addLog(`Клеверный бонус: +${formatNumberWithComma(bonus)}💰 за клеверы.`, 'win');
+                }
+            }
+            // --- ПАССИВКА: Дичайший клевер ---
+            if (state.chosenPassive.id === 'wilder_clover' && hasItem('wild_clover')) {
+                const cloverCount = grid.filter(s => s.id === 'clover').length;
+                if (cloverCount > 0) {
+                    totalWinnings += cloverCount;
+                    addLog(`Дичайший клевер: +${cloverCount}💰 за каждый клевер на поле.`, 'win');
                 }
             }
 
@@ -654,7 +708,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { 
             addLog('Ничего не выпало.');
             if (hasItem('scrap_metal')) {
-                const lossBonus = getItemEffectValue('on_loss_bonus', 0);
+                let lossBonus = getItemEffectValue('on_loss_bonus', 0);
+                // --- ПАССИВКА: Профессиональная копилка ---
+                if (state.chosenPassive && state.chosenPassive.id === 'piggy_bank_pro') {
+                    lossBonus *= 2;
+                }
                 state.piggyBank += lossBonus;
                 addLog(`Копилка: +${formatNumberWithComma(lossBonus)}💰. Всего: ${formatNumberWithComma(state.piggyBank)}💰`);
             }
@@ -910,6 +968,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (item.effect && item.effect.luck_chance) {
                 const eff = item.effect.luck_chance;
                 let chance = eff.chance * chanceMultiplier;
+                // --- ПАССИВКА: Восторг игрока ---
+                if (state.chosenPassive && state.chosenPassive.id === 'gamblers_delight' && item.id === 'doubloon') {
+                    chance *= 2;
+                }
                 if (chance > 1) chance = 1;
                 if (Math.random() < chance) {
                     triggeredItems.push(item);
@@ -999,6 +1061,8 @@ document.addEventListener('DOMContentLoaded', () => {
             firstSpinUsed: false,
             chosenPassive: null,
             cherryLuckBonus: 0,
+            passiveInterestBonus: 0, // для пассивки interest_spike
+            flags: {}, // для флагов пассивок (на 1 раунд)
         };
         CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost;
         CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost;
@@ -1061,6 +1125,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function startTurn() {
         state.tempLuck = 0;
         state.firstSpinUsed = false;
+        // --- СБРОС ФЛАГОВ ДЛЯ ПАССИВОК НА 1 РАУНД ---
+        if (state.chosenPassive) {
+            if (state.chosenPassive.id === 'bankers_friend') state.flags.firstDepositThisRound = true;
+            if (state.chosenPassive.id === 'shopaholic') state.flags.firstPurchaseThisRound = true;
+            if (state.chosenPassive.id === 'reroll_master') state.flags.firstRerollUsed = false;
+            if (state.chosenPassive.id === 'lucky_start') {
+                state.tempLuck += 3;
+                addLog(`Удачный старт: +3 к временной удаче на этот раунд.`, 'win');
+            }
+        }
+
         const roundStartCoins = getItemEffectValue('on_round_start_coins', 0);
         if (roundStartCoins > 0) {
             state.coins += roundStartCoins;
@@ -1070,10 +1145,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.freeRerolls > 0) {
             addLog(`Бесплатный реролл магазина: ${state.freeRerolls} за раунд.`, 'win');
         }
-        const roundStartSpins = getItemEffectValue('on_round_start_spins', 0);
+        
+        let roundStartSpins = getItemEffectValue('on_round_start_spins', 0);
+        // --- ПАССИВКА: Точность часовщика ---
+        if (hasItem('timepiece') && state.chosenPassive && state.chosenPassive.id === 'watchmaker_precision') {
+            if (Math.random() < 0.5) {
+                roundStartSpins += 1; // +1 дополнительно к базовому +1
+                addLog(`Точность часовщика: +1 дополнительный прокрут!`, 'win');
+            }
+        }
         if (roundStartSpins > 0) {
             state.spinsLeft += roundStartSpins;
-            addLog(`Карманные часы: +${roundStartSpins} прокрут в начале раунда.`, 'win');
+            addLog(`Карманные часы: +${roundStartSpins} прокрут(ов) в начале раунда.`, 'win');
         }
 
         if (state.turn > 1 || state.run > 1) {
@@ -1091,11 +1174,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${CONFIG.SPIN_PACKAGE_1.cost}💰)`;
         ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${CONFIG.SPIN_PACKAGE_2.cost}💰)`;
-        ui.btnBuySpin1.textContent = `1 прокрут (3💰)`;
+        
+        // --- ПАССИВКА: Экономный игрок ---
+        let singleSpinCost = 3;
+        if (state.chosenPassive && state.chosenPassive.id === 'frugal_spinner') {
+            singleSpinCost = 2;
+        }
+        ui.btnBuySpin1.textContent = `1 прокрут (${singleSpinCost}💰)`;
+        ui.btnBuySpin1.disabled = state.coins < singleSpinCost || state.coins >= CONFIG.SPIN_PACKAGE_2.cost;
+
 
         ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
         ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
-        ui.btnBuySpin1.disabled = state.coins < 3 || state.coins >= CONFIG.SPIN_PACKAGE_2.cost;
+        
         if (state.coins < CONFIG.SPIN_PACKAGE_2.cost) {
             ui.btnBuySpin1.style.display = '';
         } else {
@@ -1109,10 +1200,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function buySpins(pkg) {
         if (pkg === 'single') {
-            if (state.coins >= 3) {
-                state.coins -= 3;
+            // --- ПАССИВКА: Экономный игрок ---
+            let cost = 3;
+            if (state.chosenPassive && state.chosenPassive.id === 'frugal_spinner') {
+                cost = 2;
+            }
+            if (state.coins >= cost) {
+                state.coins -= cost;
                 state.spinsLeft += 1;
-                addLog('Куплен 1 прокрут за 3💰 (без талонов).', 'win');
+                addLog(`Куплен 1 прокрут за ${cost}💰 (без талонов).`, 'win');
             } else {
                 addLog('Недостаточно наличных.', 'loss');
             }
@@ -1212,6 +1308,15 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog('Досрочное погашение во 2-й раунд!', 'win');
         }
         
+        // --- ПАССИВКА: Ранняя пташка ---
+        if (state.chosenPassive && state.chosenPassive.id === 'early_bird') {
+            const oldCoins = bonusCoins;
+            const oldTickets = bonusTickets;
+            bonusCoins = Math.floor(bonusCoins * 1.5);
+            bonusTickets = Math.floor(bonusTickets * 1.5);
+            addLog(`Ранняя пташка: бонусы увеличены! (+${formatNumberWithComma(bonusCoins - oldCoins)}💰, +${formatNumberWithComma(bonusTickets - oldTickets)}🎟️)`, 'win');
+        }
+        
         advanceToNextCycle(bonusCoins, bonusTickets);
     }
     
@@ -1225,9 +1330,25 @@ document.addEventListener('DOMContentLoaded', () => {
     function deposit(amount, isFromEOR = false) {
         if (isNaN(amount) || amount <= 0) return addLog("Некорректная сумма.", 'loss');
         if (amount > state.coins) return addLog("Недостаточно наличных.", 'loss');
+        
+        let finalAmount = amount;
+        let bonusApplied = false;
+        // --- ПАССИВКА: Друг банкира ---
+        if (state.chosenPassive && state.chosenPassive.id === 'bankers_friend' && state.flags.firstDepositThisRound) {
+            finalAmount = Math.floor(amount * 1.10);
+            state.flags.firstDepositThisRound = false; // Использовать флаг
+            bonusApplied = true;
+        }
+
         state.coins -= amount;
-        state.bankBalance += amount;
-        addLog(`Внесено в банк: ${formatNumberWithComma(amount)}💰.`);
+        state.bankBalance += finalAmount;
+        
+        if (bonusApplied) {
+            addLog(`Внесено: ${formatNumberWithComma(amount)}💰. Друг Банкира добавил 10%, зачислено: ${formatNumberWithComma(finalAmount)}💰.`, 'win');
+        } else {
+            addLog(`Внесено в банк: ${formatNumberWithComma(amount)}💰.`);
+        }
+
         if (isFromEOR) {
             ui.eorCoins.textContent = `${formatNumberWithComma(state.coins)}💰`;
             ui.eorBank.textContent = `${formatNumberWithComma(state.bankBalance)}💰`;
@@ -1236,10 +1357,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function rerollShop() {
+        let cost = CONFIG.REROLL_COST;
+        let bonusApplied = false;
+        // --- ПАССИВКА: Мастер Реролла ---
+        if (state.chosenPassive && state.chosenPassive.id === 'reroll_master' && !state.flags.firstRerollUsed) {
+            cost = Math.max(0, cost - 1);
+            bonusApplied = true;
+        }
+
         if (state.freeRerolls && state.freeRerolls > 0) {
             state.freeRerolls--;
             populateShop();
             addLog('Бесплатный реролл магазина!', 'win');
+            if (bonusApplied) state.flags.firstRerollUsed = true;
             if (hasItem('resellers_ticket')) {
                 state.tickets += 1;
                 addLog('Билет перекупщика: +1🎟️ за реролл!', 'win');
@@ -1247,10 +1377,16 @@ document.addEventListener('DOMContentLoaded', () => {
             updateUI();
             return;
         }
-        if (state.tickets >= CONFIG.REROLL_COST) {
-            state.tickets -= CONFIG.REROLL_COST;
+
+        if (state.tickets >= cost) {
+            state.tickets -= cost;
             populateShop();
-            addLog(`Магазин обновлен за ${CONFIG.REROLL_COST}🎟️.`);
+            if (bonusApplied) {
+                addLog(`Магазин обновлен со скидкой за ${cost}🎟️.`);
+                state.flags.firstRerollUsed = true;
+            } else {
+                addLog(`Магазин обновлен за ${cost}🎟️.`);
+            }
             if (hasItem('resellers_ticket')) {
                 state.tickets += 1;
                 addLog('Билет перекупщика: +1🎟️ за реролл!', 'win');
@@ -1265,11 +1401,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const item = state.shop.find(i => i.id === itemId);
-        if (!item || state.tickets < item.cost) return addLog('Недостаточно талонов.', 'loss');
-        state.tickets -= item.cost;
+        
+        let cost = item.cost;
+        let bonusApplied = false;
+        // --- ПАССИВКА: Шопоголик ---
+        if (state.chosenPassive && state.chosenPassive.id === 'shopaholic' && state.flags.firstPurchaseThisRound) {
+            cost = Math.max(1, item.cost - 2);
+            state.flags.firstPurchaseThisRound = false;
+            bonusApplied = true;
+        }
+
+        if (!item || state.tickets < cost) return addLog('Недостаточно талонов.', 'loss');
+        
+        state.tickets -= cost;
         state.inventory.push(item);
         state.shop = state.shop.filter(i => i.id !== itemId);
-        addLog(`Куплен амулет: ${item.name}`, 'win');
+        
+        if (bonusApplied) {
+             addLog(`Куплен амулет: ${item.name} со скидкой за ${cost}🎟️!`, 'win');
+        } else {
+             addLog(`Куплен амулет: ${item.name}`, 'win');
+        }
+
         updateMimicTarget();
         if (ui.planningModal.classList.contains('hidden')) {
             updateUI();
@@ -1671,10 +1824,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateInterestRate() {
-        let base = 0.30;
+        let base = 0.30 + (state.passiveInterestBonus || 0); // Пассивка interest_spike
         base -= (state.run - 1) * 0.03;
         base -= (state.turn - 1) * 0.10;
-        const minRate = getMinInterestRate();
+        
+        let minRate = getMinInterestRate();
+        // --- ПАССИВКА: Страхование вклада ---
+        if (hasItem('vault_key') && state.chosenPassive && state.chosenPassive.id === 'vault_insurance_passive') {
+             minRate = Math.max(minRate, 0.10);
+        }
+
         if (base < minRate) base = minRate;
         state.baseInterestRate = base;
     }
