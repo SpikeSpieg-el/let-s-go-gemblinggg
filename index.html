@@ -88,7 +88,7 @@
                     <span>ЦЕЛЬ:</span><span id="stat-debt" style="color: var(--danger-color);">50</span>
                     <span>Ставка:</span><span><span id="atm-interest-rate">3</span>%</span>
                 </div>
-                <div class="atm-actions">
+                <div class="atm-actions" style="position: relative; z-index: 10;">
                     <button id="btn-deposit">Внести ▼</button>
                     <div id="deposit-dropdown" class="deposit-dropdown hidden">
                         <div class="deposit-option" data-type="all">Внести всё</div>
@@ -132,10 +132,12 @@
             <h2 id="purchase-modal-title">Раунд 1. Время закупаться.</h2>
             <p>Ваши наличные: <span id="purchase-modal-coins" style="color: var(--money-color)">0</span>. Выберите, как вы потратите деньги сегодня.</p>
             <p>Цикл долга: <span id="purchase-modal-debt" style="color: var(--danger-color)">0</span></p>
-            <button id="buy-spins-7">7 прокрутов + 1 талон (Стоимость: 10💰)</button>
-            <button id="buy-spins-3">3 прокрута + 2 талона (Стоимость: 7💰)</button>
-            <button id="buy-spin-1">1 прокрут (3💰, без талонов)</button>
-            <button id="buy-nothing">Ничего. Я справлюсь.</button>
+            <div class="modal-actions">
+                <button id="buy-spins-7">7 прокрутов + 1 талон (Стоимость: 10💰)</button>
+                <button id="buy-spins-3">3 прокрута + 2 талона (Стоимость: 7💰)</button>
+                <button id="buy-spin-1">1 прокрут (3💰, без талонов)</button>
+                <button id="buy-nothing">Ничего. Я справлюсь.</button>
+            </div>
             <button id="btn-planning" style="margin-top: 10px; background-color: var(--ticket-color); border-color: var(--ticket-color);">📋 Режим планирования</button>
         </div>
     </div>
@@ -174,7 +176,7 @@
                 <span>Наличные:</span><span id="eor-coins" style="color: var(--money-color)"></span>
                 <span>В банке:</span><span id="eor-bank" style="color: var(--money-color)"></span>
             </div>
-            <div class="atm-actions" style="justify-content: center; max-width: 300px; margin: 20px auto;">
+            <div class="atm-actions" style="position: relative; justify-content: center; max-width: 300px; margin: 20px auto;">
                 <button id="btn-eor-deposit">Внести ▼</button>
                 <div id="eor-deposit-dropdown" class="deposit-dropdown hidden">
                     <div class="deposit-option" data-type="all">Внести всё</div>
@@ -425,13 +427,14 @@
     }
     .deposit-dropdown {
         position: absolute;
+        left: 0;
+        top: 40px;
         background: var(--cell-bg, #232323);
         border: 1px solid var(--border-color, #444);
         border-radius: 6px;
         box-shadow: 0 2px 12px #0005;
         z-index: 2000;
         min-width: 180px;
-        margin-top: 5px;
         padding: 4px 0;
     }
     .deposit-dropdown.hidden { display: none; }
@@ -445,6 +448,38 @@
     .deposit-option:hover {
         background: var(--highlight-color, #ffd700);
         color: var(--bg-color, #222);
+    }
+    
+    .modal-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin: 20px 0;
+    }
+
+    .modal-actions button {
+        width: 100%;
+    }
+    
+    @keyframes item-pulse-effect {
+        0% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0px var(--highlight-color);
+        }
+        50% {
+            transform: scale(1.08);
+            box-shadow: 0 0 10px 4px rgba(255, 215, 0, 0.5);
+            border-color: var(--highlight-color);
+        }
+        100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0px rgba(255, 215, 0, 0);
+        }
+    }
+    .item.item-activated {
+        animation: item-pulse-effect 0.8s ease-out;
+        position: relative; /* Needed for z-index if any */
+        z-index: 10;
     }
     </style>
 </body>
