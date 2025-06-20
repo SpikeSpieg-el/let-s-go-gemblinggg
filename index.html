@@ -197,6 +197,7 @@
     </div>
     
     <script src="items.js"></script>
+    <script src="passives.js"></script>
     <script src="skript.js"></script>
     <script>
       // document.getElementById('switch-style2-btn').onclick = function() {
@@ -315,6 +316,102 @@
     }
     #dev-menu-btn:hover {
         background: #333;
+    }
+    /* --- UI для выбора пассивки (в стиле игры) --- */
+    #passive-choice-modal.modal-overlay {
+      position: fixed;
+      z-index: 2000;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #passive-choice-modal .modal-card {
+      background: var(--cell-bg, #232323);
+      border-radius: 12px;
+      padding: 28px 24px 20px 24px;
+      box-shadow: 0 4px 24px #000a;
+      min-width: 340px;
+      max-width: 95vw;
+      text-align: center;
+      color: var(--text-color, #fff);
+      position: relative;
+      border: 1.5px solid var(--border-color, #444);
+    }
+    #passive-choice-modal h2 {
+      margin-bottom: 18px;
+      font-size: 1.25em;
+      color: var(--highlight-color, #ffd700);
+      letter-spacing: 0.5px;
+    }
+    #passive-choices {
+      margin-bottom: 18px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .passive-choice-card {
+      background: var(--input-bg, #292929);
+      border: 1.5px solid var(--border-color, #444);
+      border-radius: 8px;
+      padding: 14px 10px 10px 10px;
+      min-width: 120px;
+      min-height: 90px;
+      cursor: pointer;
+      transition: border-color 0.18s, box-shadow 0.18s, background 0.18s, transform 0.12s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 1em;
+      box-shadow: 0 1px 4px #0002;
+    }
+    .passive-choice-card.selected, .passive-choice-card:focus {
+      border-color: var(--highlight-color, #ffd700);
+      background: #2a2512;
+      box-shadow: 0 0 0 2px #ffd70033;
+      transform: scale(1.03);
+    }
+    .passive-choice-card:hover {
+      border-color: var(--ticket-color, #b388ff);
+      background: #23202a;
+      box-shadow: 0 0 0 1.5px #b388ff33;
+      transform: scale(1.02);
+    }
+    .passive-choice-emoji {
+      font-size: 1.7em;
+      margin-bottom: 6px;
+      filter: drop-shadow(0 1px 2px #0005);
+    }
+    .passive-choice-name {
+      font-weight: bold;
+      margin-bottom: 4px;
+      color: var(--highlight-color, #ffd700);
+      font-size: 1em;
+    }
+    .passive-choice-desc {
+      color: var(--text-color, #ccc);
+      font-size: 0.97em;
+      margin-bottom: 0;
+    }
+    #passive-confirm-btn {
+      background: var(--highlight-color, #ffd700);
+      color: #222;
+      border: none;
+      border-radius: 6px;
+      font-size: 1em;
+      font-weight: bold;
+      padding: 8px 26px;
+      cursor: pointer;
+      box-shadow: 0 1px 4px #0002;
+      transition: background 0.18s, color 0.18s;
+      margin-top: 6px;
+    }
+    #passive-confirm-btn:disabled {
+      background: #888;
+      color: #eee;
+      cursor: not-allowed;
+      opacity: 0.7;
     }
     </style>
 </body>

@@ -73,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'coins',    value: 5, weight: 119, graphic: GRAPHICS.coins },   // 11.9%
         { id: 'seven',    value: 7, weight: 75,  graphic: GRAPHICS.seven },   // 7.5%
     ];
+    window.SYMBOLS = SYMBOLS;
     const PAYLINES = [
         // Scannable lines (will be checked for 3, 4, 5 in a row)
         { name: "Верхняя линия", positions: [0, 1, 2, 3, 4], scannable: true, type: "Горизонтальная" },
@@ -102,6 +103,98 @@ document.addEventListener('DOMContentLoaded', () => {
     let state = {};
     let weightedSymbols = [];
     let devDebugLuck = false;
+
+    // --- ДОБАВЛЯЕМ ПОДДЕРЖКУ ПАССИВОК ---
+    let chosenPassive = null;
+
+    function showPassiveChoiceModal() {
+        // Создаём модалку выбора пассивки
+        let modal = document.getElementById('passive-choice-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'passive-choice-modal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-card">
+                    <h2>Выберите пассивку на всю игру</h2>
+                    <div id="passive-choices" style="display:flex;gap:16px;justify-content:center;"></div>
+                    <button id="passive-confirm-btn" disabled>Подтвердить</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        const choicesDiv = modal.querySelector('#passive-choices');
+        const confirmBtn = modal.querySelector('#passive-confirm-btn');
+        choicesDiv.innerHTML = '';
+        confirmBtn.disabled = true;
+        const passives = getRandomPassives(3);
+        passives.forEach((p, idx) => {
+            const div = document.createElement('div');
+            div.className = 'passive-choice-card';
+            div.innerHTML = `
+                <div class="passive-choice-emoji">${p.emoji || ''}</div>
+                <div class="passive-choice-name">${p.name}</div>
+                <div class="passive-choice-desc">${p.desc}</div>
+            `;
+            div.onclick = () => {
+                choicesDiv.querySelectorAll('.passive-choice-card').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                chosenPassive = p;
+                confirmBtn.disabled = false;
+            };
+            choicesDiv.appendChild(div);
+        });
+        confirmBtn.onclick = () => {
+            modal.classList.add('hidden');
+            state.chosenPassive = chosenPassive;
+            applyPassive(chosenPassive, state);
+            updateUI();
+        };
+        modal.classList.remove('hidden');
+    }
+
+    // --- ДОБАВЛЯЕМ ВЫЗОВ В НАЧАЛЕ ИГРЫ ---
+    const origInitGameWithPassive = initGame;
+    initGame = function() {
+        origInitGameWithPassive.apply(this, arguments);
+        // Показываем выбор пассивки только если не выбрана и цикл больше или равен 2
+        if (!state.chosenPassive && state.run >= 2) {
+            showPassiveChoiceModal();
+        }
+    };
+
+    // --- ПРИМЕНЕНИЕ slot_mod ПАССИВОК ПРИ ГЕНЕРАЦИИ СЛОТОВ ---
+    const origGenerateGrid = generateGrid;
+    generateGrid = function() {
+        // Применяем slot_mod пассивки
+        if (state.chosenPassive && state.chosenPassive.type === 'slot_mod') {
+            state.chosenPassive.effect(state);
+        }
+        return origGenerateGrid.apply(this, arguments);
+    };
+
+    // --- ПРИМЕНЕНИЕ item_mod ПАССИВОК ПРИ ВЫПЛАТАХ ---
+    const origCalculateWinnings = calculateWinnings;
+    calculateWinnings = function() {
+        origCalculateWinnings.apply(this, arguments);
+        // Клеверный бонус
+        if (state.passiveEffects && state.passiveEffects.clover_bonus && state.grid) {
+            const cloverCount = state.grid.filter(s => s.id === 'clover').length;
+            if (cloverCount > 0 && state.lastWinningLines && state.lastWinningLines.length > 0) {
+                const bonus = cloverCount;
+                state.coins += bonus;
+                addLog('Клеверный бонус: +' + bonus + '💰 за клеверы на поле.', 'win');
+            }
+        }
+        // Вишнёвая удача
+        if (state.passiveEffects && state.passiveEffects.cherry_luck && state.grid) {
+            const cherryCount = state.grid.filter(s => s.id === 'cherry').length;
+            if (cherryCount > 0) {
+                state.tempLuck = (state.tempLuck || 0) + 1;
+                addLog('Вишнёвая удача: +1 к удаче за вишню на поле.', 'win');
+            }
+        }
+    };
 
     // ВОССТАНАВЛИВАЕМ ФУНКЦИИ
     function hasItem(itemId) {
