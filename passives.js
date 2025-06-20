@@ -1,5 +1,3 @@
-// --- ПАССИВКИ ДЛЯ ВЫБОРА В НАЧАЛЕ ИГРЫ ---
-
 const ALL_PASSIVES = [
     // --- Разовые бафы ---
     {
@@ -24,9 +22,9 @@ const ALL_PASSIVES = [
         name: 'Горький лимон',
         desc: 'Лимоны 🍋 выпадают на 30% реже.',
         emoji: '🍋',
-        type: 'slot_mod',
+        type: 'slot_modifier',
         effect: (state) => {
-            const lemon = SYMBOLS.find(s => s.id === 'lemon');
+            const lemon = window.SYMBOLS.find(s => s.id === 'lemon');
             if (lemon) lemon.weight = Math.floor(lemon.weight * 0.7);
         }
     },
@@ -35,9 +33,9 @@ const ALL_PASSIVES = [
         name: 'Клеверная удача',
         desc: 'Клеверы 🍀 выпадают на 20% чаще.',
         emoji: '🍀',
-        type: 'slot_mod',
+        type: 'slot_modifier',
         effect: (state) => {
-            const clover = SYMBOLS.find(s => s.id === 'clover');
+            const clover = window.SYMBOLS.find(s => s.id === 'clover');
             if (clover) clover.weight = Math.floor(clover.weight * 1.2);
         }
     },
@@ -49,8 +47,7 @@ const ALL_PASSIVES = [
         emoji: '🌱',
         type: 'item_mod',
         effect: (state) => {
-            state.passiveEffects = state.passiveEffects || {};
-            state.passiveEffects.clover_bonus = true;
+            // Логика применяется в calculateWinnings
         }
     },
     {
@@ -60,8 +57,7 @@ const ALL_PASSIVES = [
         emoji: '🍒',
         type: 'item_mod',
         effect: (state) => {
-            state.passiveEffects = state.passiveEffects || {};
-            state.passiveEffects.cherry_luck = true;
+            // Логика применяется в calculateWinnings и generateGrid
         }
     },
 ];
@@ -84,4 +80,4 @@ if (typeof window !== 'undefined') {
     window.ALL_PASSIVES = ALL_PASSIVES;
     window.getRandomPassives = getRandomPassives;
     window.applyPassive = applyPassive;
-} 
+}
