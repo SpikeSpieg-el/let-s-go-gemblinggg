@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.querySelectorAll('.passive-choice').forEach(choiceDiv => {
             choiceDiv.onclick = () => {
                 const passiveId = choiceDiv.dataset.passiveId;
-                const chosenPassive = ALL_ITEMS.find(p => p.id === passiveId);
+                const chosenPassive = ALL_PASSIVES.find(p => p.id === passiveId);
                 if (chosenPassive) {
                     state.activePassives.push(chosenPassive);
                     applyPassive(chosenPassive, state);
@@ -293,6 +293,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateWeightedSymbols() {
         // [FIX] Создаем локальную копию, чтобы не изменять глобальный SYMBOLS напрямую
         let currentSymbols = JSON.parse(JSON.stringify(window.SYMBOLS));
+
+        // Применяем пассивки slot_modifier для изменения весов символов
+        if (state.activePassives && state.activePassives.length > 0) {
+            state.activePassives.forEach(passive => {
+                if (passive.type === 'slot_modifier' && typeof passive.effect === 'function') {
+                    // Применяем эффект к локальной копии символов
+                    const tempState = { ...state };
+                    // Временно заменяем window.SYMBOLS на локальную копию
+                    const originalSymbols = window.SYMBOLS;
+                    window.SYMBOLS = currentSymbols;
+                    passive.effect(tempState);
+                    // Восстанавливаем оригинальный window.SYMBOLS
+                    window.SYMBOLS = originalSymbols;
+                }
+            });
+        }
 
         // [NEW] Применяем увеличение базовой ценности от Лупы
         if (hasItem('magnifying_glass')) {
@@ -1500,17 +1516,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateSpinCosts() {
         const run = state.run;
+        const bank = state.bankBalance;
+        const purchases = state.purchasesThisRound || 0;
+        const debt = state.targetDebt;
 
-        // Сильная экспансия стоимости за цикл (экспоненциальный рост)
-        const cycleMultiplier = Math.pow(1.4, run - 1);
+        // 1. Базовый множитель от цикла (оставляем 1.5)
+        const cycleMultiplier = run === 1 ? 1 : Math.pow(1.9, run - 1);
 
-        // Стоимость пакета 1 (7 прокрутов)
-        let cost1 = Math.floor(CONFIG.SPIN_PACKAGE_1.base_cost * cycleMultiplier);
-        CONFIG.SPIN_PACKAGE_1.cost = cost1;
+        // 2. ПРОГРЕССИВНЫЙ "Налог на богатство"
+        let wealthTax = 0;
+        if (run > 1) { // Налог на богатство только со 2-го цикла
+            if (bank > 100000) {
+                // Очень богатые игроки платят огромный налог
+                wealthTax = Math.floor(bank / 80);
+            } else if (bank > 20000) {
+                // Богатые игроки
+                wealthTax = Math.floor(bank / 120);
+            } else if (bank > 5000) {
+                // Средний класс
+                wealthTax = Math.floor(bank / 180);
+            } else if (bank > 1000) {
+                // Начинающие инвесторы
+                wealthTax = Math.floor(bank / 250);
+            }
+        }
+        // Если в банке меньше 1000, налог почти нулевой.
 
-        // Стоимость пакета 2 (3 прокрута)
-        let cost2 = Math.floor(CONFIG.SPIN_PACKAGE_2.base_cost * cycleMultiplier);
-        CONFIG.SPIN_PACKAGE_2.cost = cost2;
+        // 3. Налог от долга в цикле (1/6 от долга)
+        const debtTax = run === 1 ? 0 : Math.floor(debt / 6); // Налог от долга только со 2-го цикла
+
+        // 4. Усиленная инфляция внутри раунда
+        // Цена растет на 25% от базовой за каждую покупку
+        const inflationRate = 0.25;
+
+        // --- РАСЧЕТ ИТОГОВОЙ СТОИМОСТИ ---
+
+        // Пакет 1 (7 прокрутов)
+        let baseCost1 = Math.floor(CONFIG.SPIN_PACKAGE_1.base_cost * cycleMultiplier);
+        let inflationCost1 = Math.floor(baseCost1 * purchases * inflationRate);
+        let finalCost1 = baseCost1 + wealthTax + debtTax + inflationCost1;
+
+        if (hasPassive('bulk_buyer')) {
+            // Скидка теперь применяется только к базовой стоимости, а не к налогам
+            // Это делает пассивку слабее против налога
+            baseCost1 = Math.max(1, baseCost1 - 2);
+            finalCost1 = baseCost1 + wealthTax + debtTax + inflationCost1; // Пересчитываем
+        }
+        CONFIG.SPIN_PACKAGE_1.cost = finalCost1;
+
+        // Пакет 2 (3 прокрута)
+        let baseCost2 = Math.floor(CONFIG.SPIN_PACKAGE_2.base_cost * cycleMultiplier);
+        let inflationCost2 = Math.floor(baseCost2 * purchases * inflationRate);
+        CONFIG.SPIN_PACKAGE_2.cost = baseCost2 + wealthTax + debtTax + inflationCost2;
+
+        // Обновляем UI модального окна, если оно открыто
+        if (!ui.spinPurchaseModal.classList.contains('hidden')) {
+            ui.purchaseModalCoins.textContent = `${formatNumberWithComma(state.coins)}💰`;
+            ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${formatNumberWithComma(CONFIG.SPIN_PACKAGE_1.cost)}💰)`;
+            ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${formatNumberWithComma(CONFIG.SPIN_PACKAGE_2.cost)}💰)`;
+            ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
+            ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
+        }
     }
 
     // Функция для ПОЛНОГО СБРОСА и начала новой игры с 1-го цикла
@@ -1552,6 +1618,7 @@ document.addEventListener('DOMContentLoaded', () => {
             totalSpinsMade: 0,
             activatedItemsThisSpin: new Set(),
             echoStoneMultiplier: 1,
+            purchasesThisRound: 0, // <-- НОВОЕ СВОЙСТВО
         };
         lastKnownTickets = state.tickets;
         lastKnownCoins = state.coins;
@@ -1561,6 +1628,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.logPanel.innerHTML = '';
         
         addLog(`Начался Цикл Долга #${state.run}. Цель: ${state.targetDebt}💰 за 3 дня.`);
+        
+        // Применяем разовые пассивки в начале игры
+        if (state.activePassives && state.activePassives.length > 0) {
+            state.activePassives.forEach(passive => {
+                if (passive.type === 'one_time' && typeof passive.effect === 'function') {
+                    passive.effect(state);
+                    addLog(`Применена разовая пассивка: ${passive.name}.`, 'win');
+                }
+            });
+        }
         
         state.grid = generateGrid();
 
@@ -1632,11 +1709,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        state.activePassives = []; // Сброс пассивки для нового выбора
+        // Применяем разовые пассивки для нового цикла
+        if (state.activePassives && state.activePassives.length > 0) {
+            state.activePassives.forEach(passive => {
+                if (passive.type === 'one_time' && typeof passive.effect === 'function') {
+                    passive.effect(state);
+                    addLog(`Применена разовая пассивка: ${passive.name}.`, 'win');
+                }
+            });
+        }
+        
         state.pirateCount = 0; // Сброс счётчика пиратских символов
         state.winStreak = 0;
         state.roundSpinsMade = 0;
         state.flags.firstDepositThisRound = true;
+        state.purchasesThisRound = 0; // <-- СБРОС СВОЙСТВА
 
         updateInterestRate();
         addLog(`Начался Цикл Долга #${state.run}. Цель: ${formatNumberWithComma(state.targetDebt)}💰.`);
@@ -1660,6 +1747,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.tempLuck = 0;
         state.firstSpinUsed = false;
         state.roundSpinsMade = 0;
+        state.purchasesThisRound = 0; // Сброс счетчика покупок в начале раунда
         // --- СБРОС ФЛАГОВ ДЛЯ ПАССИВОК НА 1 РАУНД ---
         if (state.activePassives.length > 0) {
             if (hasPassive('bankers_friend')) state.flags.firstDepositThisRound = true;
@@ -1786,6 +1874,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.coins >= cost) {
                 state.coins -= cost;
                 state.spinsLeft += 1;
+                state.purchasesThisRound++; // <-- УВЕЛИЧИВАЕМ СЧЕТЧИК
                 addLog(`Куплен 1 прокрут за ${cost}💰 (без талонов).`, 'win');
             } else {
                 addLog('Недостаточно наличных.', 'loss');
@@ -1796,15 +1885,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (pkg) {
             let finalCost = pkg.cost;
-            if (pkg === CONFIG.SPIN_PACKAGE_1 && hasPassive('bulk_buyer')) {
-                 finalCost = Math.max(1, finalCost - 2);
-            }
+            // Убираем проверку bulk_buyer отсюда, так как она теперь в updateSpinCosts
 
             if (state.coins >= finalCost) {
                 state.coins -= finalCost;
                 state.spinsLeft += pkg.spins;
                 state.tickets += pkg.tickets;
+                state.purchasesThisRound++; // <-- УВЕЛИЧИВАЕМ СЧЕТЧИК
                 addLog(`Куплено: ${pkg.spins} прокрутов и ${pkg.tickets} талон(а/ов).`);
+                
+                // ВАЖНО: После покупки нужно обновить отображение цен в модальном окне
+                updateSpinCosts(); // Вызываем пересчет
+                // Обновляем текст на кнопках в открытом модальном окне
+                ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${CONFIG.SPIN_PACKAGE_1.cost}💰)`;
+                ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${CONFIG.SPIN_PACKAGE_2.cost}💰)`;
+                ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
+                ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
             } else { addLog(`Недостаточно наличных.`, 'loss'); }
         }
         ui.spinPurchaseModal.classList.add('hidden');
@@ -2557,7 +2653,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const floor = state.inventory.reduce((acc, item) => acc + (item.effect?.min_interest_rate_floor || 0), 0);
         
         let passiveMin = 0;
-        if (hasItem('vault_key') && hasPassive('vault_insurance_passive')) {
+        if (hasPassive('vault_insurance_passive')) {
              passiveMin = Math.max(passiveMin, 0.10);
         }
         if (hasPassive('financial_literacy')) {
@@ -2850,7 +2946,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Максимальный размер инвентаря ---
     function getMaxInventorySize() {
         let base = 9;
-        if (hasPassive && hasPassive('inventory_plus_one')) base += 1;
+        if (hasPassive('inventory_plus_one')) base += 1;
         return base;
     }
 

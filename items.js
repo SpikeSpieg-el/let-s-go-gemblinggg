@@ -123,10 +123,19 @@ const ALL_ITEMS = [
   { id: 'bank_bonus', name: 'Банковская премия', desc: 'С шансом 5% увеличивает процентную ставку банка на 5% на этот раунд.', cost: 6, rarity: 'rare', thumbnail: '🏦', effect: { luck_chance: { interest_bonus: 0.05, chance: 0.05 } } },
   { id: 'multiplier_surge', name: 'Всплеск множителя', desc: 'С шансом 3% все выигрыши в этом прокруте умножаются на 2.', cost: 8, rarity: 'legendary', thumbnail: '⚡', effect: { luck_chance: { win_multiplier: 2, chance: 0.03 } } },
   
+  
   // --- НОВЫЕ ПРЕДМЕТЫ BREAKABLE ---
-  { id: 'glass_heart', name: 'Стеклянное сердце', desc: 'Даёт +3 к удаче. Ломается после 10 прокрутов.', cost: 0, rarity: 'common', thumbnail: '💔', effect: { luck: 3, breakable: true, max_uses: 10 } },
-  { id: 'crystal_ball', name: 'Хрустальный шар', desc: 'Даёт +2 к удаче. Ломается после 15 прокрутов.', cost: 2, rarity: 'rare', thumbnail: '🔮', effect: { luck: 2, breakable: true, max_uses: 15 } },
   { id: 'lucky_dice', name: 'Счастливые кости', desc: 'Каждый прокрут с шансом 25% даёт +20💰. Ломается после 20 срабатываний.', cost: 3, rarity: 'rare', thumbnail: '🎲', effect: { luck_chance: { coins: 20, chance: 0.25, breakable: true, max_uses: 20 } } },
+
+  { id: 'glass_heart', name: 'Стеклянное сердце', desc: 'Даёт +3 к удаче. Ломается после 4 прокрутов.', cost: 0, rarity: 'common', thumbnail: '💔', effect: { luck: 3, breakable: true, max_uses: 10 } },
+  { id: 'crystal_ball', name: 'Хрустальный шар', desc: 'Даёт +2 к удаче. Ломается после 15 прокрутов.', cost: 1, rarity: 'rare', thumbnail: '🔮', effect: { luck: 2, breakable: true, max_uses: 15 } },
   { id: 'time_capsule', name: 'Капсула времени', desc: 'Даёт +4 к удаче. Ломается после 8 прокрутов.', cost: 1, rarity: 'rare', thumbnail: '⏰', effect: { luck: 4, breakable: true, max_uses: 8 } },
-  { id: 'phoenix_feather', name: 'Перо феникса', desc: 'Даёт +5 к удаче. Ломается после 12 прокрутов.', cost: 4, rarity: 'legendary', thumbnail: '🔥', effect: { luck: 5, breakable: true, max_uses: 12 } },
+  { id: 'phoenix_feather', name: 'Перо феникса', desc: 'Даёт +5 к удаче. Ломается после 12 прокрутов.', cost: 3, rarity: 'legendary', thumbnail: '🔥', effect: { luck: 5, breakable: true, max_uses: 12 } },
+  
+  // --- НОВЫЕ РЕДКИЕ BREAKABLE ПРЕДМЕТЫ ---
+  { id: 'golden_compass', name: 'Золотой компас', desc: 'Все диагональные линии получают +3 к множителю. Ломается после 10 прокрутов.', cost: 2, rarity: 'rare', thumbnail: '🧭', effect: { line_type_multiplier_bonus: { types: ["Диагональная"], bonus: 3 }, breakable: true, max_uses: 10 } },
+  { id: 'fortune_cookie', name: 'Печенье с предсказанием', desc: 'С шансом 30% каждый прокрут даёт +25💰. Ломается после 12 срабатываний.', cost: 3, rarity: 'rare', thumbnail: '🥠', effect: { luck_chance: { coins: 25, chance: 0.30, breakable: true, max_uses: 12 } } },
+  { id: 'lucky_rabbit_foot', name: 'Лапка кролика', desc: 'Даёт +6 к удаче. Ломается после 6 прокрутов.', cost: 2, rarity: 'rare', thumbnail: '🐰', effect: { luck: 6, breakable: true, max_uses: 6 } },
+  { id: 'magic_mirror', name: 'Волшебное зеркало', desc: 'Удваивает все выигрыши с линий из 4+ символов. Ломается после 8 прокрутов.', cost: 4, rarity: 'rare', thumbnail: '🟩', effect: { line_length_multiplier_bonus: { min_length: 4, multiplier: 2 }, breakable: true, max_uses: 8 } },
+  { id: 'treasure_map', name: 'Карта сокровищ', desc: 'Каждый прокрут с шансом 15% даёт +3🎟️. Ломается после 15 срабатываний.', cost: 3, rarity: 'rare', thumbnail: '🗺️', effect: { luck_chance: { tickets: 3, chance: 0.15, breakable: true, max_uses: 15 } } },
 ];

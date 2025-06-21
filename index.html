@@ -277,15 +277,7 @@
                     passivesContainer.innerHTML = '<p>Не удалось загрузить амулеты.</p>';
                 }
 
-                // 2. Долг
-                if (window.gameState && window.gameState.debt) {
-                    debtReminderEl.textContent = `${window.gameState.debt.toLocaleString('ru-RU')} млн`;
-                } else {
-                    const debtEl = document.querySelector('#stat-debt'); // запасной вариант
-                    debtReminderEl.textContent = debtEl ? debtEl.textContent : '88,888,888 млн';
-                }
-
-                // 3. Шансы символов
+                // 2. Шансы символов
                 if (window.symbolWeights) {
                     chancesContainer.innerHTML = '';
                     const totalWeight = Object.values(window.symbolWeights).reduce((sum, weight) => sum + weight, 0);
