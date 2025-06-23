@@ -390,13 +390,46 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog(`Коллекционер талонов: +${ticketLuck} к удаче за талоны.`, 'win');
         }
         
-        // --- НОВАЯ ЛОГИКА: удача влияет только на один случайный символ ---
-        const luckySymbolIndex = Math.floor(Math.random() * SYMBOLS.length);
-        const luckySymbolId = SYMBOLS[luckySymbolIndex].id;
-
+        // --- НОВАЯ ЛОГИКА: удача распределяется на 3 части по случайным символам ---
+        // 1. Делим удачу на 3 случайные части
+        function splitLuckRandomly(total, parts) {
+            if (total <= 0) return Array(parts).fill(0);
+            let cuts = Array.from({length: parts-1}, () => Math.random());
+            cuts.sort();
+            let result = [];
+            let prev = 0;
+            for (let i = 0; i < cuts.length; i++) {
+                result.push(Math.floor((cuts[i] - prev) * total));
+                prev = cuts[i];
+            }
+            result.push(Math.floor((1 - prev) * total));
+            // Корректируем сумму (на случай округления)
+            let diff = total - result.reduce((a,b)=>a+b,0);
+            for(let i=0; i<Math.abs(diff); i++) result[i%parts] += Math.sign(diff);
+            return result;
+        }
+        const luckParts = splitLuckRandomly(totalLuck, 3);
+        // 2. Выбираем 2 случайных символа
+        const chosenSymbolIds = [];
+        for (let i = 0; i < 2; i++) {
+            const idx = Math.floor(Math.random() * SYMBOLS.length);
+            chosenSymbolIds.push(SYMBOLS[idx].id);
+        }
+        // 3. Каждую часть случайно назначаем одному из двух символов
+        const luckBonuses = {};
+        for (let i = 0; i < 3; i++) {
+            const symbolIdx = Math.floor(Math.random() * 2); // 0 или 1
+            const id = chosenSymbolIds[symbolIdx];
+            luckBonuses[id] = (luckBonuses[id] || 0) + luckParts[i];
+        }
+        // --- DEBUG LOGS ---
+        console.log('[DEBUG] Удача разбита на части:', luckParts);
+        console.log('[DEBUG] Символы для удачи:', chosenSymbolIds);
+        console.log('[DEBUG] Итоговые бонусы по символам:', luckBonuses);
+        // 4. Применяем бонусы к весам
         let adjustedSymbols = weightedSymbols.map(symbol => {
-            if (symbol.id === luckySymbolId) {
-                let newWeight = symbol.weight + Math.floor(symbol.value * totalLuck * 40);
+            if (luckBonuses[symbol.id]) {
+                let newWeight = symbol.weight + Math.floor(symbol.value * luckBonuses[symbol.id] * 18);
                 return { ...symbol, weight: newWeight };
             }
             return { ...symbol, weight: symbol.weight };
@@ -2175,6 +2208,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         updateMimicTarget();
+        
+        // --- [NEW] Немедленное применение эффектов, которые должны работать сразу ---
+        // Бесплатные рероллы
+        let newFreeRerolls = getItemEffectValue('free_reroll_per_round', 0);
+        if (newFreeRerolls > 0) {
+            state.freeRerolls = newFreeRerolls;
+            addLog(`Бесплатный реролл магазина теперь доступен в этом раунде!`, 'win');
+            animateInventoryItem(item.id);
+        }
+        // +Спины в раунд (например, часы)
+        let newSpins = getItemEffectValue('on_round_start_spins', 0);
+        if (newSpins > 0) {
+            state.spinsLeft += newSpins;
+            addLog(`+${newSpins} прокрут(ов) сразу после покупки!`, 'win');
+            animateInventoryItem(item.id);
+        }
+        // +Монеты в раунд (например, кофе)
+        let newCoins = getItemEffectValue('on_round_start_coins', 0);
+        if (newCoins > 0) {
+            state.coins += newCoins;
+            addLog(`+${newCoins}💰 сразу после покупки!`, 'win');
+            animateInventoryItem(item.id);
+        }
+        // Можно добавить аналогично для других эффектов, если потребуется
+
         if (ui.planningModal.classList.contains('hidden')) {
             updateUI();
         } else {
@@ -2253,6 +2311,13 @@ document.addEventListener('DOMContentLoaded', () => {
             state.luckBatteryCharge = state.luckBatteryCharge || 0;
             if (state.luckBatteryCharge > 0) {
                 luckText += ` (+${state.luckBatteryCharge} батарея удачи)`;
+            }
+        }
+        // --- ЭФФЕКТ: Звонкая удача ---
+        if (hasItem('ringing_luck') && Array.isArray(state.grid)) {
+            const bellCount = state.grid.filter(s => s && s.id === 'bell').length;
+            if (bellCount > 0) {
+                luckText += ` (+${bellCount} от Звонкая удача)`;
             }
         }
         ui.statLuck.textContent = luckText;
