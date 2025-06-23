@@ -150,6 +150,7 @@
                 <button id="buy-spin-1">1 прокрут (3💰, без талонов)</button>
                 <button id="buy-nothing">Ничего. Я справлюсь.</button>
             </div>
+            <div id="spin-cost-tooltip" class="spin-cost-tooltip" style="display:none; position:absolute; z-index:2000; font-size:0.98em; background:var(--cell-bg,#232323); border:1px solid var(--border-color,#444); border-radius:6px; padding:10px; color:var(--text-color,#fff); box-shadow:0 2px 12px #0005; pointer-events:none; transition:opacity 0.15s; opacity:0;"></div>
             <button id="btn-planning" style="margin-top: 10px; background-color: var(--ticket-color); border-color: var(--ticket-color);">📋 Режим планирования</button>
         </div>
     </div>
@@ -395,6 +396,8 @@
         display: flex;
         gap: 8px;
         align-items: center;
+        flex-direction: row;
+        flex-wrap: wrap;
     }
     .dev-select, .dev-input {
         flex: 1;

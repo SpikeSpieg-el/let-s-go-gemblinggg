@@ -91,8 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.gameState = {};
 
     function updateWeightedSymbols() {
-        // Всегда начинаем с оригинальных, не изменённых символов
-        let currentSymbols = JSON.parse(JSON.stringify(ORIGINAL_SYMBOLS));
+        // Теперь используем текущий массив SYMBOLS, чтобы поддерживать изменения из Dev-меню
+        let currentSymbols = JSON.parse(JSON.stringify(SYMBOLS));
 
         // Применяем ВСЕ активные пассивки типа slot_modifier к этой чистой копии
         if (state.activePassives && state.activePassives.length > 0) {
@@ -325,10 +325,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function generateGrid() {
-        updateWeightedSymbols(); // Обновляем пул символов перед генерацией
+        updateWeightedSymbols();
+        // --- ФИЛЬТРАЦИЯ ЗАПРЕЩЁННЫХ СИМВОЛОВ ---
+        const banned = (state.bannedSymbols || []).filter(b => b.spinsLeft > 0).map(b => b.symbol);
+        let filteredWeightedSymbols = weightedSymbols.filter(s => !banned.includes(s.id));
+        let filteredSYMBOLS = SYMBOLS.filter(s => !banned.includes(s.id));
 
         let tempLuck = 0;
         
+        // --- ВРЕМЕННАЯ УДАЧА ОТ temporary_luck_on_spin ---
+        let tempLuckFromItems = 0;
+        if (Array.isArray(state.grid)) {
+            state.inventory.forEach(item => {
+                if (item.effect?.temporary_luck_on_spin) {
+                    const symbolId = item.effect.temporary_luck_on_spin;
+                    const count = state.grid.filter(s => s && s.id === symbolId).length;
+                    if (count > 0) {
+                        tempLuckFromItems += count;
+                    }
+                }
+            });
+        }
+        // Влияет только на этот спин
+        let totalTempLuck = (state.tempLuck || 0) + tempLuckFromItems;
+
         // --- ПАССИВКА: Удача новичка ---
         if (hasPassive('beginners_luck_passive') && state.flags.isFirstSpinOfRound) {
             tempLuck += 10;
@@ -377,7 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ticketLuck = Math.floor(state.tickets / effect.per) * effect.luck;
         }
         
-        const totalLuck = (state.permanentLuckBonus || 0) + getItemEffectValue('luck', 0) + state.tempLuck + tempLuck + perRunLuck + hoarderLuck + ticketLuck + (state.cherryLuckBonus || 0);
+        // ВАЖНО: используем totalTempLuck вместо state.tempLuck
+        const totalLuck = (state.permanentLuckBonus || 0) + getItemEffectValue('luck', 0) + totalTempLuck + tempLuck + perRunLuck + hoarderLuck + ticketLuck + (state.cherryLuckBonus || 0);
 
         if (state.cherryLuckBonus > 0) {
             addLog(`Вишнёвая удача: +${state.cherryLuckBonus} к удаче на этот спин.`, 'win');
@@ -412,8 +433,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2. Выбираем 2 случайных символа
         const chosenSymbolIds = [];
         for (let i = 0; i < 2; i++) {
-            const idx = Math.floor(Math.random() * SYMBOLS.length);
-            chosenSymbolIds.push(SYMBOLS[idx].id);
+            const idx = Math.floor(Math.random() * filteredSYMBOLS.length);
+            chosenSymbolIds.push(filteredSYMBOLS[idx].id);
         }
         // 3. Каждую часть случайно назначаем одному из двух символов
         const luckBonuses = {};
@@ -427,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('[DEBUG] Символы для удачи:', chosenSymbolIds);
         console.log('[DEBUG] Итоговые бонусы по символам:', luckBonuses);
         // 4. Применяем бонусы к весам
-        let adjustedSymbols = weightedSymbols.map(symbol => {
+        let adjustedSymbols = filteredWeightedSymbols.map(symbol => {
             if (luckBonuses[symbol.id]) {
                 let newWeight = symbol.weight + Math.floor(symbol.value * luckBonuses[symbol.id] * 18);
                 return { ...symbol, weight: newWeight };
@@ -453,10 +474,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- ПАССИВКА: Центральный элемент ---
         if (hasPassive('middle_man') && Math.random() < 0.5) {
-            const highValueSymbols = SYMBOLS.filter(s => ['diamond', 'coins', 'seven'].includes(s.id));
+            const highValueSymbols = filteredSYMBOLS.filter(s => ['diamond', 'coins', 'seven'].includes(s.id));
             if (highValueSymbols.length > 0) {
                 const randomHighSymbol = highValueSymbols[Math.floor(Math.random() * highValueSymbols.length)];
-                grid[7] = randomHighSymbol; // 7 - это центральная ячейка (индекс)
+                grid[7] = randomHighSymbol;
                 addLog(`Центральный элемент сработал! В центре появился ${randomHighSymbol.graphic}.`, 'win');
             }
         }
@@ -465,24 +486,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const guarantee = state.inventory.find(item => item.effect?.guarantee_symbol);
         if (guarantee) {
             const { symbol, count } = guarantee.effect.guarantee_symbol;
-            let positions = Array.from({length: grid.length}, (_, i) => i);
-            for (let i = 0; i < count; i++) {
-                if (positions.length === 0) break;
-                const idx = Math.floor(Math.random() * positions.length);
-                grid[positions[idx]] = SYMBOLS.find(s => s.id === symbol);
-                positions.splice(idx, 1);
+            if (!banned.includes(symbol)) {
+                let positions = Array.from({length: grid.length}, (_, i) => i);
+                for (let i = 0; i < count; i++) {
+                    if (positions.length === 0) break;
+                    const idx = Math.floor(Math.random() * positions.length);
+                    grid[positions[idx]] = SYMBOLS.find(s => s.id === symbol);
+                    positions.splice(idx, 1);
+                }
+                animateInventoryItem(guarantee.id);
             }
-            animateInventoryItem(guarantee.id); // [NEW] Анимация
         }
-
         // --- ЭФФЕКТ: sync_cells ---
         const sync = state.inventory.find(item => item.effect?.sync_cells);
         if (sync) {
             const positions = sync.effect.sync_cells.cells;
             if (Array.isArray(positions) && positions.length > 0 && grid.length > 0) {
+                // Только если символ не запрещён
                 const symbol = grid[positions[0]];
-                positions.forEach(pos => grid[pos] = symbol);
-                animateInventoryItem(sync.id); // [NEW] Анимация
+                if (!banned.includes(symbol.id)) {
+                    positions.forEach(pos => grid[pos] = symbol);
+                    animateInventoryItem(sync.id);
+                }
             }
         }
 
@@ -565,11 +590,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const allWinningPositions = new Set();
         let winningLinesInfo = [];
         
-        // [NEW] Логика для Wild Clover
-        const wildSymbolItem = state.inventory.find(item => item.effect?.wild_symbol);
-        const wildSymbolId = wildSymbolItem ? wildSymbolItem.effect.wild_symbol : null;
-        if (wildSymbolId) {
-            animateInventoryItem(wildSymbolItem.id);
+        // [NEW] Логика для Wild Clover и других wild-эффектов
+        const wildSymbolIds = state.inventory
+            .filter(item => item.effect?.wild_symbol)
+            .map(item => item.effect.wild_symbol);
+        if (wildSymbolIds.length > 0) {
+            // Анимация для всех wild-предметов
+            state.inventory.forEach(item => {
+                if (item.effect?.wild_symbol) animateInventoryItem(item.id);
+            });
         }
 
         // --- 0. ПРЕДВАРИТЕЛЬНЫЕ ЭФФЕКТЫ ---
@@ -740,8 +769,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 while (i < symbolsOnLine.length) {
                     let currentSymbol = symbolsOnLine[i];
                     // Если первый символ - wild, ищем следующий не-wild символ для определения типа линии
-                    if (wildSymbolId && currentSymbol.id === wildSymbolId) {
-                        const nextNonWild = symbolsOnLine.slice(i + 1).find(s => s.id !== wildSymbolId);
+                    if (wildSymbolIds.length > 0 && wildSymbolIds.includes(currentSymbol.id)) {
+                        const nextNonWild = symbolsOnLine.slice(i + 1).find(s => !wildSymbolIds.includes(s.id));
                         if (nextNonWild) {
                             currentSymbol = nextNonWild;
                         } else { // Вся линия состоит из wild'ов
@@ -752,7 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     let comboLength = 0;
                     let comboPositions = [];
                     for (let j = i; j < symbolsOnLine.length; j++) {
-                        if (symbolsOnLine[j].id === currentSymbol.id || (wildSymbolId && symbolsOnLine[j].id === wildSymbolId)) {
+                        if (symbolsOnLine[j].id === currentSymbol.id || (wildSymbolIds.length > 0 && wildSymbolIds.includes(symbolsOnLine[j].id))) {
                             comboLength++;
                             comboPositions.push(line.positions[j]);
                         } else {
@@ -767,6 +796,32 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => (item.effect.line_length_multiplier_bonus.length === comboLength) ? acc * item.effect.line_length_multiplier_bonus.multiplier : acc, 1);
                         lineMultiplier *= lengthBonus;
+
+                        // --- Палитра художника: бонус за разнообразие символов ---
+                        const paletteItem = state.inventory.find(item => item.effect?.diverse_line_bonus);
+                        if (paletteItem && comboLength >= (paletteItem.effect.diverse_line_bonus.min_length || 2)) {
+                            // Собираем "реальные" символы линии (wild считаем за currentSymbol)
+                            const realSymbols = symbolsOnLine.slice(i, i + comboLength).map(s => (wildSymbolIds.length > 0 && wildSymbolIds.includes(s.id)) ? currentSymbol.id : s.id);
+                            const uniqueSymbols = new Set(realSymbols);
+                            if (uniqueSymbols.size >= 2) {
+                                lineMultiplier += paletteItem.effect.diverse_line_bonus.bonus;
+                                addLog(`Палитра художника: линия из разных символов! +${paletteItem.effect.diverse_line_bonus.bonus} к множителю.`, 'win');
+                                animateInventoryItem(paletteItem.id);
+                            }
+                        }
+
+                        // --- diverse_line_bonus: бонус за разнообразие символов (суммируется со всех предметов) ---
+                        const allDiverseBonuses = state.inventory
+                            .filter(item => item.effect?.diverse_line_bonus && comboLength >= (item.effect.diverse_line_bonus.min_length || 2))
+                            .map(item => item.effect.diverse_line_bonus);
+                        const realSymbols = symbolsOnLine.slice(i, i + comboLength).map(s => (wildSymbolIds.length > 0 && wildSymbolIds.includes(s.id)) ? currentSymbol.id : s.id);
+                        const uniqueSymbols = new Set(realSymbols);
+                        allDiverseBonuses.forEach(bonusObj => {
+                            if (uniqueSymbols.size >= bonusObj.min_length) {
+                                lineMultiplier += bonusObj.bonus;
+                                addLog(`Бонус за разнообразие: линия из ${uniqueSymbols.size} разных символов! +${bonusObj.bonus} к множителю.`, 'win');
+                            }
+                        });
 
                         let win = processWin(currentSymbol, comboLength, lineMultiplier, comboPositions);
                         
@@ -784,18 +839,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 const firstSymbol = symbolsOnLine[0];
                 let lineSymbol = firstSymbol;
                  // Если первый символ - wild, определяем тип по следующему не-wild
-                if (wildSymbolId && firstSymbol.id === wildSymbolId) {
-                    const nextNonWild = symbolsOnLine.find(s => s.id !== wildSymbolId);
+                if (wildSymbolIds.length > 0 && wildSymbolIds.includes(firstSymbol.id)) {
+                    const nextNonWild = symbolsOnLine.find(s => !wildSymbolIds.includes(s.id));
                     if (nextNonWild) lineSymbol = nextNonWild;
                 }
 
-                if (symbolsOnLine.every(s => s.id === lineSymbol.id || (wildSymbolId && s.id === wildSymbolId))) {
+                if (symbolsOnLine.every(s => s.id === lineSymbol.id || (wildSymbolIds.length > 0 && wildSymbolIds.includes(s.id)))) {
                     let lineMultiplier = line.multiplier;
                     const typeBonus = state.inventory.filter(item => item.effect?.line_type_multiplier_bonus).reduce((acc, item) => item.effect.line_type_multiplier_bonus.types.some(type => line.type === type) ? acc + item.effect.line_type_multiplier_bonus.bonus : acc, 0);
                     lineMultiplier += typeBonus;
 
                     const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => (item.effect.line_length_multiplier_bonus.length === line.positions.length) ? acc * item.effect.line_length_multiplier_bonus.multiplier : acc, 1);
                     lineMultiplier *= lengthBonus;
+
+                    // --- Палитра художника: бонус за разнообразие символов (для не-сканируемых линий) --- 
+                    const paletteItem = state.inventory.find(item => item.effect?.diverse_line_bonus);
+                    if (paletteItem && line.positions.length >= (paletteItem.effect.diverse_line_bonus.min_length || 2)) {
+                        // Собираем "реальные" символы линии (wild считаем за lineSymbol)
+                        const realSymbols = symbolsOnLine.map(s => (wildSymbolIds.length > 0 && wildSymbolIds.includes(s.id)) ? lineSymbol.id : s.id);
+                        const uniqueSymbols = new Set(realSymbols);
+                        if (uniqueSymbols.size >= 2) {
+                            lineMultiplier += paletteItem.effect.diverse_line_bonus.bonus;
+                            addLog(`Палитра художника: линия из разных символов! +${paletteItem.effect.diverse_line_bonus.bonus} к множителю.`, 'win');
+                            animateInventoryItem(paletteItem.id);
+                        }
+                    }
+
+                    // --- diverse_line_bonus: бонус за разнообразие символов (для не-сканируемых линий, суммируется со всех предметов) --- 
+                    const allDiverseBonuses2 = state.inventory
+                        .filter(item => item.effect?.diverse_line_bonus && line.positions.length >= (item.effect.diverse_line_bonus.min_length || 2))
+                        .map(item => item.effect.diverse_line_bonus);
+                    const realSymbols2 = symbolsOnLine.map(s => (wildSymbolIds.length > 0 && wildSymbolIds.includes(s.id)) ? lineSymbol.id : s.id);
+                    const uniqueSymbols2 = new Set(realSymbols2);
+                    allDiverseBonuses2.forEach(bonusObj => {
+                        if (uniqueSymbols2.size >= bonusObj.min_length) {
+                            lineMultiplier += bonusObj.bonus;
+                            addLog(`Бонус за разнообразие: линия из ${uniqueSymbols2.size} разных символов! +${bonusObj.bonus} к множителю.`, 'win');
+                        }
+                    });
 
                     let win = processWin(lineSymbol, line.positions.length, lineMultiplier, line.positions);
                     
@@ -921,8 +1002,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // [NEW] Бонусы от предметов, которые срабатывают после основного подсчета
         let postSpinBonuses = 0;
+        let gamblersCoin = state.inventory.find(item => item.id === 'gamblers_coin');
+        if (gamblersCoin && typeof gamblersCoin.on_spin_bonus === 'function' && winningLinesInfo.length > 0) {
+            // Монетка шулера заменяет выигрыш
+            const result = gamblersCoin.on_spin_bonus(state.grid, totalWinnings, state);
+            totalWinnings = result;
+            addLog(`${gamblersCoin.name}: ${result >= 0 ? '+' : ''}${formatNumberWithComma(result)}💰`, result >= 0 ? 'win' : 'loss');
+            if (result > 0) {
+                animateInventoryItem(gamblersCoin.id);
+            } else if (result < 0) {
+                // Анимация красной обводки для проигрыша
+                const el = document.querySelector(`#inventory-items [data-item-id='gamblers_coin'], #planning-inventory-items [data-item-id='gamblers_coin']`);
+                if (el) {
+                    el.classList.remove('item-activated');
+                    void el.offsetWidth;
+                    el.classList.add('item-activated-loss');
+                    setTimeout(() => {
+                        el.classList.remove('item-activated-loss');
+                    }, 800);
+                }
+            }
+            // Если result === 0 — не активируем анимацию вообще
+        }
+        // Остальные on_spin_bonus
         state.inventory.forEach(item => {
-            if (item.on_spin_bonus) {
+            if (item.on_spin_bonus && item.id !== 'gamblers_coin') {
                 const bonus = item.on_spin_bonus(state.grid, totalWinnings, state);
                 if (bonus > 0) {
                     postSpinBonuses += bonus;
@@ -998,8 +1102,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const finalMultiplier = finalMultiplierItem.effect.winMultiplier;
             const bonus = Math.floor(totalWinnings * (finalMultiplier - 1));
             totalWinnings += bonus;
-            addLog(`${finalMultiplierItem.name}: +${Math.round((finalMultiplier - 1) * 100)}% бонус! (+${formatNumberWithComma(bonus)}💰)`, 'win');
-            animateInventoryItem(finalMultiplierItem.id);
+            if(finalMultiplierItem.id === 'demon_contract') {
+                addLog(`${finalMultiplierItem.name}: +${formatNumberWithComma(bonus)}💰`, 'win');
+                animateInventoryItem(finalMultiplierItem.id);
+            }
         }
 
         // [FIX] Логика 'last_chance'
@@ -1020,6 +1126,17 @@ document.addEventListener('DOMContentLoaded', () => {
             totalWinnings += bonus;
             addLog(`Эхо-Камень: Множитель x${multiplier}! (+${formatNumberWithComma(bonus)}💰)`, 'win');
             animateInventoryItem('echo_stone');
+        }
+
+        // --- ЭФФЕКТ: slot_machine_heart ---
+        if (hasItem('slot_machine_heart') && typeof state.jackpotCellIndex === 'number') {
+            const jackpotSymbol = ALL_ITEMS.find(i => i.id === 'slot_machine_heart').effect.jackpot_cell.symbol;
+            const jackpotMultiplier = ALL_ITEMS.find(i => i.id === 'slot_machine_heart').effect.jackpot_cell.multiplier;
+            if (state.grid[state.jackpotCellIndex]?.id === jackpotSymbol && totalWinnings > 0) {
+                totalWinnings *= jackpotMultiplier;
+                addLog(`Сердце автомата: В джекпот-ячейке выпал 7️⃣! Выигрыш умножен на 100!`, 'win');
+                animateInventoryItem('slot_machine_heart');
+            }
         }
 
         totalWinnings = Math.floor(totalWinnings);
@@ -1052,7 +1169,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 addLog(`На волне успеха (x${state.winStreak}): +${finalBonus}💰`, 'win');
                 animateInventoryItem('hot_streak');
             }
-            
+
+            // === GLASS CANNON ===
+            const glassCannonIdx = state.inventory.findIndex(item => item.id === 'glass_cannon');
+            if (glassCannonIdx !== -1) {
+                const item = state.inventory[glassCannonIdx];
+                if (Math.random() < 0.10) {
+                    addLog('Стеклянная пушка треснула и рассыпалась! 💥', 'loss');
+                    animateInventoryItem('glass_cannon');
+                    state.inventory.splice(glassCannonIdx, 1);
+                }
+            }
         } else { 
             addLog('Ничего не выпало.');
             state.winStreak = 0; // [NEW] Сброс серии побед
@@ -1074,6 +1201,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.piggyBank += lossBonus;
                 addLog(`Копилка: +${formatNumberWithComma(lossBonus)}💰. Всего: ${formatNumberWithComma(state.piggyBank)}💰`);
                 animateInventoryItem('scrap_metal'); // [NEW] Анимация
+            }
+            // === DEMON CONTRACT ===
+            const demonItem = state.inventory.find(item => item.id === 'demon_contract');
+            if (demonItem && state.bankBalance > 0) {
+                const penalty = Math.floor(state.bankBalance * 0.05);
+                if (penalty > 0) {
+                    state.bankBalance -= penalty;
+                    addLog('😈 Контракт с Демоном: -5% от баланса в банке!', 'loss');
+                    // Анимация проигрыша для демона
+                    const el = document.querySelector(`#inventory-items [data-item-id='demon_contract'], #planning-inventory-items [data-item-id='demon_contract']`);
+                    if (el) {
+                        el.classList.remove('item-activated');
+                        void el.offsetWidth;
+                        el.classList.add('item-activated-loss');
+                        setTimeout(() => {
+                            el.classList.remove('item-activated-loss');
+                        }, 800);
+                    }
+                }
             }
         }
 
@@ -1109,16 +1255,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pirateStreak === 2) highlightCurseCells([line.positions[symbolsOnLine.length-2], line.positions[symbolsOnLine.length-1]], 2, 0);
         }
 
-        // --- ЭФФЕКТ: slot_machine_heart ---
-        if (hasItem('slot_machine_heart') && typeof state.jackpotCellIndex === 'number') {
-            const jackpotSymbol = ALL_ITEMS.find(i => i.id === 'slot_machine_heart').effect.jackpot_cell.symbol;
-            const jackpotMultiplier = ALL_ITEMS.find(i => i.id === 'slot_machine_heart').effect.jackpot_cell.multiplier;
-            if (state.grid[state.jackpotCellIndex]?.id === jackpotSymbol && totalWinnings > 0) {
-                totalWinnings *= jackpotMultiplier;
-                addLog(`Сердце автомата: В джекпот-ячейке выпал 7️⃣! Выигрыш умножен на 100!`, 'win');
-                animateInventoryItem('slot_machine_heart');
-            }
-        }
         // --- ЭФФЕКТ: luck_battery ---
         if (hasItem('luck_battery')) {
             state.luckBatteryCharge = state.luckBatteryCharge || 0;
@@ -1134,6 +1270,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 animateInventoryItem('luck_battery');
                 state.luckBatteryCharge = 0;
             }
+        }
+
+        // --- Для Камня-резонатора: запоминаем символ первого выигрышного ряда ---
+        if (winningLinesInfo.length > 0) {
+            state.lastWinningSymbol = winningLinesInfo[0].symbol;
+        } else {
+            state.lastWinningSymbol = undefined;
         }
     }
 
@@ -1314,7 +1457,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const commons = availableItems.filter(i => i.rarity === 'common');
         const rares = availableItems.filter(i => i.rarity === 'rare');
         const legendaries = availableItems.filter(i => i.rarity === 'legendary');
-        for (let i = 0; i < 5; i++) {
+
+        // --- Гарантированный редкий амулет в первом магазине 3-го цикла ---
+        if (state.run === 3 && state.turn === 1 && rares.length > 0) {
+            const randomIndex = Math.floor(Math.random() * rares.length);
+            const rareItem = { ...rares[randomIndex] };
+            rareItem.cost = Math.max(1, Math.floor(rareItem.cost / 2));
+            // Сброс uses для breakable предметов
+            if (rareItem.effect && rareItem.effect.luck_chance && rareItem.effect.luck_chance.breakable) {
+                rareItem.uses = rareItem.effect.luck_chance.max_uses || 1;
+            }
+            if (rareItem.effect && rareItem.effect.breakable && !rareItem.effect.luck_chance) {
+                rareItem.uses = rareItem.effect.max_uses || 10;
+            }
+            // [NEW] Сброс uses для wild_clover_next_spin.breakable
+            if (rareItem.effect && rareItem.effect.wild_clover_next_spin && rareItem.effect.wild_clover_next_spin.breakable) {
+                rareItem.uses = rareItem.effect.wild_clover_next_spin.max_uses || 1;
+            }
+            state.shop.push(rareItem);
+            const idx = availableItems.findIndex(x => x.id === rareItem.id);
+            if (idx !== -1) availableItems.splice(idx, 1);
+            rares.splice(randomIndex, 1);
+        }
+
+        for (let i = state.shop.length; i < 5; i++) {
             let pool = [];
             const roll = Math.random();
             if (roll < 0.6 && commons.length > 0) pool = commons;
@@ -1330,10 +1496,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
                     item.uses = item.effect.luck_chance.max_uses || 1;
                 }
-                
-                // [NEW] Инициализация uses для breakable предметов без luck_chance
                 if (item.effect && item.effect.breakable && !item.effect.luck_chance) {
                     item.uses = item.effect.max_uses || 10;
+                }
+                // [NEW] Сброс uses для wild_clover_next_spin.breakable
+                if (item.effect && item.effect.wild_clover_next_spin && item.effect.wild_clover_next_spin.breakable) {
+                    item.uses = item.effect.wild_clover_next_spin.max_uses || 1;
                 }
                 state.shop.push(item);
                 const idx = availableItems.findIndex(x => x.id === item.id);
@@ -1470,14 +1638,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         item.uses--;
                         if (item.uses <= 0) {
                             addLog(`${item.name} сломался!`, 'loss');
+                            // --- [NEW] Пассивка Феникс ---
+                            if (hasPassive('phoenix_passive')) {
+                                state.luck += 5;
+                                const bonus = 10 * (state.run || 1);
+                                state.coins += bonus;
+                                addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💰 за поломку предмета!', 'win');
+                            }
                             itemsToRemove.push(idx);
                         }
-                    }
-                } else {
-                    // --- ПАССИВКА: Предвкушение ---
-                    if (hasPassive('anticipation')) {
-                        state.coins += 1;
-                        addLog(`Предвкушение: +1💰 за несработавший шанс "${item.name}".`, 'win');
+                    } else {
+                        // --- ПАССИВКА: Предвкушение ---
+                        if (hasPassive('anticipation')) {
+                            state.coins += 1;
+                            addLog(`Предвкушение: +1💰 за несработавший шанс "${item.name}".`, 'win');
+                        }
                     }
                 }
             }
@@ -1517,6 +1692,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         processLuckChanceItems(state);
 
+        // --- СБОЙ РЕАЛЬНОСТИ ---
+        const glitchItem = state.inventory.find(item => item.effect?.reality_glitch);
+        let glitchTriggered = false;
+        if (glitchItem) {
+            const chance = glitchItem.effect.reality_glitch.chance;
+            if (Math.random() < chance) {
+                glitchTriggered = true;
+            }
+        }
+
         const oldSpinsLeft = state.spinsLeft;
         if (!freeSpin) {
             state.spinsLeft--;
@@ -1538,6 +1723,69 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         animateSpinsCounter(oldSpinsLeft, state.spinsLeft);
+
+        // --- СБОЙ РЕАЛЬНОСТИ: сначала проигрыш, потом джекпот ---
+        if (glitchTriggered) {
+            // 1. Сгенерировать максимально проигрышную сетку (разные символы, нет линий)
+            const allSymbols = SYMBOLS;
+            let badGrid = [];
+            for (let i = 0; i < CONFIG.ROWS * CONFIG.COLS; i++) {
+                badGrid.push(allSymbols[i % allSymbols.length]);
+            }
+            state.grid = badGrid;
+            await runSpinAnimation();
+            calculateWinnings();
+            addLog('Сбой реальности: глич... что-то не так...', 'loss');
+            // 2. Через 1 секунду резко заменить на джекпот без анимации
+            setTimeout(() => {
+                // Выбираем случайный символ для джекпота
+                const randomSymbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+                let jackpotGrid = Array(CONFIG.ROWS * CONFIG.COLS).fill(randomSymbol);
+                state.grid = jackpotGrid;
+                // Обновляем отображение без анимации
+                updateReels();
+                calculateWinnings();
+                addLog(`Сбой реальности: ВСЁ ОДИНАКОВО! ДЖЕКПОТ ${randomSymbol.graphic}!!!`, 'win');
+                animateInventoryItem(glitchItem.id);
+                
+                // Сбрасываем состояние спина и обновляем UI
+                setTimeout(() => {
+                    state.tempLuck = 0;
+                    state.isSpinning = false;
+                    ui.lever.classList.remove('pulled');
+                    
+                    // [NEW] Логика для breakable предметов без luck_chance
+                    let itemsToRemove = [];
+                    state.inventory.forEach((item, idx) => {
+                        if (item.effect?.breakable && !item.effect?.luck_chance) {
+                            if (item.uses === undefined) item.uses = item.effect.max_uses || 10;
+                            item.uses--;
+                            if (item.uses <= 0) {
+                                addLog(`${item.name} сломался!`, 'loss');
+                                // --- [NEW] Пассивка Феникс ---
+                                if (hasPassive('phoenix_passive')) {
+                                    state.luck += 5;
+                                    const bonus = 10 * (state.run || 1);
+                                    state.coins += bonus;
+                                    addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💰 за поломку предмета!', 'win');
+                                }
+                                itemsToRemove.push(idx);
+                            }
+                        }
+                    });
+                    
+                    // Удаляем сломанные предметы
+                    for (let i = itemsToRemove.length - 1; i >= 0; i--) {
+                        state.inventory.splice(itemsToRemove[i], 1);
+                    }
+                    
+                    updateUI(); // Полное обновление UI происходит здесь, после завершения анимаций.
+                }, 900); // Анимация длится 800ms, берем с запасом.
+            }, 1000);
+            // После этого return, чтобы не делать обычный спин
+            return;
+        }
+        // --- конец блока сбоя реальности ---
 
         // [FIX] Убрали немедленный вызов updateUI(), который прерывал анимации.
         // Обновление UI теперь происходит в конце спина с задержкой.
@@ -1561,6 +1809,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.uses--;
                     if (item.uses <= 0) {
                         addLog(`${item.name} сломался!`, 'loss');
+                        // --- [NEW] Пассивка Феникс ---
+                        if (hasPassive('phoenix_passive')) {
+                            state.luck += 5;
+                            const bonus = 10 * (state.run || 1);
+                            state.coins += bonus;
+                            addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💰 за поломку предмета!', 'win');
+                        }
                         itemsToRemove.push(idx);
                     }
                 }
@@ -1736,7 +1991,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Расчет нового долга
         if (state.run === 2) state.targetDebt = 111;
-        else if (state.run === 3) state.targetDebt = 666;
+        else if (state.run === 3) state.targetDebt = 450;
         else if (state.run === 4) state.targetDebt = 3333;
         else if (state.run === 5) state.targetDebt = 8888;
         else state.targetDebt = Math.min(Math.floor(state.targetDebt * 2.5 + 10000), 88888888);
@@ -1810,6 +2065,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function startTurn() {
+        repairDwarfsWorkshop(); // Мастерская гнома теперь срабатывает в начале раунда
         updateSpinCosts(); // Обновляем стоимость в начале каждого раунда
 
         state.tempLuck = 0;
@@ -1888,6 +2144,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // --- ОБРАБОТКА PERMANENT_SPINS ---
+        let permanentSpinsBonus = getItemEffectValue('permanent_spins', 0);
+        if (permanentSpinsBonus > 0) {
+            state.spinsLeft += permanentSpinsBonus;
+            addLog(`Бесконечные спинны: +${permanentSpinsBonus} прокрут(ов) в начале раунда.`, 'win');
+            // Анимируем все предметы с permanent_spins
+            state.inventory.forEach(item => {
+                if (item.effect?.permanent_spins) {
+                    animateInventoryItem(item.id);
+                }
+            });
+        }
+
         if (state.turn > 1 || state.run > 1) {
             const interest = Math.floor(state.bankBalance * state.baseInterestRate);
             if (interest > 0) {
@@ -1931,6 +2200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUI();
 
         updateMimicTarget();
+        setupSpinCostTooltip(); // Добавляем настройку тултипов после открытия модального окна
     }
     
     function buySpins(pkg) {
@@ -1969,6 +2239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${CONFIG.SPIN_PACKAGE_2.cost}💰)`;
                 ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
                 ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
+                setupSpinCostTooltip(); // Обновляем тултипы после изменения цен
             } else { addLog(`Недостаточно наличных.`, 'loss'); }
         }
         ui.spinPurchaseModal.classList.add('hidden');
@@ -2004,6 +2275,9 @@ document.addEventListener('DOMContentLoaded', () => {
             state.piggyBank = 0;
             animateInventoryItem('scrap_metal');
         }
+
+        // --- Мастерская гнома ---
+        repairDwarfsWorkshop();
 
         ui.endOfRoundModal.classList.add('hidden');
         addLog(`--- Раунд ${state.turn} окончен ---`);
@@ -2104,8 +2378,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function gameOver() {
         state.gameover = true;
-        ui.finalRun.textContent = state.run;
+        // --- СБРОС ПАССИВОК ---
+        state.activePassives = [];
         ui.gameOverScreen.classList.remove('hidden');
+        ui.finalRun.textContent = state.run;
         addLog("ИГРА ОКОНЧЕНА.", 'loss');
     }
     
@@ -2219,10 +2495,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
             item.uses = item.effect.luck_chance.max_uses || 1;
         }
-        
-        // [NEW] Инициализация uses для breakable предметов без luck_chance
         if (item.effect && item.effect.breakable && !item.effect.luck_chance) {
             item.uses = item.effect.max_uses || 10;
+        }
+        // [NEW] Сброс uses для wild_clover_next_spin.breakable при покупке
+        if (item.effect && item.effect.wild_clover_next_spin && item.effect.wild_clover_next_spin.breakable) {
+            item.uses = item.effect.wild_clover_next_spin.max_uses || 1;
         }
 
         state.tickets -= cost;
@@ -2257,6 +2535,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (newCoins > 0) {
             state.coins += newCoins;
             addLog(`+${newCoins}💰 сразу после покупки!`, 'win');
+            animateInventoryItem(item.id);
+        }
+        // +Постоянные спинны (например, бесконечные спинны)
+        let newPermanentSpins = getItemEffectValue('permanent_spins', 0);
+        if (newPermanentSpins > 0) {
+            state.spinsLeft += newPermanentSpins;
+            addLog(`+${newPermanentSpins} прокрут(ов) сразу после покупки!`, 'win');
             animateInventoryItem(item.id);
         }
         // Можно добавить аналогично для других эффектов, если потребуется
@@ -2328,25 +2613,37 @@ document.addEventListener('DOMContentLoaded', () => {
             hoarderLuck = Math.max(0, getMaxInventorySize() - state.inventory.length);
         }
 
+        // --- Универсальный подсчёт временной удачи от всех temporary_luck_on_spin ---
+        let tempLuckFromItems = 0;
+        let tempLuckDetails = [];
+        if (Array.isArray(state.grid)) {
+            state.inventory.forEach(item => {
+                if (item.effect?.temporary_luck_on_spin) {
+                    const symbolId = item.effect.temporary_luck_on_spin;
+                    const count = state.grid.filter(s => s && s.id === symbolId).length;
+                    if (count > 0) {
+                        tempLuckFromItems += count;
+                        tempLuckDetails.push({ name: item.name, count });
+                    }
+                }
+            });
+        }
+        // ... существующий код ...
         let luckText = `${baseLuck}`;
         if (debtLuck > 0) luckText += ` (+${formatNumberWithComma(debtLuck)} от долга)`;
         if (ticketLuck > 0) luckText += ` (+${ticketLuck} от талонов)`;
         if (state.tempLuck > 0) luckText += ` (+${formatNumberWithComma(state.tempLuck)})`;
         if (state.cherryLuckBonus > 0) luckText += ` (+${state.cherryLuckBonus} Вишнёвая удача)`;
         if (hoarderLuck > 0) luckText += ` (+${hoarderLuck} за слоты)`;
-        // --- ЭФФЕКТ: luck_battery ---
         if (hasItem('luck_battery')) {
             state.luckBatteryCharge = state.luckBatteryCharge || 0;
             if (state.luckBatteryCharge > 0) {
                 luckText += ` (+${state.luckBatteryCharge} батарея удачи)`;
             }
         }
-        // --- ЭФФЕКТ: Звонкая удача ---
-        if (hasItem('ringing_luck') && Array.isArray(state.grid)) {
-            const bellCount = state.grid.filter(s => s && s.id === 'bell').length;
-            if (bellCount > 0) {
-                luckText += ` (+${bellCount} от Звонкая удача)`;
-            }
+        // --- Универсальная строка для временной удачи от всех temporary_luck_on_spin ---
+        if (tempLuckFromItems > 0) {
+            luckText += ` (+${tempLuckFromItems} временных бонусов)`;
         }
         ui.statLuck.textContent = luckText;
         
@@ -2406,6 +2703,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Обновляем данные для статистики
         updateWeightedSymbols();
+
+        // --- ПОДСВЕТКА ДЖЕКПОТ-ЯЧЕЙКИ (СЕРДЦЕ АВТОМАТА) ---
+        const cells = ui.slotMachine.querySelectorAll('.slot-cell');
+        cells.forEach(cell => cell.classList.remove('jackpot-cell-heart'));
+        if (hasItem('slot_machine_heart') && typeof state.jackpotCellIndex === 'number') {
+            const jackpotCell = cells[state.jackpotCellIndex];
+            if (jackpotCell) jackpotCell.classList.add('jackpot-cell-heart');
+        }
     }
     
     function renderGrid(isInitialSetup = false) {
@@ -2575,20 +2880,27 @@ document.addEventListener('DOMContentLoaded', () => {
         infoDiv.appendChild(headerDiv);
         infoDiv.appendChild(descP);
 
-        if (item.effect?.luck_chance?.breakable) {
-            const maxUses = item.effect.luck_chance.max_uses || item.uses || 10;
-            const usesSpan = document.createElement('span');
-            usesSpan.style.cssText = 'color:#ffab40; font-size:11px; margin-top: auto;';
-            usesSpan.textContent = `(Исп: ${item.uses !== undefined ? item.uses : maxUses}/${maxUses})`;
-            infoDiv.appendChild(usesSpan);
+        // Универсальное отображение uses/max_uses для всех breakable предметов
+        let showUses = false;
+        let uses = null;
+        let maxUses = null;
+        if (typeof item.uses !== 'undefined' && (item.effect?.max_uses || item.effect?.luck_chance?.max_uses)) {
+            showUses = true;
+            uses = item.uses;
+            maxUses = item.effect.max_uses || item.effect.luck_chance?.max_uses;
+        } else if (item.effect?.luck_chance?.breakable) {
+            showUses = true;
+            uses = item.uses !== undefined ? item.uses : (item.effect.luck_chance.max_uses || 10);
+            maxUses = item.effect.luck_chance.max_uses || 10;
+        } else if (item.effect?.breakable && item.effect?.max_uses) {
+            showUses = true;
+            uses = item.uses !== undefined ? item.uses : item.effect.max_uses;
+            maxUses = item.effect.max_uses;
         }
-
-        // [NEW] Отображение для breakable предметов без luck_chance
-        if (item.effect?.breakable && !item.effect?.luck_chance) {
-            const maxUses = item.effect.max_uses || item.uses || 10;
+        if (showUses && maxUses) {
             const usesSpan = document.createElement('span');
             usesSpan.style.cssText = 'color:#ffab40; font-size:11px; margin-top: auto;';
-            usesSpan.textContent = `(Исп: ${item.uses !== undefined ? item.uses : maxUses}/${maxUses})`;
+            usesSpan.textContent = `(Исп: ${uses}/${maxUses})`;
             infoDiv.appendChild(usesSpan);
         }
 
@@ -3182,6 +3494,8 @@ document.addEventListener('DOMContentLoaded', () => {
       );
 
       if (el) {
+        // Если уже есть анимация проигрыша, не добавляем обычную анимацию
+        if (el.classList.contains('item-activated-loss')) return;
         // Удаляем класс, если он уже есть, чтобы анимация могла быть перезапущена
         el.classList.remove('item-activated');
         // Этот трюк (force reflow) гарантирует, что браузер заметит удаление класса
@@ -3255,5 +3569,274 @@ document.addEventListener('DOMContentLoaded', () => {
         btnOk.onclick = () => {
             warningModal.remove();
         };
+    }
+
+    // === ПОДРОБНЫЙ ТУЛТИП ДЛЯ КНОПОК ПОКУПКИ ПРОКРУТОВ ===
+    function getSpinCostBreakdown(pkgNum) {
+        const run = state.run;
+        const bank = state.bankBalance;
+        const purchases = state.purchasesThisRound || 0;
+        const debt = state.targetDebt;
+        const inflationRate = 0.25;
+        const cycleMultiplier = run === 1 ? 1 : Math.pow(1.9, run - 1);
+        let wealthTax = 0;
+        if (run > 1) {
+            if (bank > 100000) wealthTax = Math.floor(bank / 80);
+            else if (bank > 20000) wealthTax = Math.floor(bank / 120);
+            else if (bank > 5000) wealthTax = Math.floor(bank / 180);
+            else if (bank > 1000) wealthTax = Math.floor(bank / 250);
+        }
+        const debtTax = run === 1 ? 0 : Math.floor(debt / 6);
+        let baseCost, inflationCost, finalCost;
+        if (pkgNum === 1) {
+            baseCost = Math.floor(CONFIG.SPIN_PACKAGE_1.base_cost * cycleMultiplier);
+            inflationCost = Math.floor(baseCost * purchases * inflationRate);
+            if (hasPassive('bulk_buyer')) baseCost = Math.max(1, baseCost - 2);
+            finalCost = baseCost + wealthTax + debtTax + inflationCost;
+        } else {
+            baseCost = Math.floor(CONFIG.SPIN_PACKAGE_2.base_cost * cycleMultiplier);
+            inflationCost = Math.floor(baseCost * purchases * inflationRate);
+            finalCost = baseCost + wealthTax + debtTax + inflationCost;
+        }
+        let lines = [];
+        lines.push(`<b>Базовая стоимость:</b> ${baseCost}💰`);
+        lines.push(`<b>Множитель цикла (x${cycleMultiplier.toFixed(2)}):</b> ${baseCost !== CONFIG.SPIN_PACKAGE_1.base_cost && baseCost !== CONFIG.SPIN_PACKAGE_2.base_cost ? `+${baseCost - (pkgNum === 1 ? CONFIG.SPIN_PACKAGE_1.base_cost : CONFIG.SPIN_PACKAGE_2.base_cost)}💰` : '+0💰'}`);
+        lines.push(`<b>Налог на богатство:</b> +${wealthTax}💰`);
+        lines.push(`<b>Налог от долга:</b> +${debtTax}💰`);
+        lines.push(`<b>Инфляция (покупка #${purchases+1}):</b> +${inflationCost}💰`);
+        lines.push(`<b>Итого:</b> <span style='color:var(--money-color)'>${finalCost}💰</span>`);
+        return lines.join('<br>');
+    }
+
+    function setupSpinCostTooltip() {
+        const btn7 = document.getElementById('buy-spins-7');
+        const btn3 = document.getElementById('buy-spins-3');
+        const tooltip = document.getElementById('spin-cost-tooltip');
+        if (!btn7 || !btn3 || !tooltip) return;
+
+        let currentButton = null;
+        let isTooltipVisible = false;
+
+        function showTooltip(btn, pkgNum) {
+            currentButton = btn;
+            tooltip.innerHTML = getSpinCostBreakdown(pkgNum);
+            
+            // Получаем координаты кнопки
+            const rect = btn.getBoundingClientRect();
+            const scrollY = window.scrollY || window.pageYOffset;
+            const scrollX = window.scrollX || window.pageXOffset;
+            
+            // Позиционируем тултип справа от кнопки
+            let top = rect.top + scrollY;
+            let left = rect.right + 12 + scrollX;
+            
+            tooltip.style.maxWidth = '320px';
+            tooltip.style.display = 'block';
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+            
+            // Проверяем границы экрана после установки display: block
+            const tooltipRect = tooltip.getBoundingClientRect();
+            
+            // Проверка на выход за правый край
+            if (tooltipRect.right > window.innerWidth) {
+                left = rect.left - tooltipRect.width - 12 + scrollX;
+                tooltip.style.left = left + 'px';
+            }
+            
+            // Проверка на выход за нижний край
+            if (tooltipRect.bottom > window.innerHeight) {
+                top = rect.top + scrollY - tooltipRect.height + rect.height;
+                tooltip.style.top = top + 'px';
+            }
+            
+            // Делаем тултип видимым после позиционирования
+            requestAnimationFrame(() => {
+                tooltip.style.opacity = '1';
+            });
+            
+            isTooltipVisible = true;
+        }
+
+        function hideTooltip() {
+            if (!isTooltipVisible) return;
+            tooltip.style.opacity = '0';
+            currentButton = null;
+            isTooltipVisible = false;
+            setTimeout(() => {
+                if (!isTooltipVisible) { // Проверяем, не показался ли тултип снова
+                    tooltip.style.display = 'none';
+                }
+            }, 150);
+        }
+
+        function handleMouseMove(e, btn, pkgNum) {
+            const rect = btn.getBoundingClientRect();
+            if (e.clientX >= rect.left && e.clientX <= rect.right &&
+                e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                showTooltip(btn, pkgNum); // Всегда обновляем тултип
+            } else if (currentButton === btn) {
+                hideTooltip();
+            }
+        }
+
+        // Добавляем обработчики событий
+        btn7.addEventListener('mouseenter', () => showTooltip(btn7, 1));
+        btn7.addEventListener('mousemove', (e) => handleMouseMove(e, btn7, 1));
+        btn7.addEventListener('mouseleave', hideTooltip);
+
+        btn3.addEventListener('mouseenter', () => showTooltip(btn3, 2));
+        btn3.addEventListener('mousemove', (e) => handleMouseMove(e, btn3, 2));
+        btn3.addEventListener('mouseleave', hideTooltip);
+    }
+    document.addEventListener('DOMContentLoaded', setupSpinCostTooltip);
+
+    // === ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Чинит случайный сломанный breakable-предмет ===
+    function repairRandomBrokenItem() {
+        // Ищем все breakable-предметы, у которых uses < max_uses
+        const repairable = state.inventory.filter(item => {
+            if (item.effect?.luck_chance?.breakable) {
+                return item.uses < (item.effect.luck_chance.max_uses || 1);
+            }
+            if (item.effect?.breakable && !item.effect?.luck_chance) {
+                return item.uses < (item.effect.max_uses || 10);
+            }
+            return false;
+        });
+        if (repairable.length > 0) {
+            const toRepair = repairable[Math.floor(Math.random() * repairable.length)];
+            if (toRepair.effect?.luck_chance?.breakable) {
+                toRepair.uses = toRepair.effect.luck_chance.max_uses || 1;
+            } else if (toRepair.effect?.breakable && !toRepair.effect?.luck_chance) {
+                toRepair.uses = toRepair.effect.max_uses || 10;
+            }
+            addLog(`🧰 Набор инструментов мастера: полностью починил '${toRepair.name}'!`, 'win');
+            animateInventoryItem('master_toolkit');
+        }
+    }
+
+            // --- [NEW] Набор инструментов мастера ---
+            if (hasItem('master_toolkit')) {
+                repairRandomBrokenItem();
+            }
+
+    function addPrismButton() {
+        if (!hasItem('probability_prism')) return;
+        let btn = document.getElementById('btn-ban-symbol');
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.id = 'btn-ban-symbol';
+            btn.textContent = '🔮 Запретить символ';
+            btn.style.margin = '6px 0 0 0';
+            btn.style.background = 'var(--highlight-color)';
+            btn.style.color = '#222';
+            btn.style.fontWeight = 'bold';
+            btn.style.fontSize = '13px';
+            btn.style.padding = '4px 10px';
+            btn.style.borderRadius = '5px';
+            btn.onclick = openBanSymbolModal;
+            ui.inventoryItems.parentElement.insertBefore(btn, ui.inventoryItems);
+        }
+        // Кнопка активна только если нет активного бана в этом раунде
+        btn.disabled = !!(state.bannedSymbols && state.bannedSymbols.some(b => b.justSet));
+    }
+
+    function removePrismButton() {
+        const btn = document.getElementById('btn-ban-symbol');
+        if (btn) btn.remove();
+    }
+
+    // === МОДАЛЬНОЕ ОКНО ВЫБОРА СИМВОЛА ===
+    function openBanSymbolModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `<div class="modal-content" style="max-width:400px;">
+            <h2>🔮 Призма вероятности</h2>
+            <p>Выберите символ, который не будет выпадать в течение 3 прокрутов:</p>
+            <div id="ban-symbol-list" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;"></div>
+            <button id="ban-cancel" style="margin-top:15px;">Отмена</button>
+        </div>`;
+        document.body.appendChild(modal);
+        const list = modal.querySelector('#ban-symbol-list');
+        SYMBOLS.forEach(s => {
+            const btn = document.createElement('button');
+            btn.textContent = s.graphic + ' ' + s.id;
+            btn.style.padding = '8px 12px';
+            btn.style.fontSize = '1.2em';
+            btn.onclick = () => {
+                if (!state.bannedSymbols) state.bannedSymbols = [];
+                state.bannedSymbols.push({ symbol: s.id, spinsLeft: 3, justSet: true });
+                addLog(`🔮 Призма: символ ${s.graphic} (${s.id}) запрещён на 3 прокрута!`, 'win');
+                // --- DEBUG LOG ---
+                addLog(`[DEBUG] bannedSymbols: ` + JSON.stringify(state.bannedSymbols), 'normal');
+                animateInventoryItem('probability_prism');
+                modal.remove();
+                removePrismButton(); // Убираем кнопку после применения
+                updateUI();
+            };
+            list.appendChild(btn);
+        });
+        modal.querySelector('#ban-cancel').onclick = () => modal.remove();
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    }
+
+    // === ФИЛЬТРАЦИЯ СИМВОЛОВ В generateGrid ===
+    const origGenerateGrid = generateGrid;
+    generateGrid = function() {
+        // Убираем запрещённые символы
+        let banned = (state.bannedSymbols || []).filter(b => b.spinsLeft > 0).map(b => b.symbol);
+        if (banned.length > 0) {
+            weightedSymbols = weightedSymbols.filter(s => !banned.includes(s.id));
+        }
+        return origGenerateGrid.apply(this, arguments);
+    }
+
+    // === УМЕНЬШАЕМ СЧЁТЧИК ПОСЛЕ КАЖДОГО СПИНА ===
+    const origSpin = spin;
+    spin = async function() {
+        await origSpin.apply(this, arguments);
+        if (state.bannedSymbols && state.bannedSymbols.length > 0) {
+            state.bannedSymbols.forEach(b => { if (!b.justSet) b.spinsLeft--; b.justSet = false; });
+            state.bannedSymbols = state.bannedSymbols.filter(b => b.spinsLeft > 0);
+            updateUI();
+        }
+    }
+
+    // === СБРОС КНОПКИ В НАЧАЛЕ РАУНДА ===
+    const origStartTurn = startTurn;
+    startTurn = function() {
+        // Сброс флагов justSet у bannedSymbols
+        if (state.bannedSymbols && state.bannedSymbols.length > 0) {
+            state.bannedSymbols.forEach(b => { b.justSet = false; });
+        }
+        origStartTurn.apply(this, arguments);
+        if (hasItem('probability_prism')) addPrismButton(); else removePrismButton();
+    }
+
+    // === ВОССТАНОВЛЕНИЕ МАСТЕРСКОЙ ГНОМА ===
+    function repairDwarfsWorkshop() {
+        if (hasItem('dwarfs_workshop')) {
+            const effect = ALL_ITEMS.find(i => i.id === 'dwarfs_workshop').effect.on_round_end_repair;
+            if (effect.all) {
+                let repaired = 0;
+                state.inventory.forEach(item => {
+                    if (item.effect?.luck_chance?.breakable) {
+                        if (item.uses < (item.effect.luck_chance.max_uses || 1)) {
+                            item.uses = Math.min((item.uses || 0) + effect.count, item.effect.luck_chance.max_uses || 1);
+                            repaired++;
+                        }
+                    } else if (item.effect?.breakable && !item.effect?.luck_chance) {
+                        if (item.uses < (item.effect.max_uses || 10)) {
+                            item.uses = Math.min((item.uses || 0) + effect.count, item.effect.max_uses || 10);
+                            repaired++;
+                        }
+                    }
+                });
+                if (repaired > 0) {
+                    addLog(`⚒️ Мастерская гнома: восстановлено +1 использование у ${repaired} амулетов!`, 'win');
+                    animateInventoryItem('dwarfs_workshop');
+                }
+            }
+        }
     }
 });
