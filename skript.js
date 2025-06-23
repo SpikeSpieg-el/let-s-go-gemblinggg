@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         SPIN_PACKAGE_1: { spins: 7, tickets: 1, cost: 10, base_cost: 10 },
         SPIN_PACKAGE_2: { spins: 3, tickets: 2, cost: 7, base_cost: 7 },
     };
+    window.CONFIG = CONFIG;
     const GRAPHICS = {
         lemon: '🍋', cherry: '🍒', clover: '🍀', bell: '🔔', diamond: '💎', coins: '💰', seven: '7️⃣',
         pirate: '🏴‍☠️', // Секретный символ
@@ -89,20 +90,57 @@ document.addEventListener('DOMContentLoaded', () => {
     window.symbolWeights = {};
     window.gameState = {};
 
-    function updateSymbolWeightsForStats() {
-        // Обновляем веса символов для статистики
+    function updateWeightedSymbols() {
+        // Всегда начинаем с оригинальных, не изменённых символов
+        let currentSymbols = JSON.parse(JSON.stringify(ORIGINAL_SYMBOLS));
+
+        // Применяем ВСЕ активные пассивки типа slot_modifier к этой чистой копии
+        if (state.activePassives && state.activePassives.length > 0) {
+            state.activePassives.forEach(passive => {
+                if (passive.type === 'slot_modifier' && typeof passive.effect === 'function') {
+                    const tempState = { ...state };
+                    const originalWindowSymbols = window.SYMBOLS;
+                    window.SYMBOLS = currentSymbols;
+                    passive.effect(tempState);
+                    window.SYMBOLS = originalWindowSymbols;
+                }
+            });
+        }
+
+        // Применяем увеличение базовой ценности от Лупы
+        if (hasItem('magnifying_glass')) {
+            const effect = ALL_ITEMS.find(i => i.id === 'magnifying_glass').effect.base_value_increase;
+            currentSymbols.forEach(s => {
+                if (effect.symbols.includes(s.id)) {
+                    s.value += effect.amount;
+                }
+            });
+        }
+
+        // Применяем эффект "Фильтр Неудач"
+        const removedSymbolId = state.inventory.find(item => item.effect?.remove_symbol)?.effect.remove_symbol;
+        if (removedSymbolId) {
+            currentSymbols = currentSymbols.filter(s => s.id !== removedSymbolId);
+        }
+
+        weightedSymbols = currentSymbols.flatMap(s => Array(s.weight).fill(s));
+
+        // Синхронизация window.symbols и window.symbolWeights
+        window.symbols = currentSymbols;
         window.symbolWeights = {};
-        SYMBOLS.forEach(symbol => {
+        currentSymbols.forEach(symbol => {
             window.symbolWeights[symbol.id] = symbol.weight;
         });
-        
-        // Обновляем состояние игры для статистики
-        if (state) {
-            window.gameState = {
-                debt: state.targetDebt,
-                run: state.run,
-                turn: state.turn
-            };
+        window.totalWeight = currentSymbols.reduce((acc, s) => acc + s.weight, 0);
+        if (!Array.isArray(window.symbols)) {
+            console.error('[BUG] window.symbols не массив!', window.symbols);
+        }
+    }
+
+    // --- устаревшая функция, теперь просто вызывает updateWeightedSymbols ---
+    function updateSymbolWeightsForStats() {
+        if (window.updateWeightedSymbols) {
+            window.updateWeightedSymbols();
         }
     }
 
@@ -240,11 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
             choiceDiv.onclick = () => {
                 const passiveId = choiceDiv.dataset.passiveId;
                 const chosenPassive = ALL_PASSIVES.find(p => p.id === passiveId);
-                if (chosenPassive) {
-                    state.activePassives.push(chosenPassive);
-                    applyPassive(chosenPassive, state);
-                    addLog(`Выбран пассивный бонус: ${chosenPassive.name}.`, 'win');
-                }
+                applyPassive(chosenPassive, state);
                 modal.remove();
                 updateUI();
                 startTurn(); // Продолжаем игру после выбора
@@ -288,48 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return acc;
         }, defaultValue);
-    }
-
-    function updateWeightedSymbols() {
-        // [FIX] Создаем локальную копию, чтобы не изменять глобальный SYMBOLS напрямую
-        let currentSymbols = JSON.parse(JSON.stringify(window.SYMBOLS));
-
-        // Применяем пассивки slot_modifier для изменения весов символов
-        if (state.activePassives && state.activePassives.length > 0) {
-            state.activePassives.forEach(passive => {
-                if (passive.type === 'slot_modifier' && typeof passive.effect === 'function') {
-                    // Применяем эффект к локальной копии символов
-                    const tempState = { ...state };
-                    // Временно заменяем window.SYMBOLS на локальную копию
-                    const originalSymbols = window.SYMBOLS;
-                    window.SYMBOLS = currentSymbols;
-                    passive.effect(tempState);
-                    // Восстанавливаем оригинальный window.SYMBOLS
-                    window.SYMBOLS = originalSymbols;
-                }
-            });
-        }
-
-        // [NEW] Применяем увеличение базовой ценности от Лупы
-        if (hasItem('magnifying_glass')) {
-            const effect = ALL_ITEMS.find(i => i.id === 'magnifying_glass').effect.base_value_increase;
-            currentSymbols.forEach(s => {
-                if (effect.symbols.includes(s.id)) {
-                    s.value += effect.amount;
-                }
-            });
-        }
-        
-        // Применяем эффект "Фильтр Неудач"
-        const removedSymbolId = state.inventory.find(item => item.effect?.remove_symbol)?.effect.remove_symbol;
-        if (removedSymbolId) {
-            currentSymbols = currentSymbols.filter(s => s.id !== removedSymbolId);
-        }
-
-        weightedSymbols = currentSymbols.flatMap(s => Array(s.weight).fill(s));
-        
-        // Обновляем данные для статистики
-        updateSymbolWeightsForStats();
     }
 
     function generateGrid() {
@@ -488,6 +480,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.pirateFlagCooldown = 1;
             }
             console.log(`[DEBUG] Пиратский флаг: вставлено за спин = ${piratesPlaced}`);
+        }
+
+        // --- ЭФФЕКТ: slot_machine_heart ---
+        if (hasItem('slot_machine_heart')) {
+            // Выбираем случайную ячейку для джекпота
+            state.jackpotCellIndex = Math.floor(Math.random() * (CONFIG.ROWS * CONFIG.COLS));
+            // Для визуализации можно добавить анимацию/подсветку (опционально)
+        } else {
+            state.jackpotCellIndex = undefined;
         }
 
         return grid;
@@ -1074,6 +1075,33 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pirateStreak === 1) highlightCurseCells([line.positions[symbolsOnLine.length-1]], 1, 0);
             if (pirateStreak === 2) highlightCurseCells([line.positions[symbolsOnLine.length-2], line.positions[symbolsOnLine.length-1]], 2, 0);
         }
+
+        // --- ЭФФЕКТ: slot_machine_heart ---
+        if (hasItem('slot_machine_heart') && typeof state.jackpotCellIndex === 'number') {
+            const jackpotSymbol = ALL_ITEMS.find(i => i.id === 'slot_machine_heart').effect.jackpot_cell.symbol;
+            const jackpotMultiplier = ALL_ITEMS.find(i => i.id === 'slot_machine_heart').effect.jackpot_cell.multiplier;
+            if (state.grid[state.jackpotCellIndex]?.id === jackpotSymbol && totalWinnings > 0) {
+                totalWinnings *= jackpotMultiplier;
+                addLog(`Сердце автомата: В джекпот-ячейке выпал 7️⃣! Выигрыш умножен на 100!`, 'win');
+                animateInventoryItem('slot_machine_heart');
+            }
+        }
+        // --- ЭФФЕКТ: luck_battery ---
+        if (hasItem('luck_battery')) {
+            state.luckBatteryCharge = state.luckBatteryCharge || 0;
+            if (totalWinnings === 0) {
+                state.luckBatteryCharge++;
+                addLog(`Батарея удачи: +1 заряд (текущий: ${state.luckBatteryCharge})`, 'win');
+                animateInventoryItem('luck_battery');
+            } else if (state.luckBatteryCharge > 0) {
+                const multiplier = 1 + state.luckBatteryCharge;
+                const bonus = totalWinnings * (multiplier - 1);
+                totalWinnings *= multiplier;
+                addLog(`Батарея удачи: заряд x${multiplier}! (+${formatNumberWithComma(bonus)}💰)`, 'win');
+                animateInventoryItem('luck_battery');
+                state.luckBatteryCharge = 0;
+            }
+        }
     }
 
     function highlightWinningCells(positions, winAmount, isCombo = false, winningLines = []) {
@@ -1647,7 +1675,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startTurn();
         
         // Обновляем данные для статистики
-        updateSymbolWeightsForStats();
+        updateWeightedSymbols();
     }
 
     // Функция для перехода на СЛЕДУЮЩИЙ ЦИКЛ
@@ -2208,11 +2236,25 @@ document.addEventListener('DOMContentLoaded', () => {
             ticketLuck = Math.floor(state.tickets / effect.per) * effect.luck;
         }
 
+        // [FIX] Добавляем расчет бонуса от пассивки "Гордость барахольщика"
+        let hoarderLuck = 0;
+        if (hasPassive('hoarders_pride')) {
+            hoarderLuck = Math.max(0, getMaxInventorySize() - state.inventory.length);
+        }
+
         let luckText = `${baseLuck}`;
         if (debtLuck > 0) luckText += ` (+${formatNumberWithComma(debtLuck)} от долга)`;
         if (ticketLuck > 0) luckText += ` (+${ticketLuck} от талонов)`;
         if (state.tempLuck > 0) luckText += ` (+${formatNumberWithComma(state.tempLuck)})`;
         if (state.cherryLuckBonus > 0) luckText += ` (+${state.cherryLuckBonus} Вишнёвая удача)`;
+        if (hoarderLuck > 0) luckText += ` (+${hoarderLuck} за слоты)`;
+        // --- ЭФФЕКТ: luck_battery ---
+        if (hasItem('luck_battery')) {
+            state.luckBatteryCharge = state.luckBatteryCharge || 0;
+            if (state.luckBatteryCharge > 0) {
+                luckText += ` (+${state.luckBatteryCharge} батарея удачи)`;
+            }
+        }
         ui.statLuck.textContent = luckText;
         
         let cherryLuckInfo = document.getElementById('cherry-luck-info');
@@ -2256,16 +2298,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         ui.btnEndTurn.disabled = state.isSpinning || state.spinsLeft > 0;
+        let rerollCost = CONFIG.REROLL_COST;
+        if (hasPassive('reroll_master') && !state.flags.firstRerollUsed) {
+            rerollCost = Math.max(0, rerollCost - 1);
+        }
+        // [FIX] КОРРЕКТНОЕ ОТОБРАЖЕНИЕ БЕСПЛАТНЫХ РЕРОЛЛОВ
         if (state.freeRerolls > 0) {
             ui.btnRerollShop.textContent = `Reroll (Бесплатно: ${state.freeRerolls})`;
         } else {
-            ui.btnRerollShop.textContent = `Reroll (${CONFIG.REROLL_COST}🎟️)`;
+            ui.btnRerollShop.textContent = `Reroll (${rerollCost}🎟️)`;
         }
         renderInventory(); 
         renderShop();
         
         // Обновляем данные для статистики
-        updateSymbolWeightsForStats();
+        updateWeightedSymbols();
     }
     
     function renderGrid(isInitialSetup = false) {
@@ -2362,8 +2409,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let currentCost = item.cost;
-        if(purchaseCallback && hasPassive('barterer') && item.cost >= 5) {
+        let oldCost = null;
+        // Скидка от предметов с эффектом shop_discount
+        let shopDiscount = 0;
+        state.inventory.forEach(invItem => {
+            if (invItem.effect?.shop_discount) {
+                shopDiscount += invItem.effect.shop_discount;
+            }
+        });
+        if (shopDiscount > 0) {
+            currentCost = Math.max(1, currentCost - shopDiscount);
+        }
+        // Скидка от пассивки "Специалист по бартеру"
+        if (purchaseCallback && hasPassive('barterer') && item.cost >= 5) {
             currentCost = Math.max(1, currentCost - 1);
+        }
+        // Скидка от пассивки "Шопоголик" (только на первую покупку в раунде)
+        if (purchaseCallback && hasPassive('shopaholic') && state.flags.firstPurchaseThisRound) {
+            currentCost = Math.max(1, currentCost - 2);
+        }
+        // Если цена изменилась, запомним старую для зачёркивания
+        if (currentCost < item.cost) {
+            oldCost = item.cost;
         }
 
         if (purchaseCallback) {
@@ -2402,8 +2469,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const costSpan = document.createElement('span');
             costSpan.className = 'item-cost';
             costSpan.textContent = `${currentCost}🎟️`;
-            if (currentCost < item.cost) {
-                costSpan.innerHTML += ` <s style="opacity:0.6">${item.cost}🎟️</s>`;
+            if (oldCost && currentCost < oldCost) {
+                costSpan.innerHTML += ` <s style="opacity:0.6">${oldCost}🎟️</s>`;
             }
             headerDiv.appendChild(costSpan);
         }
@@ -2561,10 +2628,14 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.planningModal.classList.remove('hidden');
         ui.planningTickets.textContent = state.tickets;
         if (ui.btnPlanningReroll) {
+            let rerollCost = CONFIG.REROLL_COST;
+            if (hasPassive('reroll_master') && !state.flags.firstRerollUsed) {
+                rerollCost = Math.max(0, rerollCost - 1);
+            }
             if (state.freeRerolls > 0) {
                 ui.btnPlanningReroll.textContent = `Reroll (Бесплатно: ${state.freeRerolls})`;
             } else {
-                ui.btnPlanningReroll.textContent = `Reroll (${CONFIG.REROLL_COST}🎟️)`;
+                ui.btnPlanningReroll.textContent = `Reroll (${rerollCost}🎟️)`;
             }
         }
         renderPlanningShop();
@@ -2761,7 +2832,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const val = parseInt(document.getElementById(`dev-sym-${idx}`).value, 10);
             if (!isNaN(val) && val > 0) sym.weight = val;
         });
-        updateWeightedSymbols();
+        updateWeightedSymbols(); // <--- Гарантируем синхронизацию
         addLog('Dev: Шансы символов обновлены.', 'win');
     };
     devApplyLuck.onclick = () => {
@@ -3056,5 +3127,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 el.classList.remove('active');
             }
         });
+    }
+
+    // --- новая версия applyPassive ---
+    function applyPassive(passive, state) {
+        if (!passive || !state) return;
+        state.activePassives.push(passive);
+        // Применяем эффект, если он не slot_modifier (они применяются в updateWeightedSymbols)
+        if (passive.type !== 'slot_modifier' && typeof passive.effect === 'function') {
+            passive.effect(state);
+        }
+        addLog(`Выбран пассивный бонус: ${passive.name}.`, 'win');
+        window.state = state;
+        updateWeightedSymbols();
+        if (typeof window.populateStats === 'function') {
+            window.populateStats();
+        }
     }
 });

@@ -210,30 +210,19 @@
 
     <!-- МОДАЛЬНОЕ ОКНО СТАТИСТИКИ ЗАБЕГА -->
     <div id="run-stats-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 450px;">
-            <h2>Статистика забега</h2>
-            
-            <div class="stats-section">
-                <h3>Активные пассивки/амулеты</h3>
-                <div id="stats-active-passives" class="inventory-items" style="grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));">
-                    <p>Загрузка...</p>
-                </div>
+        <div class="modal-content compact-stats-modal" style="max-width: 420px; padding: 18px 12px;">
+            <h2 style="color: var(--highlight-color); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-size: 1.1em;">📊 Статистика забега</h2>
+            <div class="stats-section compact">
+                <h3 style="margin-bottom: 6px; font-size: 1em;">Пассивки</h3>
+                <div id="stats-active-passives" class="compact-passives-list"></div>
             </div>
-
-            <div class="stats-section">
-                <h3>Напоминание о долге</h3>
-                <p>Ваша цель: <strong id="stats-debt-reminder" style="color: var(--danger-color); font-weight: bold; animation: debt-pulse 1.2s infinite alternate;"></strong></p>
+            <div class="stats-section compact">
+                <h3 style="margin-bottom: 6px; font-size: 1em;">Шансы символов</h3>
+                <div id="stats-symbol-chances" class="styled-symbol-chances"></div>
             </div>
-
-            <div class="stats-section">
-                <h3>Шансы выпадения символов</h3>
-                <div id="stats-symbol-chances">
-                    <p>Загрузка...</p>
-                </div>
-            </div>
-
-            <button id="btn-close-run-stats" style="margin-top: 20px; width: 100%;">Закрыть</button>
+            <button id="btn-close-run-stats" style="margin-top: 10px; width: 100%; padding: 8px; background: var(--highlight-color); color: var(--bg-color); border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; transition: background 0.2s;">Закрыть</button>
         </div>
+        <div id="passive-popup" class="passive-popup hidden"></div>
     </div>
 
     <div id="tutorial-modal" class="modal-overlay hidden">
@@ -259,50 +248,73 @@
             const closeStatsBtn = document.getElementById('btn-close-run-stats');
 
             const passivesContainer = document.getElementById('stats-active-passives');
-            const debtReminderEl = document.getElementById('stats-debt-reminder');
-            const chancesContainer = document.getElementById('stats-symbol-chances');
 
             function populateStats() {
-                // Предполагается, что эти переменные (player, symbolWeights, gameState) существуют в глобальной области видимости из skript.js
-                // 1. Активные пассивки
-                if (window.player && window.player.items) {
-                    const inventoryItemsEl = document.getElementById('inventory-items');
-                    if (inventoryItemsEl) {
-                        passivesContainer.innerHTML = inventoryItemsEl.innerHTML;
-                        if (!passivesContainer.innerHTML.trim()) {
-                            passivesContainer.innerHTML = '<p style="font-size: 0.9em; color: var(--text-color-darker);">У вас нет активных амулетов.</p>';
-                        }
+                console.log('populateStats вызвана');
+                console.log('window.state:', window.state);
+                console.log('window.symbolWeights:', window.symbolWeights);
+                console.log('window.symbols:', window.symbols);
+                
+                // 1. Активные пассивки (только названия-кнопки)
+                if (window.state && window.state.activePassives) {
+                    const passivesContainer = document.getElementById('stats-active-passives');
+                    passivesContainer.innerHTML = '';
+                    if (window.state.activePassives.length > 0) {
+                        window.state.activePassives.forEach(passive => {
+                            const btn = document.createElement('button');
+                            btn.className = 'compact-passive-btn';
+                            btn.innerHTML = `${passive.emoji || ''} ${passive.name}`;
+                            btn.onclick = () => showPassivePopup(passive);
+                            passivesContainer.appendChild(btn);
+                        });
+                    } else {
+                        passivesContainer.innerHTML = '<p style="text-align: center; font-size: 0.9em; color: var(--text-color-darker); font-style: italic;">Нет пассивок.</p>';
                     }
-                } else {
-                    passivesContainer.innerHTML = '<p>Не удалось загрузить амулеты.</p>';
                 }
-
-                // 2. Шансы символов
-                if (window.symbolWeights) {
-                    chancesContainer.innerHTML = '';
-                    const totalWeight = Object.values(window.symbolWeights).reduce((sum, weight) => sum + weight, 0);
-                    
-                    for (const symbolId in window.symbolWeights) {
-                        const weight = window.symbolWeights[symbolId];
-                        const chance = (weight / totalWeight) * 100;
-                        const symbolInfo = window.symbols.find(s => s.id === symbolId);
-
-                        if (symbolInfo) {
-                             const chanceEl = document.createElement('div');
-                             chanceEl.className = 'chance-item';
-                             chanceEl.innerHTML = `
-                                 <span class="symbol-emoji">${symbolInfo.graphic}</span>
-                                 <span class="symbol-chance-text">${chance.toFixed(1)}%</span>
-                             `;
-                             chancesContainer.appendChild(chanceEl);
-                        }
+                // 2. Шансы символов (красивые карточки)
+                if (window.symbols && window.symbolWeights) {
+                    const chancesDiv = document.getElementById('stats-symbol-chances');
+                    chancesDiv.innerHTML = '';
+                    const removedSymbols = [];
+                    if (window.state && window.state.inventory) {
+                        const removeItem = window.state.inventory.find(item => item.effect?.remove_symbol);
+                        if (removeItem) removedSymbols.push(removeItem.effect.remove_symbol);
                     }
-                } else {
-                    chancesContainer.innerHTML = '<p>Не удалось загрузить шансы.</p>';
+                    window.symbols.forEach(symbol => {
+                        const weight = window.symbolWeights[symbol.id] || 0;
+                        const percentage = window.totalWeight > 0 ? ((weight / window.totalWeight) * 100).toFixed(1) : '0.0';
+                        const isRemoved = removedSymbols.includes(symbol.id);
+                        const card = document.createElement('div');
+                        card.className = 'styled-symbol-chance';
+                        if (isRemoved) card.style.opacity = '0.4';
+                        card.innerHTML = `
+                            <div class="symbol-emoji">${symbol.graphic}</div>
+                            <div class="symbol-name">${symbol.id}</div>
+                            <div class="symbol-chance">${percentage}%</div>
+                        `;
+                        chancesDiv.appendChild(card);
+                    });
                 }
             }
 
+            function showPassivePopup(passive) {
+                const popup = document.getElementById('passive-popup');
+                popup.innerHTML = `
+                    <div class="popup-title">${passive.emoji || ''} ${passive.name}</div>
+                    <div class="popup-type">${passive.type || ''}</div>
+                    <div class="popup-desc">${passive.desc || ''}</div>
+                    <button class="popup-close">Закрыть</button>
+                `;
+                popup.classList.remove('hidden');
+                popup.querySelector('.popup-close').onclick = () => popup.classList.add('hidden');
+                popup.onclick = (e) => { if (e.target === popup) popup.classList.add('hidden'); };
+            }
+
             showStatsBtn.addEventListener('click', () => {
+                // Принудительно обновляем данные статистики
+                if (window.updateWeightedSymbols) {
+                    window.updateWeightedSymbols();
+                }
                 populateStats();
                 statsModal.classList.remove('hidden');
             });
@@ -499,16 +511,19 @@
     /* --- Стили для модального окна статистики --- */
     .stats-section {
         margin-bottom: 15px;
-        padding: 12px;
-        background: var(--input-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
+        padding: 15px;
+        background: var(--panel-bg, #1a1a1a);
+        border: 2px solid var(--border-color, #444);
+        border-radius: 8px;
+        box-shadow: inset 0 0 10px #000;
     }
     .stats-section h3 {
-        margin: 0 0 10px 0;
-        color: var(--highlight-color);
+        margin: 0 0 12px 0;
+        color: var(--highlight-color, #ffd700);
         font-size: 1.1em;
-        border-bottom: 1px solid var(--border-color);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-bottom: 1px solid var(--border-color, #444);
         padding-bottom: 8px;
     }
     #stats-symbol-chances {
@@ -518,10 +533,10 @@
         text-align: center;
     }
     #stats-symbol-chances .chance-item {
-        background-color: var(--cell-bg);
+        background-color: var(--cell-bg, #2a2a2a);
         padding: 8px;
         border-radius: 4px;
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--border-color, #444);
     }
     #stats-symbol-chances .symbol-emoji {
         font-size: 1.6em;
@@ -530,7 +545,7 @@
     }
     #stats-symbol-chances .symbol-chance-text {
         font-size: 0.9em;
-        color: var(--text-color);
+        color: var(--text-color, #fff);
         font-weight: bold;
     }
 
@@ -720,6 +735,133 @@
             opacity: 0;
             transform: translateY(-150%);
         }
+    }
+
+    .passive-item {
+        padding: 12px;
+        margin: 6px 0;
+        background: var(--cell-bg, #2a2a2a);
+        border: 1px solid var(--border-color, #444);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: inset 0 0 5px #000;
+        transition: border-color 0.2s, background 0.2s;
+    }
+    
+    .passive-item:hover {
+        border-color: var(--highlight-color, #ffd700);
+        background: var(--input-bg, #323232);
+    }
+    
+    .passive-emoji {
+        font-size: 1.8em;
+        filter: drop-shadow(0 1px 2px #0005);
+    }
+    
+    .passive-content {
+        flex: 1;
+    }
+    
+    .passive-name {
+        font-weight: bold;
+        margin-bottom: 6px;
+        color: var(--highlight-color, #ffd700);
+        font-size: 1.1em;
+        letter-spacing: 0.5px;
+    }
+    
+    .passive-desc {
+        font-size: 0.9em;
+        color: var(--text-color, #ccc);
+        margin-bottom: 6px;
+        line-height: 1.4;
+    }
+    
+    .passive-type-badge {
+        font-size: 0.8em;
+        padding: 3px 8px;
+        border-radius: 4px;
+        display: inline-block;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .symbol-weight-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        margin: 4px 0;
+        background: var(--cell-bg, #2a2a2a);
+        border: 1px solid var(--border-color, #444);
+        border-radius: 6px;
+        box-shadow: inset 0 0 3px #000;
+        transition: border-color 0.2s, background 0.2s;
+    }
+    
+    .symbol-weight-row:hover {
+        border-color: var(--highlight-color, #ffd700);
+        background: var(--input-bg, #323232);
+    }
+    
+    .symbol-weight-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .symbol-weight-symbol {
+        font-size: 1.4em;
+        margin-right: 12px;
+        filter: drop-shadow(0 1px 2px #0005);
+    }
+    
+    .symbol-weight-info {
+        flex: 1;
+    }
+    
+    .symbol-weight-name {
+        font-weight: bold;
+        font-size: 1em;
+        color: var(--text-color, #fff);
+        text-transform: capitalize;
+        letter-spacing: 0.5px;
+    }
+    
+    .symbol-weight-details {
+        font-size: 0.85em;
+        color: var(--text-color-darker, #aaa);
+        margin-top: 2px;
+    }
+    
+    .symbol-weight-value {
+        font-weight: bold;
+        color: var(--highlight-color, #ffd700);
+        font-size: 1em;
+        text-shadow: 0 0 4px rgba(255, 215, 0, 0.3);
+    }
+    
+    .symbol-weight-zero {
+        color: var(--danger-color, #ff6b6b);
+        opacity: 0.7;
+        text-shadow: 0 0 4px rgba(255, 107, 107, 0.3);
+    }
+    
+    .symbol-weight-removed {
+        text-decoration: line-through;
+        opacity: 0.4;
+        background: rgba(255, 0, 0, 0.1);
+    }
+    
+    /* Стили для кнопки закрытия статистики */
+    #btn-close-run-stats:hover {
+        background: var(--button-hover-bg, #ffed4e) !important;
+        transform: scale(1.02);
+    }
+    
+    #btn-close-run-stats:active {
+        transform: scale(0.98);
     }
     </style>
 </body>

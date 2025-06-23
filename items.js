@@ -78,7 +78,7 @@ const ALL_ITEMS = [
             bonus += coinSymbols * 3;
         }
         // Пассивка "Магнитная личность"
-        if (state.chosenPassive && state.chosenPassive.id === 'magnetic_personality') {
+        if (state.activePassives && state.activePassives.some(p => p.id === 'magnetic_personality')) {
             const diamondSymbols = grid.filter(s => s && s.id === 'diamond').length;
             if (diamondSymbols > 0) {
                 bonus += diamondSymbols * 1;
@@ -96,15 +96,39 @@ const ALL_ITEMS = [
   { id: 'vault_key', name: 'Ключ от хранилища', desc: 'Базовая процентная ставка в банке увеличивается на 15%.', cost: 10, rarity: 'legendary', thumbnail: '🔑', effect: { interest_rate_bonus: 0.15 } },
   { id: 'mimic_chest', name: 'Сундук-Мимик', desc: 'Копирует эффект случайного амулета в инвентаре каждый раунд.', cost: 13, rarity: 'legendary', thumbnail: '❓', effect: { mimic: true } },
   { id: 'seven_magnet', name: 'Магнит Семёрок', desc: 'Каждый прокрут гарантированно будет иметь как минимум одну 7️⃣ на поле.', cost: 16, rarity: 'legendary', thumbnail: '🧲', effect: { guarantee_symbol: { symbol: 'seven', count: 1 } } },
-  { id: 'rainbow_clover', name: 'Радужный Клевер', desc: 'Если на поле нет выигрышных линий, но есть все 7 видов символов, вы получаете +100💰.', cost: 12, rarity: 'legendary', thumbnail: '🌈', on_spin_bonus: (grid, winAmount) => {
+  { id: 'rainbow_clover', name: 'Радужный Клевер', desc: 'Если на поле нет выигрышных линий, но есть все 7 видов символов, вы получаете +100💰*кол-во циклов.', cost: 12, rarity: 'legendary', thumbnail: '🌈', on_spin_bonus: (grid, winAmount, state) => {
       if (winAmount > 0) return 0;
       const uniqueSymbols = new Set(grid.map(s => s.id));
-      return uniqueSymbols.size === 7 ? 100 : 0;
+      return uniqueSymbols.size === 7 ? 100 * (state?.run || 1) : 0;
   }},
   { id: 'quantum_entanglement', name: 'Квантовая Запутанность', desc: 'Символы в верхней левой и нижней правой ячейках всегда одинаковы.', cost: 11, rarity: 'legendary', thumbnail: '⚛️', effect: { sync_cells: { cells: [0, 14] } } },
   { id: 'bank_insurance', name: 'Банковская Страховка', desc: 'Процентная ставка в банке никогда не опускается ниже 20%.', cost: 10, rarity: 'legendary', thumbnail: '🛡️', effect: { min_interest_rate_floor: 0.20 } },
   { id: 'golden_lemon', name: 'Золотой Лимон', desc: 'Символы Лимона 🍋 приносят в 3 раза больше 💰.', cost: 10, rarity: 'legendary', thumbnail: 'image1.png', effect: { symbol_value_multiplier: { symbol: 'lemon', multiplier: 3 } } },
   { id: 'lucky_seven_bonus', name: 'Бонус Семёрки', desc: '7-символьные линии дополнительно дают +7💰.', cost: 12, rarity: 'legendary', thumbnail: 'image2.png', effect: { on_line_win_bonus: { length: 7, coins: 7 } } },
+
+  { id: 'reality_glitch', name: 'Сбой реальности', desc: 'Каждый прокрут есть 1% шанс что случится "глич": получите выигрыш как будто выпали все одинаковые символы.', cost: 25, rarity: 'legendary', thumbnail: '📺', effect: {   reality_glitch: { chance: 0.01 } }},
+  { 
+    id: 'slot_machine_heart', 
+    name: 'Сердце автомата', 
+    desc: 'Превращает одну случайную ячейку поля в "джекпот-ячейку". Если в ней выпадет 7️⃣, выигрыш умножается на 100.', 
+    cost: 35, 
+    rarity: 'legendary', 
+    thumbnail: '💖', 
+    effect: { 
+      jackpot_cell: { symbol: 'seven', multiplier: 100 } 
+    } 
+  },
+  { 
+    id: 'luck_battery', 
+    name: 'Батарея удачи', 
+    desc: 'Накапливает +1 удачу за каждый неудачный прокрут (без выигрыша). При выигрыше тратит всю накопленную удачу для увеличения выигрыша.', 
+    cost: 19, 
+    rarity: 'legendary', 
+    thumbnail: '🔋', 
+    effect: { 
+      luck_accumulator: true 
+    } 
+  },
   // --- НОВЫЕ ПРЕДМЕТЫ УДАЧИ ---
   { id: 'lucky_charm_5', name: 'Клевер Судьбы', desc: '+5 к удаче с шансом 10% при каждом прокруте. После 10 срабатываний ломается', cost: 2, rarity: 'common', uses: 10, thumbnail: 'image.png', effect: { luck_chance: { luck: 5, chance: 0.10, breakable: true, max_uses: 10 } } },
   { id: 'lucky_charm_3', name: 'Талисман Фортуны', desc: '+3 к удаче с шансом 20% при каждом прокруте. После 8 срабатываний ломается', cost: 1, rarity: 'common', uses: 8, thumbnail: '🔮', effect: { luck_chance: { luck: 3, chance: 0.20, breakable: true, max_uses: 8 } } },
@@ -138,4 +162,6 @@ const ALL_ITEMS = [
   { id: 'lucky_rabbit_foot', name: 'Лапка кролика', desc: 'Даёт +6 к удаче. Ломается после 6 прокрутов.', cost: 2, rarity: 'rare', thumbnail: '🐰', effect: { luck: 6, breakable: true, max_uses: 6 } },
   { id: 'magic_mirror', name: 'Волшебное зеркало', desc: 'Удваивает все выигрыши с линий из 4+ символов. Ломается после 8 прокрутов.', cost: 4, rarity: 'rare', thumbnail: '🟩', effect: { line_length_multiplier_bonus: { min_length: 4, multiplier: 2 }, breakable: true, max_uses: 8 } },
   { id: 'treasure_map', name: 'Карта сокровищ', desc: 'Каждый прокрут с шансом 15% даёт +3🎟️. Ломается после 15 срабатываний.', cost: 3, rarity: 'rare', thumbnail: '🗺️', effect: { luck_chance: { tickets: 3, chance: 0.15, breakable: true, max_uses: 15 } } },
-];
+  
+  
+]

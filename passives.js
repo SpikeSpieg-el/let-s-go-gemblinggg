@@ -557,8 +557,11 @@ function applyPassive(passive, state) {
         } else {
             state.activePassives.push(passive);
             debugLogPassive(`Пассивка ${passive.name} (${passive.id}) активирована.`);
+            passive.effect(state);
         }
-        passive.effect(state);
+        // После любого выбора пассивки — обновляем веса и статистику
+        if (typeof window.updateWeightedSymbols === 'function') window.updateWeightedSymbols();
+        if (typeof window.populateStats === 'function') window.populateStats();
     }
 }
 

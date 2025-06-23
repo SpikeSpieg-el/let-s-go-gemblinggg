@@ -1426,3 +1426,78 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     color: var(--highlight-color);
     text-shadow: 0 0 5px var(--highlight-color);
 }
+
+/* Компактное модальное окно статистики */
+.compact-stats-modal { max-width: 420px !important; padding: 18px 12px !important; }
+.stats-section.compact { margin-bottom: 8px; padding: 8px 0 4px 0; background: none; border: none; box-shadow: none; }
+.compact-passives-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.compact-passive-btn { background: var(--cell-bg); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 10px; font-size: 0.98em; cursor: pointer; color: var(--highlight-color); transition: background 0.15s, border-color 0.15s; }
+.compact-passive-btn:hover { background: var(--highlight-color); color: var(--bg-color); border-color: var(--highlight-color); }
+
+/* Компактная таблица символов */
+.compact-symbol-table { width: 100%; border-collapse: collapse; font-size: 0.98em; margin-top: 2px; }
+.compact-symbol-table th, .compact-symbol-table td { padding: 3px 4px; text-align: center; border-bottom: 1px solid var(--border-color); }
+.compact-symbol-table th { color: var(--highlight-color); font-weight: 600; font-size: 0.97em; }
+.compact-symbol-table td { font-size: 0.97em; }
+.compact-symbol-table td:first-child { font-size: 1.2em; }
+
+/* Попап пассивки */
+.passive-popup { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--cell-bg); border: 2px solid var(--highlight-color); border-radius: 10px; z-index: 3000; min-width: 220px; max-width: 90vw; padding: 18px 20px; box-shadow: 0 8px 32px #000a; color: var(--text-color); display: flex; flex-direction: column; align-items: center; }
+.passive-popup .popup-title { font-weight: bold; color: var(--highlight-color); font-size: 1.1em; margin-bottom: 8px; }
+.passive-popup .popup-desc { font-size: 1em; color: #ccc; margin-bottom: 10px; text-align: center; }
+.passive-popup .popup-type { font-size: 0.95em; color: #b388ff; margin-bottom: 8px; }
+.passive-popup .popup-close { margin-top: 8px; background: var(--highlight-color); color: var(--bg-color); border: none; border-radius: 6px; font-size: 1em; font-weight: bold; padding: 6px 18px; cursor: pointer; box-shadow: 0 1px 4px #0002; transition: background 0.18s, color 0.18s; }
+.passive-popup.hidden { display: none; }
+
+/* Стили для красивого блока шансов символов */
+.styled-symbol-chances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.styled-symbol-chance {
+  background: var(--cell-bg);
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px 14px 8px 14px;
+  min-width: 80px;
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 2px 8px #0002;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+}
+.styled-symbol-chance:hover {
+  border-color: var(--highlight-color);
+  background: #23202a;
+  box-shadow: 0 0 0 2px var(--highlight-color)33;
+}
+.styled-symbol-chance .symbol-emoji {
+  font-size: 2.1em;
+  margin-bottom: 2px;
+  filter: drop-shadow(0 1px 2px #0005);
+}
+.styled-symbol-chance .symbol-name {
+  font-size: 1.08em;
+  font-weight: bold;
+  color: var(--highlight-color);
+  margin-bottom: 2px;
+  text-shadow: 0 0 2px #000a;
+}
+.styled-symbol-chance .symbol-chance {
+  font-size: 1.1em;
+  font-weight: bold;
+  color: var(--money-color);
+  margin-bottom: 0;
+  text-shadow: 0 0 2px #000a;
+}
+@media (max-width: 600px) {
+  .styled-symbol-chances { gap: 4px; }
+  .styled-symbol-chance { min-width: 60px; padding: 7px 6px; }
+  .styled-symbol-chance .symbol-emoji { font-size: 1.4em; }
+  .styled-symbol-chance .symbol-name { font-size: 0.95em; }
+  .styled-symbol-chance .symbol-chance { font-size: 0.98em; }
+}
