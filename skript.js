@@ -1664,22 +1664,23 @@ document.addEventListener('DOMContentLoaded', () => {
             permanentLuckBonus: 0,
             passiveInterestBonus: 0, 
             flags: {
+                sawPirateWarning: false,
                 consecutiveLosses: 0,
                 firstDepositThisRound: true,
                 firstPurchaseThisRound: true,
                 firstRerollUsed: false,
                 isFirstSpinOfRound: true,
             }, 
-            pirateCount: 0, // Счётчик выпавших пиратских символов
-            pirateFlagCooldown: 0, // Кулдаун на выпадение пиратского флага
-            consecutiveJackpots: 0, // Счётчик подряд джекпотов
-            pirateFlagSuperChance: false, // Флаг супер-шанса на флаг
+            pirateCount: 0,
+            pirateFlagCooldown: 0,
+            consecutiveJackpots: 0,
+            pirateFlagSuperChance: false,
             winStreak: 0,
             roundSpinsMade: 0,
             totalSpinsMade: 0,
             activatedItemsThisSpin: new Set(),
             echoStoneMultiplier: 1,
-            purchasesThisRound: 0, // <-- НОВОЕ СВОЙСТВО
+            purchasesThisRound: 0,
         };
         lastKnownTickets = state.tickets;
         lastKnownCoins = state.coins;
@@ -1799,6 +1800,12 @@ document.addEventListener('DOMContentLoaded', () => {
         state.pirateFlagCooldown = 0;
         state.consecutiveJackpots = 0;
         state.pirateFlagSuperChance = false;
+
+        // Показываем предупреждение о пиратском символе в начале 3-го цикла
+        if (state.run === 3 && !state.flags.sawPirateWarning) {
+            setTimeout(showPirateWarning, 1000);
+            state.flags.sawPirateWarning = true;
+        }
     }
 
 
@@ -2053,13 +2060,14 @@ document.addEventListener('DOMContentLoaded', () => {
         let bonusCoins = 0;
         let bonusTickets = 0;
 
+        // --- Новый скейлинг бонуса ---
         if (state.turn === 1) {
-            bonusCoins = Math.floor(state.targetDebt * 0.25);
-            bonusTickets = 5 + state.run;
+            bonusCoins = Math.floor(state.targetDebt * 0.40);
+            bonusTickets = 7 + state.run;
             addLog('Досрочное погашение в 1-й раунд!', 'win');
         } else if (state.turn === 2) {
-            bonusCoins = Math.floor(state.targetDebt * 0.10);
-            bonusTickets = 2 + state.run;
+            bonusCoins = Math.floor(state.targetDebt * 0.20);
+            bonusTickets = 4 + state.run;
             addLog('Досрочное погашение во 2-й раунд!', 'win');
         }
         
@@ -2071,7 +2079,27 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog(`Ранняя пташка: бонусы увеличены! (+${formatNumberWithComma(bonusCoins - oldCoins)}💰, +${formatNumberWithComma(bonusTickets - oldTickets)}🎟️)`, 'win');
         }
         
-        advanceToNextCycle(bonusCoins, bonusTickets);
+        // --- [FIX] Правильное списание денег ---
+        // Сначала используем деньги из coins
+        let remainingDebt = state.targetDebt;
+        if (state.coins > 0) {
+            const coinsToUse = Math.min(state.coins, remainingDebt);
+            state.coins -= coinsToUse;
+            remainingDebt -= coinsToUse;
+            addLog(`Списано ${formatNumberWithComma(coinsToUse)}💰 из наличных.`);
+        }
+        // Если нужно, берём остаток из банка
+        if (remainingDebt > 0) {
+            state.bankBalance -= remainingDebt;
+            addLog(`Списано ${formatNumberWithComma(remainingDebt)}💰 из банка.`);
+        }
+        
+        // Добавляем бонусы
+        state.coins += bonusCoins;
+        state.tickets += bonusTickets;
+        addLog(`Получен бонус: +${formatNumberWithComma(bonusCoins)}💰 и +${formatNumberWithComma(bonusTickets)}🎟️!`, 'win');
+        
+        advanceToNextCycle(0, 0); // Бонусы уже начислены выше
     }
     
     function gameOver() {
@@ -2351,12 +2379,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let bonusInfo = '';
             if (state.turn === 1) {
-                const bCoins = Math.floor(state.targetDebt * 0.25);
-                const bTickets = 5 + state.run;
+                const bCoins = Math.floor(state.targetDebt * 0.40);
+                const bTickets = 7 + state.run;
                 bonusInfo = `Награда за раунд 1: <b style="color:var(--money-color)">+${formatNumberWithComma(bCoins)}💰</b> и <b style="color:var(--ticket-color)">+${formatNumberWithComma(bTickets)}🎟️</b>`;
             } else if (state.turn === 2) {
-                const bCoins = Math.floor(state.targetDebt * 0.10);
-                const bTickets = 2 + state.run;
+                const bCoins = Math.floor(state.targetDebt * 0.20);
+                const bTickets = 4 + state.run;
                 bonusInfo = `Награда за раунд 2: <b style="color:var(--money-color)">+${formatNumberWithComma(bCoins)}💰</b> и <b style="color:var(--ticket-color)">+${formatNumberWithComma(bTickets)}🎟️</b>`;
             }
             ui.earlyPayoffBonusInfo.innerHTML = bonusInfo;
@@ -3208,5 +3236,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof window.populateStats === 'function') {
             window.populateStats();
         }
+    }
+
+    function showPirateWarning() {
+        const warningModal = document.createElement('div');
+        warningModal.className = 'modal-overlay';
+        warningModal.innerHTML = `
+            <div class="modal-content warning-modal">
+                <h3>⚠️ Предупреждение ⚠️</h3>
+                <p>В тени удачи таится опасность... Говорят, что иногда на барабанах появляется зловещий символ 🏴‍☠️</p>
+                <p style="color: #ff4444; font-style: italic;">Шансы малы, но цена высока...</p>
+                <button class="btn-warning-ok">Понятно</button>
+            </div>
+        `;
+        document.body.appendChild(warningModal);
+        
+        const btnOk = warningModal.querySelector('.btn-warning-ok');
+        btnOk.onclick = () => {
+            warningModal.remove();
+        };
     }
 });
