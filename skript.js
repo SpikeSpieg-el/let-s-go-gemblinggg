@@ -1193,14 +1193,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            if (hasItem('scrap_metal')) {
-                let lossBonus = getItemEffectValue('on_loss_bonus', 0);
-                if (hasPassive('piggy_bank_pro')) {
-                    lossBonus *= 2;
-                }
-                state.piggyBank += lossBonus;
-                addLog(`Копилка: +${formatNumberWithComma(lossBonus)}💰. Всего: ${formatNumberWithComma(state.piggyBank)}💰`);
-                animateInventoryItem('scrap_metal'); // [NEW] Анимация
+            if (hasItem('scrap_metal') && state.piggyBank > 0) {
+                const piggyBankBonus = applyCoinDoubler(state.piggyBank);
+                addLog(`💥 Копилка разбита! Вы получили +${formatNumberWithComma(piggyBankBonus)}💰.`, 'win');
+                state.coins += piggyBankBonus;
+                state.piggyBank = 0;
+                animateInventoryItem('scrap_metal');
             }
             // === DEMON CONTRACT ===
             const demonItem = state.inventory.find(item => item.id === 'demon_contract');
@@ -1607,8 +1605,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         addLog(`${item.name}: +${eff.luck} к удаче (шанс ${(eff.chance*100).toFixed(1)}% x${chanceMultiplier.toFixed(1)} = ${(chance*100).toFixed(1)}%)!`, 'win');
                     }
                     if (eff.coins) {
-                        state.coins += eff.coins;
-                        addLog(`${item.name}: +${eff.coins}💰 (шанс ${(eff.chance*100).toFixed(1)}% x${chanceMultiplier.toFixed(1)} = ${(chance*100).toFixed(1)}%)!`, 'win');
+                        const bonus = applyCoinDoubler(eff.coins);
+                        state.coins += bonus;
+                        addLog(`${item.name}: +${bonus}💰 (шанс ${(eff.chance*100).toFixed(1)}% x${chanceMultiplier.toFixed(1)} = ${(chance*100).toFixed(1)}%)!`, 'win');
                     }
                     if (eff.tickets) {
                         state.tickets += eff.tickets;
@@ -1833,57 +1832,45 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSpinCosts() {
         const run = state.run;
         const bank = state.bankBalance;
-        const purchases = state.purchasesThisRound || 0;
         const debt = state.targetDebt;
 
-        // 1. Базовый множитель от цикла (оставляем 1.5)
-        const cycleMultiplier = run === 1 ? 1 : Math.pow(1.9, run - 1);
+        // 1. Щадящий множитель от цикла
+        const cycleMultiplier = run === 1 ? 1 : Math.pow(1.4, run - 1);
 
         // 2. ПРОГРЕССИВНЫЙ "Налог на богатство"
         let wealthTax = 0;
-        if (run > 1) { // Налог на богатство только со 2-го цикла
+        if (run > 1) {
             if (bank > 100000) {
-                // Очень богатые игроки платят огромный налог
                 wealthTax = Math.floor(bank / 80);
             } else if (bank > 20000) {
-                // Богатые игроки
                 wealthTax = Math.floor(bank / 120);
             } else if (bank > 5000) {
-                // Средний класс
                 wealthTax = Math.floor(bank / 180);
             } else if (bank > 1000) {
-                // Начинающие инвесторы
                 wealthTax = Math.floor(bank / 250);
             }
         }
-        // Если в банке меньше 1000, налог почти нулевой.
-
-        // 3. Налог от долга в цикле (1/6 от долга)
-        const debtTax = run === 1 ? 0 : Math.floor(debt / 6); // Налог от долга только со 2-го цикла
-
-        // 4. Усиленная инфляция внутри раунда
-        // Цена растет на 25% от базовой за каждую покупку
-        const inflationRate = 0.25;
+        // Новый налог от долга (щадящий)
+        const debtTax = run === 1 ? 0 : Math.floor(debt / 10);
 
         // --- РАСЧЕТ ИТОГОВОЙ СТОИМОСТИ ---
-
         // Пакет 1 (7 прокрутов)
         let baseCost1 = Math.floor(CONFIG.SPIN_PACKAGE_1.base_cost * cycleMultiplier);
-        let inflationCost1 = Math.floor(baseCost1 * purchases * inflationRate);
-        let finalCost1 = baseCost1 + wealthTax + debtTax + inflationCost1;
-
+        let finalCost1 = baseCost1 + wealthTax + debtTax;
         if (hasPassive('bulk_buyer')) {
-            // Скидка теперь применяется только к базовой стоимости, а не к налогам
-            // Это делает пассивку слабее против налога
             baseCost1 = Math.max(1, baseCost1 - 2);
-            finalCost1 = baseCost1 + wealthTax + debtTax + inflationCost1; // Пересчитываем
+            finalCost1 = baseCost1 + wealthTax + debtTax;
         }
         CONFIG.SPIN_PACKAGE_1.cost = finalCost1;
 
         // Пакет 2 (3 прокрута)
         let baseCost2 = Math.floor(CONFIG.SPIN_PACKAGE_2.base_cost * cycleMultiplier);
-        let inflationCost2 = Math.floor(baseCost2 * purchases * inflationRate);
-        CONFIG.SPIN_PACKAGE_2.cost = baseCost2 + wealthTax + debtTax + inflationCost2;
+        let finalCost2 = baseCost2 + wealthTax + debtTax;
+        if (hasPassive('bulk_buyer')) {
+            baseCost2 = Math.max(1, baseCost2 - 2);
+            finalCost2 = baseCost2 + wealthTax + debtTax;
+        }
+        CONFIG.SPIN_PACKAGE_2.cost = finalCost2;
 
         // Обновляем UI модального окна, если оно открыто
         if (!ui.spinPurchaseModal.classList.contains('hidden')) {
@@ -2266,12 +2253,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- ПАССИВКА: Просчитанный риск ---
         if (hasPassive('calculated_risk') && state.spinsLeft === 0) {
-            state.coins += 5;
-            addLog('Просчитанный риск: +5💰 за окончание раунда с 0 прокрутов.', 'win');
+            const bonus = 5 * (state.cycle || 1);
+            state.coins += bonus;
+            addLog(`Просчитанный риск: +${bonus}💰 за окончание раунда с 0 прокрутов.`, 'win');
         }
         if (hasItem('scrap_metal') && state.piggyBank > 0) {
-            addLog(`💥 Копилка разбита! Вы получили +${formatNumberWithComma(state.piggyBank)}💰.`, 'win');
-            state.coins += state.piggyBank;
+            const piggyBankBonus = applyCoinDoubler(state.piggyBank);
+            addLog(`💥 Копилка разбита! Вы получили +${formatNumberWithComma(piggyBankBonus)}💰.`, 'win');
+            state.coins += piggyBankBonus;
             state.piggyBank = 0;
             animateInventoryItem('scrap_metal');
         }
