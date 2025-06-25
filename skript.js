@@ -156,10 +156,10 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: "Колонка 3", positions: [2, 7, 12], multiplier: 1, type: "Вертикальная" },
         { name: "Колонка 4", positions: [3, 8, 13], multiplier: 1, type: "Вертикальная" },
         { name: "Колонка 5", positions: [4, 9, 14], multiplier: 1, type: "Вертикальная" },
-        { name: "Диагональ ↘", positions: [0, 6, 12], multiplier: 1, type: "Диагональная" },
-        { name: "Диагональ ↙", positions: [10, 6, 2], multiplier: 1, type: "Диагональная" },
-        { name: "Малая диагональ ↘", positions: [1, 7, 13], multiplier: 1, type: "Диагональная" },
-        { name: "Малая диагональ ↙", positions: [11, 7, 3], multiplier: 1, type: "Диагональная" },
+        { name: "Диагональ ↘", positions: [0, 6, 12], multiplier: 2, type: "Диагональная" },
+        { name: "Диагональ ↙", positions: [10, 6, 2], multiplier: 2, type: "Диагональная" },
+        { name: "Малая диагональ ↘", positions: [1, 7, 13], multiplier: 2, type: "Диагональная" },
+        { name: "Малая диагональ ↙", positions: [11, 7, 3], multiplier: 2, type: "Диагональная" },
 
         { name: "Заг", positions: [0, 6, 12, 8, 4], multiplier: 4, type: "Зиг-Заг" },
         { name: "Зиг", positions: [10, 6, 2, 8, 14], multiplier: 4, type: "Зиг-Заг" },
@@ -168,6 +168,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         { name: "Небо", positions: [2, 6, 7, 8, 12], multiplier: 7, type: "Небо/Земля" },
         { name: "Земля", positions: [5, 1, 7, 13, 9], multiplier: 7, type: "Небо/Земля" },
+        
+        { name: "Рамка", positions: [0, 1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14], multiplier: 10, type: "Специальная" },
+        { name: "Крест", positions: [0, 5, 10, 11, 13, 14, 9, 4], multiplier: 10, type: "Специальная" },
     ];
 
     let state = {};
@@ -897,9 +900,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.pirateFlagSuperChance = true;
                 
             }
-            const jackpotWin = SYMBOLS.find(s => s.id === topSymbolId).value * 10 * topCount;
+            const jackpotWin = SYMBOLS.find(s => s.id === topSymbolId).value * 15 * topCount * (state.run || 1);
             totalWinnings += jackpotWin;
-            addLog(`💥 ДЖЕКПОТ!!! 💥 (${topSymbolId} x15): +${formatNumberWithComma(jackpotWin)}💰`, 'win');
+            addLog(`💥 ДЖЕКПОТ!!! 💥 (${topSymbolId} x15 x${state.run || 1}): +${formatNumberWithComma(jackpotWin)}💰`, 'win');
             for(let i=0; i<15; i++) allWinningPositions.add(i);
             
             setTimeout(() => {
@@ -927,7 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 4000);
             }, 1000);
         } else if (topCount >= 12 && topCount < 15) {
-            const eyeWin = SYMBOLS.find(s => s.id === topSymbolId).value * 8 * topCount;
+            const eyeWin = SYMBOLS.find(s => s.id === topSymbolId).value * 10 * topCount;
             totalWinnings += eyeWin;
             addLog(`👁️ ГЛАЗ! 👁️ (${topSymbolId} x${topCount}): +${formatNumberWithComma(eyeWin)}💰`, 'win');
             grid.forEach((s, i) => { if(s.id === topSymbolId) allWinningPositions.add(i); });
@@ -1144,15 +1147,24 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Анимация выигрыша ---
         if (winningLinesInfo.length > 0) {
             const jackpotDelay = topCount === 15 ? 5500 : 0;
-            setTimeout(() => {
-                highlightWinningCells(Array.from(allWinningPositions), totalWinnings, winningLinesInfo.length > 1, winningLinesInfo);
-                 if (winningLinesInfo.length > 1) {
-                    const sequenceTime = allWinningPositions.size * 150 + 2500;
-                    setTimeout(() => showTotalWinPopup(totalWinnings), sequenceTime);
-                } else if (totalWinnings >= 50) {
-                    setTimeout(() => showTotalWinPopup(totalWinnings), 2000);
-                }
-            }, jackpotDelay);
+            
+            if (winningLinesInfo.length > 1) {
+                // Используем новую последовательную анимацию для множественных линий
+                setTimeout(() => {
+                    animateWinningLinesSequentially(winningLinesInfo, () => {
+                        // Показываем финальный попап только после завершения всех анимаций
+                        showTotalWinPopup(totalWinnings);
+                    });
+                }, jackpotDelay);
+            } else {
+                // Для одной линии используем старую анимацию
+                setTimeout(() => {
+                    highlightWinningCells(Array.from(allWinningPositions), totalWinnings, false, winningLinesInfo);
+                    if (totalWinnings >= 50) {
+                        setTimeout(() => showTotalWinPopup(totalWinnings), 2000);
+                    }
+                }, jackpotDelay);
+            }
         }
 
 
@@ -1417,6 +1429,168 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }, 2000);
         }
+    }
+
+    function animateWinningLinesSequentially(winningLinesInfo, onComplete = null) {
+        if (!winningLinesInfo || winningLinesInfo.length === 0) {
+            if (onComplete) onComplete();
+            return;
+        }
+        
+        const cells = ui.slotMachine.querySelectorAll('.slot-cell');
+        let currentLineIndex = 0;
+        
+        // Рассчитываем скорость анимации в зависимости от количества линий
+        const baseDelay = 100; // базовая задержка между ячейками
+        const baseLineDelay = 950; // базовая задержка между линиями
+        
+        // Функция для расчета скорости текущей линии
+        function getSpeedForLine(lineIndex) {
+            // Чем дальше линия, тем быстрее анимация
+            const speedMultiplier = Math.max(0.3, 1 - lineIndex * 0.12);
+            return {
+                cellDelay: Math.floor(baseDelay * speedMultiplier),
+                lineDelay: Math.floor(baseLineDelay * speedMultiplier)
+            };
+        }
+        
+        function animateNextLine() {
+            if (currentLineIndex >= winningLinesInfo.length) {
+                // Все линии анимированы, теперь подсвечиваем все выигрышные слоты одновременно
+                const allWinningPositions = new Set();
+                winningLinesInfo.forEach(line => {
+                    line.positions.forEach(pos => allWinningPositions.add(pos));
+                });
+                
+                // Подсвечиваем все выигрышные слоты одновременно
+                allWinningPositions.forEach(pos => {
+                    const cell = cells[pos];
+                    if (cell) {
+                        cell.classList.add('line-highlight');
+                        const symbol = cell.querySelector('.symbol');
+                        if (symbol) {
+                            symbol.classList.add('line-winning');
+                        }
+                    }
+                });
+                
+                // Очищаем подсветку через некоторое время и вызываем callback
+                setTimeout(() => {
+                    cells.forEach(cell => {
+                        cell.classList.remove('line-highlight', 'line-highlight-sequential');
+                        const symbol = cell.querySelector('.symbol');
+                        if (symbol) {
+                            symbol.classList.remove('line-winning');
+                        }
+                    });
+                    
+                    // Вызываем callback для показа финального попапа
+                    if (onComplete) {
+                        setTimeout(onComplete, 500); // Небольшая задержка перед финальным попапом
+                    }
+                }, 2000);
+                return;
+            }
+            
+            const lineInfo = winningLinesInfo[currentLineIndex];
+            const positions = lineInfo.positions;
+            
+            // Получаем скорость для текущей линии
+            const { cellDelay, lineDelay } = getSpeedForLine(currentLineIndex);
+            
+            // Очищаем предыдущую подсветку
+            cells.forEach(cell => {
+                cell.classList.remove('line-highlight', 'line-highlight-sequential');
+                const symbol = cell.querySelector('.symbol');
+                if (symbol) {
+                    symbol.classList.remove('line-winning');
+                }
+            });
+            
+            // Анимируем текущую линию
+            positions.forEach((pos, index) => {
+                setTimeout(() => {
+                    const cell = cells[pos];
+                    if (cell) {
+                        cell.classList.add('line-highlight-sequential');
+                        const symbol = cell.querySelector('.symbol');
+                        if (symbol) {
+                            symbol.classList.add('line-winning');
+                        }
+                        
+                        // Добавляем эффект тряски для ячейки
+                        cell.style.animation = 'lineSequentialShake 0.3s ease-out';
+                        setTimeout(() => {
+                            cell.style.animation = '';
+                        }, 300);
+                        
+                        // Добавляем частицы для эффекта с случайным направлением
+                        for (let i = 0; i < 3; i++) {
+                            const particle = document.createElement('div');
+                            particle.className = 'line-particle';
+                            
+                            // Случайное направление для частицы
+                            const angle = Math.random() * 360;
+                            const distance = 15 + Math.random() * 10;
+                            const x = Math.cos(angle * Math.PI / 180) * distance;
+                            const y = Math.sin(angle * Math.PI / 180) * distance;
+                            
+                            particle.style.setProperty('--x', x / 20);
+                            particle.style.setProperty('--y', y / 20);
+                            
+                            cell.appendChild(particle);
+                            setTimeout(() => particle.remove(), 400);
+                        }
+                        
+                        // Добавляем эффект покачивания для символа
+                        if (symbol) {
+                            symbol.style.animation = 'lineSymbolWobble 0.4s ease-out';
+                            setTimeout(() => {
+                                symbol.style.animation = '';
+                            }, 400);
+                        }
+                    }
+                }, index * cellDelay);
+            });
+            
+            // Показываем информацию о линии
+            setTimeout(() => {
+                const linePopup = document.createElement('div');
+                linePopup.className = 'line-popup';
+                linePopup.innerHTML = `
+                    <div class="line-popup-content">
+                        <div class="line-name">${lineInfo.name}</div>
+                        <div class="line-win">+${formatNumberWithComma(lineInfo.win)}💰</div>
+                    </div>
+                `;
+                document.body.appendChild(linePopup);
+                
+                setTimeout(() => linePopup.classList.add('show'), 50);
+                
+                // Добавляем эффект тряски для попапа
+                setTimeout(() => {
+                    linePopup.style.animation = 'linePopupShake 0.3s ease-out';
+                    setTimeout(() => {
+                        linePopup.style.animation = '';
+                    }, 300);
+                }, 200);
+                
+                setTimeout(() => {
+                    linePopup.classList.remove('show');
+                    linePopup.classList.add('fade-out');
+                    setTimeout(() => linePopup.remove(), 300);
+                }, 1500);
+            }, positions.length * cellDelay + 200);
+            
+            // Переходим к следующей линии
+            setTimeout(() => {
+                currentLineIndex++;
+                animateNextLine();
+            }, positions.length * cellDelay + lineDelay);
+        }
+        
+        // Начинаем анимацию
+        animateNextLine();
     }
 
     function highlightCurseCells(pirateCells, pirateCount, lostAmount) {

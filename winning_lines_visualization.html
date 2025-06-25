@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Визуализация выигрышных линий</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+            align-content: center;
+            align-items: stretch;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #ffd700;
+            margin-bottom: 30px;
+        }
+        
+        .line-section {
+            margin-bottom: 40px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #444;
+        }
+        
+        .line-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 10px;
+        }
+        
+        .line-info {
+            color: #ccc;
+            margin-bottom: 15px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 60px);
+            grid-template-rows: repeat(3, 60px);
+            gap: 5px;
+            margin: 0 auto;
+            width: fit-content;
+            background: #333;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        
+        .cell {
+            width: 60px;
+            height: 60px;
+            background: #555;
+            border: 2px solid #777;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            position: relative;
+        }
+        
+        .cell.highlighted {
+            background: #ffd700;
+            color: #000;
+            border-color: #ffed4e;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        
+        .cell-number {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 10px;
+            color: #aaa;
+        }
+        
+        .multiplier {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        
+        .type {
+            color: #4ecdc4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎰 Визуализация выигрышных линий</h1>
+        
+        <div class="line-section">
+            <div class="line-title">Заг (Зиг-Заг)</div>
+            <div class="line-info">
+                Позиции: [0, 6, 12, 8, 4] | Множитель: <span class="multiplier">4x</span> | Тип: <span class="type">Зиг-Заг</span>
+            </div>
+            <div class="grid" id="zag-grid">
+                <div class="cell highlighted" data-pos="0"><span class="cell-number">0</span>🎯</div>
+                <div class="cell" data-pos="1"><span class="cell-number">1</span></div>
+                <div class="cell" data-pos="2"><span class="cell-number">2</span></div>
+                <div class="cell" data-pos="3"><span class="cell-number">3</span></div>
+                <div class="cell highlighted" data-pos="4"><span class="cell-number">4</span>🎯</div>
+                <div class="cell" data-pos="5"><span class="cell-number">5</span></div>
+                <div class="cell highlighted" data-pos="6"><span class="cell-number">6</span>🎯</div>
+                <div class="cell" data-pos="7"><span class="cell-number">7</span></div>
+                <div class="cell highlighted" data-pos="8"><span class="cell-number">8</span>🎯</div>
+                <div class="cell" data-pos="9"><span class="cell-number">9</span></div>
+                <div class="cell" data-pos="10"><span class="cell-number">10</span></div>
+                <div class="cell" data-pos="11"><span class="cell-number">11</span></div>
+                <div class="cell highlighted" data-pos="12"><span class="cell-number">12</span>🎯</div>
+                <div class="cell" data-pos="13"><span class="cell-number">13</span></div>
+                <div class="cell" data-pos="14"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Зиг (Зиг-Заг)</div>
+            <div class="line-info">
+                Позиции: [10, 6, 2, 8, 14] | Множитель: <span class="multiplier">4x</span> | Тип: <span class="type">Зиг-Заг</span>
+            </div>
+            <div class="grid" id="zig-grid">
+                <div class="cell" data-pos="0"><span class="cell-number">0</span></div>
+                <div class="cell" data-pos="1"><span class="cell-number">1</span></div>
+                <div class="cell highlighted" data-pos="2"><span class="cell-number">2</span>🎯</div>
+                <div class="cell" data-pos="3"><span class="cell-number">3</span></div>
+                <div class="cell" data-pos="4"><span class="cell-number">4</span></div>
+                <div class="cell" data-pos="5"><span class="cell-number">5</span></div>
+                <div class="cell highlighted" data-pos="6"><span class="cell-number">6</span>🎯</div>
+                <div class="cell" data-pos="7"><span class="cell-number">7</span></div>
+                <div class="cell highlighted" data-pos="8"><span class="cell-number">8</span>🎯</div>
+                <div class="cell" data-pos="9"><span class="cell-number">9</span></div>
+                <div class="cell highlighted" data-pos="10"><span class="cell-number">10</span>🎯</div>
+                <div class="cell" data-pos="11"><span class="cell-number">11</span></div>
+                <div class="cell" data-pos="12"><span class="cell-number">12</span></div>
+                <div class="cell" data-pos="13"><span class="cell-number">13</span></div>
+                <div class="cell highlighted" data-pos="14"><span class="cell-number">14</span>🎯</div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Ступени вниз (Зиг-Заг)</div>
+            <div class="line-info">
+                Позиции: [0, 5, 7, 9, 14] | Множитель: <span class="multiplier">4x</span> | Тип: <span class="type">Зиг-Заг</span>
+            </div>
+            <div class="grid" id="stairs-down-grid">
+                <div class="cell highlighted" data-pos="0"><span class="cell-number">0</span>🎯</div>
+                <div class="cell" data-pos="1"><span class="cell-number">1</span></div>
+                <div class="cell" data-pos="2"><span class="cell-number">2</span></div>
+                <div class="cell" data-pos="3"><span class="cell-number">3</span></div>
+                <div class="cell" data-pos="4"><span class="cell-number">4</span></div>
+                <div class="cell highlighted" data-pos="5"><span class="cell-number">5</span>🎯</div>
+                <div class="cell" data-pos="6"><span class="cell-number">6</span></div>
+                <div class="cell highlighted" data-pos="7"><span class="cell-number">7</span>🎯</div>
+                <div class="cell" data-pos="8"><span class="cell-number">8</span></div>
+                <div class="cell highlighted" data-pos="9"><span class="cell-number">9</span>🎯</div>
+                <div class="cell" data-pos="10"><span class="cell-number">10</span></div>
+                <div class="cell" data-pos="11"><span class="cell-number">11</span></div>
+                <div class="cell" data-pos="12"><span class="cell-number">12</span></div>
+                <div class="cell" data-pos="13"><span class="cell-number">13</span></div>
+                <div class="cell highlighted" data-pos="14"><span class="cell-number">14</span>🎯</div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Ступени вверх (Зиг-Заг)</div>
+            <div class="line-info">
+                Позиции: [10, 5, 7, 9, 4] | Множитель: <span class="multiplier">4x</span> | Тип: <span class="type">Зиг-Заг</span>
+            </div>
+            <div class="grid" id="stairs-up-grid">
+                <div class="cell" data-pos="0"><span class="cell-number">0</span></div>
+                <div class="cell" data-pos="1"><span class="cell-number">1</span></div>
+                <div class="cell" data-pos="2"><span class="cell-number">2</span></div>
+                <div class="cell" data-pos="3"><span class="cell-number">3</span></div>
+                <div class="cell highlighted" data-pos="4"><span class="cell-number">4</span>🎯</div>
+                <div class="cell highlighted" data-pos="5"><span class="cell-number">5</span>🎯</div>
+                <div class="cell" data-pos="6"><span class="cell-number">6</span></div>
+                <div class="cell highlighted" data-pos="7"><span class="cell-number">7</span>🎯</div>
+                <div class="cell" data-pos="8"><span class="cell-number">8</span></div>
+                <div class="cell highlighted" data-pos="9"><span class="cell-number">9</span>🎯</div>
+                <div class="cell highlighted" data-pos="10"><span class="cell-number">10</span>🎯</div>
+                <div class="cell" data-pos="11"><span class="cell-number">11</span></div>
+                <div class="cell" data-pos="12"><span class="cell-number">12</span></div>
+                <div class="cell" data-pos="13"><span class="cell-number">13</span></div>
+                <div class="cell" data-pos="14"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Небо (Небо/Земля)</div>
+            <div class="line-info">
+                Позиции: [2, 6, 7, 8, 12] | Множитель: <span class="multiplier">7x</span> | Тип: <span class="type">Небо/Земля</span>
+            </div>
+            <div class="grid" id="sky-grid">
+                <div class="cell" data-pos="0"><span class="cell-number">0</span></div>
+                <div class="cell" data-pos="1"><span class="cell-number">1</span></div>
+                <div class="cell highlighted" data-pos="2"><span class="cell-number">2</span>🎯</div>
+                <div class="cell" data-pos="3"><span class="cell-number">3</span></div>
+                <div class="cell" data-pos="4"><span class="cell-number">4</span></div>
+                <div class="cell" data-pos="5"><span class="cell-number">5</span></div>
+                <div class="cell highlighted" data-pos="6"><span class="cell-number">6</span>🎯</div>
+                <div class="cell highlighted" data-pos="7"><span class="cell-number">7</span>🎯</div>
+                <div class="cell highlighted" data-pos="8"><span class="cell-number">8</span>🎯</div>
+                <div class="cell" data-pos="9"><span class="cell-number">9</span></div>
+                <div class="cell" data-pos="10"><span class="cell-number">10</span></div>
+                <div class="cell" data-pos="11"><span class="cell-number">11</span></div>
+                <div class="cell highlighted" data-pos="12"><span class="cell-number">12</span>🎯</div>
+                <div class="cell" data-pos="13"><span class="cell-number">13</span></div>
+                <div class="cell" data-pos="14"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Земля (Небо/Земля)</div>
+            <div class="line-info">
+                Позиции: [5, 1, 7, 13, 9] | Множитель: <span class="multiplier">7x</span> | Тип: <span class="type">Небо/Земля</span>
+            </div>
+            <div class="grid" id="earth-grid">
+                <div class="cell" data-pos="0"><span class="cell-number">0</span></div>
+                <div class="cell highlighted" data-pos="1"><span class="cell-number">1</span>🎯</div>
+                <div class="cell" data-pos="2"><span class="cell-number">2</span></div>
+                <div class="cell" data-pos="3"><span class="cell-number">3</span></div>
+                <div class="cell" data-pos="4"><span class="cell-number">4</span></div>
+                <div class="cell highlighted" data-pos="5"><span class="cell-number">5</span>🎯</div>
+                <div class="cell" data-pos="6"><span class="cell-number">6</span></div>
+                <div class="cell highlighted" data-pos="7"><span class="cell-number">7</span>🎯</div>
+                <div class="cell" data-pos="8"><span class="cell-number">8</span></div>
+                <div class="cell highlighted" data-pos="9"><span class="cell-number">9</span>🎯</div>
+                <div class="cell" data-pos="10"><span class="cell-number">10</span></div>
+                <div class="cell" data-pos="11"><span class="cell-number">11</span></div>
+                <div class="cell" data-pos="12"><span class="cell-number">12</span></div>
+                <div class="cell highlighted" data-pos="13"><span class="cell-number">13</span>🎯</div>
+                <div class="cell" data-pos="14"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">📋 Схема позиций сетки 3x5</div>
+            <div class="line-info">
+                Нумерация ячеек для понимания позиций
+            </div>
+            <div class="grid" id="reference-grid">
+                <div class="cell" data-pos="0"><span class="cell-number">0</span></div>
+                <div class="cell" data-pos="1"><span class="cell-number">1</span></div>
+                <div class="cell" data-pos="2"><span class="cell-number">2</span></div>
+                <div class="cell" data-pos="3"><span class="cell-number">3</span></div>
+                <div class="cell" data-pos="4"><span class="cell-number">4</span></div>
+                <div class="cell" data-pos="5"><span class="cell-number">5</span></div>
+                <div class="cell" data-pos="6"><span class="cell-number">6</span></div>
+                <div class="cell" data-pos="7"><span class="cell-number">7</span></div>
+                <div class="cell" data-pos="8"><span class="cell-number">8</span></div>
+                <div class="cell" data-pos="9"><span class="cell-number">9</span></div>
+                <div class="cell" data-pos="10"><span class="cell-number">10</span></div>
+                <div class="cell" data-pos="11"><span class="cell-number">11</span></div>
+                <div class="cell" data-pos="12"><span class="cell-number">12</span></div>
+                <div class="cell" data-pos="13"><span class="cell-number">13</span></div>
+                <div class="cell" data-pos="14"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Верхняя линия (Горизонтальная)</div>
+            <div class="line-info">
+                Позиции: [0, 1, 2, 3, 4] | Тип: <span class="type">Горизонтальная</span>
+            </div>
+            <div class="grid">
+                <div class="cell highlighted"><span class="cell-number">0</span></div>
+                <div class="cell highlighted"><span class="cell-number">1</span></div>
+                <div class="cell highlighted"><span class="cell-number">2</span></div>
+                <div class="cell highlighted"><span class="cell-number">3</span></div>
+                <div class="cell highlighted"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell"><span class="cell-number">10</span></div>
+                <div class="cell"><span class="cell-number">11</span></div>
+                <div class="cell"><span class="cell-number">12</span></div>
+                <div class="cell"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Средняя линия (Горизонтальная)</div>
+            <div class="line-info">
+                Позиции: [5, 6, 7, 8, 9] | Тип: <span class="type">Горизонтальная</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="cell-number">0</span></div>
+                <div class="cell"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell highlighted"><span class="cell-number">5</span></div>
+                <div class="cell highlighted"><span class="cell-number">6</span></div>
+                <div class="cell highlighted"><span class="cell-number">7</span></div>
+                <div class="cell highlighted"><span class="cell-number">8</span></div>
+                <div class="cell highlighted"><span class="cell-number">9</span></div>
+                <div class="cell"><span class="cell-number">10</span></div>
+                <div class="cell"><span class="cell-number">11</span></div>
+                <div class="cell"><span class="cell-number">12</span></div>
+                <div class="cell"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Нижняя линия (Горизонтальная)</div>
+            <div class="line-info">
+                Позиции: [10, 11, 12, 13, 14] | Тип: <span class="type">Горизонтальная</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="cell-number">0</span></div>
+                <div class="cell"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell highlighted"><span class="cell-number">10</span></div>
+                <div class="cell highlighted"><span class="cell-number">11</span></div>
+                <div class="cell highlighted"><span class="cell-number">12</span></div>
+                <div class="cell highlighted"><span class="cell-number">13</span></div>
+                <div class="cell highlighted"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Колонка 1 (Вертикальная)</div>
+            <div class="line-info">
+                Позиции: [0, 5, 10] | Тип: <span class="type">Вертикальная</span>
+            </div>
+            <div class="grid">
+                <div class="cell highlighted"><span class="cell-number">0</span></div>
+                <div class="cell"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell highlighted"><span class="cell-number">5</span></div>
+                <div class="cell"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell highlighted"><span class="cell-number">10</span></div>
+                <div class="cell"><span class="cell-number">11</span></div>
+                <div class="cell"><span class="cell-number">12</span></div>
+                <div class="cell"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Колонка 2 (Вертикальная)</div>
+            <div class="line-info">
+                Позиции: [1, 6, 11] | Тип: <span class="type">Вертикальная</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="cell-number">0</span></div>
+                <div class="cell highlighted"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell highlighted"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell"><span class="cell-number">10</span></div>
+                <div class="cell highlighted"><span class="cell-number">11</span></div>
+                <div class="cell"><span class="cell-number">12</span></div>
+                <div class="cell"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Колонка 3 (Вертикальная)</div>
+            <div class="line-info">
+                Позиции: [2, 7, 12] | Тип: <span class="type">Вертикальная</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="cell-number">0</span></div>
+                <div class="cell"><span class="cell-number">1</span></div>
+                <div class="cell highlighted"><span class="cell-number">2</span></div>
+                <div class="cell"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell"><span class="cell-number">6</span></div>
+                <div class="cell highlighted"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell"><span class="cell-number">10</span></div>
+                <div class="cell"><span class="cell-number">11</span></div>
+                <div class="cell highlighted"><span class="cell-number">12</span></div>
+                <div class="cell"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Колонка 4 (Вертикальная)</div>
+            <div class="line-info">
+                Позиции: [3, 8, 13] | Тип: <span class="type">Вертикальная</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="cell-number">0</span></div>
+                <div class="cell"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell highlighted"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell"><span class="cell-number">10</span></div>
+                <div class="cell"><span class="cell-number">11</span></div>
+                <div class="cell"><span class="cell-number">12</span></div>
+                <div class="cell highlighted"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Колонка 5 (Вертикальная)</div>
+            <div class="line-info">
+                Позиции: [4, 9, 14] | Тип: <span class="type">Вертикальная</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="cell-number">0</span></div>
+                <div class="cell"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell"><span class="cell-number">3</span></div>
+                <div class="cell highlighted"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell highlighted"><span class="cell-number">9</span></div>
+                <div class="cell"><span class="cell-number">10</span></div>
+                <div class="cell"><span class="cell-number">11</span></div>
+                <div class="cell"><span class="cell-number">12</span></div>
+                <div class="cell"><span class="cell-number">13</span></div>
+                <div class="cell highlighted"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Диагональ ↘ (Диагональная)</div>
+            <div class="line-info">
+                Позиции: [0, 6, 12] | Тип: <span class="type">Диагональная</span>
+            </div>
+            <div class="grid">
+                <div class="cell highlighted"><span class="cell-number">0</span></div>
+                <div class="cell"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell highlighted"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell"><span class="cell-number">10</span></div>
+                <div class="cell"><span class="cell-number">11</span></div>
+                <div class="cell highlighted"><span class="cell-number">12</span></div>
+                <div class="cell"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Диагональ ↙ (Диагональная)</div>
+            <div class="line-info">
+                Позиции: [10, 6, 2] | Тип: <span class="type">Диагональная</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="cell-number">0</span></div>
+                <div class="cell"><span class="cell-number">1</span></div>
+                <div class="cell highlighted"><span class="cell-number">2</span></div>
+                <div class="cell"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell highlighted"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell highlighted"><span class="cell-number">10</span></div>
+                <div class="cell"><span class="cell-number">11</span></div>
+                <div class="cell"><span class="cell-number">12</span></div>
+                <div class="cell"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Малая диагональ ↘ (Диагональная)</div>
+            <div class="line-info">
+                Позиции: [1, 7, 13] | Тип: <span class="type">Диагональная</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="cell-number">0</span></div>
+                <div class="cell highlighted"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell"><span class="cell-number">6</span></div>
+                <div class="cell highlighted"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell"><span class="cell-number">10</span></div>
+                <div class="cell"><span class="cell-number">11</span></div>
+                <div class="cell"><span class="cell-number">12</span></div>
+                <div class="cell highlighted"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Малая диагональ ↙ (Диагональная)</div>
+            <div class="line-info">
+                Позиции: [11, 7, 3] | Тип: <span class="type">Диагональная</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="cell-number">0</span></div>
+                <div class="cell"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell highlighted"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell"><span class="cell-number">6</span></div>
+                <div class="cell highlighted"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell"><span class="cell-number">10</span></div>
+                <div class="cell highlighted"><span class="cell-number">11</span></div>
+                <div class="cell"><span class="cell-number">12</span></div>
+                <div class="cell"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Третий Глаз (Секретная)</div>
+            <div class="line-info">
+                Позиции: [1, 6, 12, 8, 3] | Множитель: <span class="multiplier">5x</span> | Тип: <span class="type">Секретная</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="cell-number">0</span></div>
+                <div class="cell highlighted"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell highlighted"><span class="cell-number">3</span></div>
+                <div class="cell"><span class="cell-number">4</span></div>
+                <div class="cell"><span class="cell-number">5</span></div>
+                <div class="cell highlighted"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell highlighted"><span class="cell-number">8</span></div>
+                <div class="cell"><span class="cell-number">9</span></div>
+                <div class="cell"><span class="cell-number">10</span></div>
+                <div class="cell"><span class="cell-number">11</span></div>
+                <div class="cell highlighted"><span class="cell-number">12</span></div>
+                <div class="cell"><span class="cell-number">13</span></div>
+                <div class="cell"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Рамка (Специальная)</div>
+            <div class="line-info">
+                Позиции: [0, 1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14] | Множитель: <span class="multiplier">5x</span> | Тип: <span class="type">Специальная</span>
+            </div>
+            <div class="grid">
+                <div class="cell highlighted"><span class="cell-number">0</span></div>
+                <div class="cell highlighted"><span class="cell-number">1</span></div>
+                <div class="cell highlighted"><span class="cell-number">2</span></div>
+                <div class="cell highlighted"><span class="cell-number">3</span></div>
+                <div class="cell highlighted"><span class="cell-number">4</span></div>
+                <div class="cell highlighted"><span class="cell-number">5</span></div>
+                <div class="cell"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell highlighted"><span class="cell-number">9</span></div>
+                <div class="cell highlighted"><span class="cell-number">10</span></div>
+                <div class="cell highlighted"><span class="cell-number">11</span></div>
+                <div class="cell highlighted"><span class="cell-number">12</span></div>
+                <div class="cell highlighted"><span class="cell-number">13</span></div>
+                <div class="cell highlighted"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+
+        <div class="line-section">
+            <div class="line-title">Крест (Специальная)</div>
+            <div class="line-info">
+                Позиции: [0, 5, 10, 11, 13, 14, 9, 4] | Множитель: <span class="multiplier">5x</span> | Тип: <span class="type">Специальная</span>
+            </div>
+            <div class="grid">
+                <div class="cell highlighted"><span class="cell-number">0</span></div>
+                <div class="cell"><span class="cell-number">1</span></div>
+                <div class="cell"><span class="cell-number">2</span></div>
+                <div class="cell"><span class="cell-number">3</span></div>
+                <div class="cell highlighted"><span class="cell-number">4</span></div>
+                <div class="cell highlighted"><span class="cell-number">5</span></div>
+                <div class="cell"><span class="cell-number">6</span></div>
+                <div class="cell"><span class="cell-number">7</span></div>
+                <div class="cell"><span class="cell-number">8</span></div>
+                <div class="cell highlighted"><span class="cell-number">9</span></div>
+                <div class="cell highlighted"><span class="cell-number">10</span></div>
+                <div class="cell highlighted"><span class="cell-number">11</span></div>
+                <div class="cell"><span class="cell-number">12</span></div>
+                <div class="cell highlighted"><span class="cell-number">13</span></div>
+                <div class="cell highlighted"><span class="cell-number">14</span></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

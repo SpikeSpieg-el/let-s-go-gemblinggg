@@ -1556,6 +1556,147 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 }
 
 @keyframes jackpotDashedBorder {
-    0% { border-style: dashed; border-width: 2px; border-color: #ffe6a0; border-spacing: 0; }
-    100% { border-style: dashed; border-width: 2px; border-color: #ffe6a0; border-spacing: 8px; }
+    0% { border-color: #ffd700; }
+    50% { border-color: transparent; }
+    100% { border-color: #ffd700; }
+}
+
+/* --- Стили для последовательной анимации выигрышных линий --- */
+.slot-cell.line-highlight {
+    box-shadow: 0 0 15px var(--highlight-color);
+    border-color: var(--highlight-color);
+    transform: scale(1.05);
+    z-index: 10;
+    animation: lineWinPulse 0.5s ease-in-out, lineFinalGlow 2s ease-in-out;
+}
+
+.slot-cell.line-highlight-sequential {
+    box-shadow: 0 0 20px var(--money-color);
+    border-color: var(--money-color);
+    transform: scale(1.08);
+    z-index: 10;
+    animation: lineSequentialPulse 0.4s ease-in-out;
+}
+
+.symbol.line-winning {
+    animation: lineSymbolWin 0.4s ease-in-out;
+    color: var(--money-color);
+    text-shadow: 0 0 10px var(--money-color);
+}
+
+.line-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--money-color);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: lineParticleExplode 0.4s ease-out;
+}
+
+.line-popup {
+    position: fixed;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: var(--panel-bg);
+    border: 2px solid var(--money-color);
+    border-radius: 8px;
+    padding: 20px 30px;
+    z-index: 2000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.line-popup.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.line-popup.fade-out {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+}
+
+.line-popup-content {
+    text-align: center;
+}
+
+.line-name {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--highlight-color);
+    margin-bottom: 8px;
+}
+
+.line-win {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--money-color);
+}
+
+@keyframes lineWinPulse {
+    0% { transform: scale(1.05); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1.05); }
+}
+
+@keyframes lineSequentialPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+    100% { transform: scale(1.08); }
+}
+
+@keyframes lineSymbolWin {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+@keyframes lineParticleExplode {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(
+            calc(var(--x, 0) * 20px),
+            calc(var(--y, 0) * 20px)
+        ) scale(0);
+        opacity: 0;
+    }
+}
+
+/* Дополнительные эффекты анимации для последовательных линий */
+@keyframes lineSequentialShake {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(-2px, -1px) rotate(-0.5deg); }
+    50% { transform: translate(2px, 1px) rotate(0.5deg); }
+    75% { transform: translate(-1px, 1px) rotate(-0.25deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes lineSymbolWobble {
+    0% { transform: scale(1) rotate(0deg); }
+    25% { transform: scale(1.1) rotate(-2deg); }
+    50% { transform: scale(1.15) rotate(2deg); }
+    75% { transform: scale(1.1) rotate(-1deg); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Улучшенные эффекты для финальной подсветки */
+@keyframes lineFinalGlow {
+    0% { box-shadow: 0 0 15px var(--highlight-color); }
+    50% { box-shadow: 0 0 25px var(--highlight-color), 0 0 35px var(--money-color); }
+    100% { box-shadow: 0 0 15px var(--highlight-color); }
+}
+
+/* Эффект тряски для попапа */
+@keyframes linePopupShake {
+    0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+    25% { transform: translate(-50%, -50%) scale(1.05) rotate(-1deg); }
+    50% { transform: translate(-50%, -50%) scale(1.1) rotate(1deg); }
+    75% { transform: translate(-50%, -50%) scale(1.05) rotate(-0.5deg); }
+    100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
 }
