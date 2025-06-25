@@ -1761,7 +1761,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             item.uses--;
                             if (item.uses <= 0) {
                                 addLog(`${item.name} сломался!`, 'loss');
-                                // --- [NEW] Пассивка Феникс ---
+                                
                                 if (hasPassive('phoenix_passive')) {
                                     state.luck += 5;
                                     const bonus = 10 * (state.run || 1);
@@ -1786,15 +1786,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // --- конец блока сбоя реальности ---
 
-        // [FIX] Убрали немедленный вызов updateUI(), который прерывал анимации.
-        // Обновление UI теперь происходит в конце спина с задержкой.
-
         state.grid = generateGrid();
         await runSpinAnimation();
         calculateWinnings();
 
-        // [FIX] Добавляем задержку перед сбросом состояния и обновлением UI,
-        // чтобы все анимации от предметов (включая Копилку, бонусы и т.д.) успели проиграться.
         setTimeout(() => {
             state.tempLuck = 0;
             state.isSpinning = false;
@@ -1955,7 +1950,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Функция для перехода на СЛЕДУЮЩИЙ ЦИКЛ
-    function startNewCycle(bonusCoins = 0, bonusTickets = 0) {
+    function startNewCycle(bonusCoins = 0, bonusTickets = 0, paidToBank = 0) {
         // [NEW] Применение эффекта 'magnifying_glass' в начале цикла
         if(hasItem('magnifying_glass')) {
             const effect = ALL_ITEMS.find(i => i.id === 'magnifying_glass').effect.base_value_increase;
@@ -1983,16 +1978,15 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (state.run === 5) state.targetDebt = 8888;
         else state.targetDebt = Math.min(Math.floor(state.targetDebt * 2.5 + 10000), 88888888);
 
-        // [REMOVED] Старая логика расчета стоимости. Теперь она в updateSpinCosts()
-        // CONFIG.SPIN_PACKAGE_1.cost = CONFIG.SPIN_PACKAGE_1.base_cost + (state.run - 1) * 10;
-        // CONFIG.SPIN_PACKAGE_2.cost = CONFIG.SPIN_PACKAGE_2.base_cost + (state.run - 1) * 10;
-        // if(hasPassive('bulk_buyer')) CONFIG.SPIN_PACKAGE_1.cost = Math.max(1, CONFIG.SPIN_PACKAGE_1.cost - 2);
+        // --- В банк уходит только выплаченная сумма долга ---
+        if (paidToBank) {
+            state.bankBalance += paidToBank;
+        }
 
+        // coins остаётся равным накоплениям (и к ним прибавляются бонусы)
+        // (state.coins уже содержит накопления + бонусы после payDebtEarly)
 
-        // Перенос и сброс состояния
-        state.bankBalance += state.coins;
-        state.coins = bonusCoins;
-        state.tickets += (5 + state.run - 1) + bonusTickets; // (run-1) потому что run уже инкрементирован
+        state.tickets += (5 + state.run - 1) + bonusTickets;
         state.spinsLeft = 0;
         state.piggyBank = 0;
         state.firstSpinUsed = false;
@@ -2048,6 +2042,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(showPirateWarning, 1000);
             state.flags.sawPirateWarning = true;
         }
+        console.log(`[DEBUG][startNewCycle] После переноса: bankBalance=${state.bankBalance}, coins=${state.coins}, tickets=${state.tickets}`);
     }
 
 
@@ -2069,6 +2064,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.tempLuck += 3;
                 addLog(`Удачный старт: +3 к временной удаче на этот раунд.`, 'win');
             }
+        }
+        
+        // --- МИМИК: смена цели только в начале раунда ---
+        if (!state.mimicLastRound || state.mimicLastRound !== state.turn) {
+            updateMimicTarget();
+            state.mimicLastRound = state.turn;
         }
         
         // --- ПАССИВКА: Ликвидатор талонов ---
@@ -2283,7 +2284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 900); // Анимация длится 800ms
     }
 
-    function advanceToNextCycle(bonusCoins = 0, bonusTickets = 0) {
+    function advanceToNextCycle(bonusCoins = 0, bonusTickets = 0, paidToBank = 0) {
         ui.judgementModal.classList.remove('hidden');
         ui.judgementTitle.textContent = "ДОЛГ ВЫПЛАЧЕН";
         ui.judgementTitle.classList.remove('failure');
@@ -2300,7 +2301,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ui.judgementContinue.onclick = () => {
             ui.judgementModal.classList.add('hidden');
-            startNewCycle(bonusCoins, bonusTickets);
+            startNewCycle(bonusCoins, bonusTickets, paidToBank);
         };
     }
 
@@ -2333,7 +2334,6 @@ document.addEventListener('DOMContentLoaded', () => {
             bonusTickets = 4 + state.run;
             addLog('Досрочное погашение во 2-й раунд!', 'win');
         }
-        
         if (hasPassive('early_bird')) {
             const oldCoins = bonusCoins;
             const oldTickets = bonusTickets;
@@ -2342,27 +2342,31 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog(`Ранняя пташка: бонусы увеличены! (+${formatNumberWithComma(bonusCoins - oldCoins)}💰, +${formatNumberWithComma(bonusTickets - oldTickets)}🎟️)`, 'win');
         }
         
-        // --- [FIX] Правильное списание денег ---
-        // Сначала используем деньги из coins
+        // Сохраняем, сколько было coins до выплаты
+        // (но не используем savingsBefore для расчёта накоплений)
+
+        // --- Списание долга ---
         let remainingDebt = state.targetDebt;
+        let paidFromCoins = 0;
         if (state.coins > 0) {
-            const coinsToUse = Math.min(state.coins, remainingDebt);
-            state.coins -= coinsToUse;
-            remainingDebt -= coinsToUse;
-            addLog(`Списано ${formatNumberWithComma(coinsToUse)}💰 из наличных.`);
+            paidFromCoins = Math.min(state.coins, remainingDebt);
+            state.coins -= paidFromCoins;
+            remainingDebt -= paidFromCoins;
+            addLog(`Списано ${formatNumberWithComma(paidFromCoins)}💰 из наличных.`);
         }
-        // Если нужно, берём остаток из банка
         if (remainingDebt > 0) {
             state.bankBalance -= remainingDebt;
             addLog(`Списано ${formatNumberWithComma(remainingDebt)}💰 из банка.`);
         }
-        
-        // Добавляем бонусы
+
+        // coins уже равен накоплениям (остаток на руках)
+        // Прибавляем бонусы
         state.coins += bonusCoins;
         state.tickets += bonusTickets;
         addLog(`Получен бонус: +${formatNumberWithComma(bonusCoins)}💰 и +${formatNumberWithComma(bonusTickets)}🎟️!`, 'win');
-        
-        advanceToNextCycle(0, 0); // Бонусы уже начислены выше
+
+        // В банк уходит только то, что реально потратили из coins
+        advanceToNextCycle(bonusCoins, bonusTickets, paidFromCoins);
     }
     
     function gameOver() {
@@ -2467,15 +2471,18 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let cost = item.cost;
         let bonusApplied = false;
+        let discountLog = [];
         if (hasPassive('shopaholic') && state.flags.firstPurchaseThisRound) {
             cost = Math.max(1, item.cost - 2);
             state.flags.firstPurchaseThisRound = false;
             bonusApplied = true;
+            discountLog.push('shopaholic -2');
         }
         // --- ПАССИВКА: Специалист по бартеру ---
         if (hasPassive('barterer') && item.cost >= 5) {
             cost = Math.max(1, cost - 1);
             bonusApplied = true;
+            discountLog.push('barterer -1');
         }
 
         if (!item || state.tickets < cost) return addLog('Недостаточно талонов.', 'loss');
@@ -2501,8 +2508,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
              addLog(`Куплен амулет: ${item.name}`, 'win');
         }
+        if (discountLog.length > 0) {
+            console.log(`[DEBUG][buyItem] Скидки применены: ${discountLog.join(', ')}. Итоговая цена: ${cost}`);
+        }
+        console.log(`[DEBUG][buyItem] Куплен ${item.name} за ${cost}🎟️. Осталось tickets: ${state.tickets}`);
 
-        updateMimicTarget();
+        // Исправлено: только если куплен mimic_chest и у него нет цели, выбираем цель
+        if (item.id === 'mimic_chest') {
+            updateMimicTarget();
+        }
         
         // --- [NEW] Немедленное применение эффектов, которые должны работать сразу ---
         // Бесплатные рероллы
@@ -2676,7 +2690,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.earlyPayoffBonusInfo.innerHTML = bonusInfo;
         }
 
-        ui.btnEndTurn.disabled = state.isSpinning || state.spinsLeft > 0;
+        //ui.btnEndTurn.disabled = state.isSpinning || state.spinsLeft > 0;
+
         let rerollCost = CONFIG.REROLL_COST;
         if (hasPassive('reroll_master') && !state.flags.firstRerollUsed) {
             rerollCost = Math.max(0, rerollCost - 1);
@@ -2974,7 +2989,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 addLog(`Вы получили обратно ${refund} 🎟️ за выкинутый амулет (${removed.rarity === 'rare' ? 'редкий' : 'легендарный'}).`, 'win');
             }
             addLog(`Амулет "${removed.name}" выкинут и снова может появиться в магазине.`, 'loss');
-            updateMimicTarget();
+            // updateMimicTarget(); // УБРАНО!
 
             // [FIX] Принудительно обновляем UI режима планирования, если он активен
             if (ui.planningModal && !ui.planningModal.classList.contains('hidden')) {
@@ -3139,19 +3154,48 @@ document.addEventListener('DOMContentLoaded', () => {
         state.baseInterestRate = base;
     }
 
+    // --- Улучшенная функция: обновляет цель сундука-мимика ---
+    /**
+     * Обновляет цель копирования для сундука-мимика.
+     * Мимик не работает корректно с предметами, у которых:
+     *  - уникальные функции с привязкой к id/uses (например, предметы с on_spin_bonus, требующие уникального контекста)
+     *  - сложная логика uses (например, breakable с побочными эффектами)
+     *  - предметы, которые сами являются мимиками
+     *
+     * UI описания предмета теперь обновляется сразу после смены цели (например, при покупке/удалении).
+     */
     function updateMimicTarget() {
         const mimicItem = state.inventory.find(item => item.id === 'mimic_chest');
         if (mimicItem) {
-            const candidates = state.inventory.filter(item => item.id !== 'mimic_chest' && !item.effect?.mimic); // Не копируем другой мимик
+            // Кандидаты — все предметы, кроме других мимиков и предметов без эффекта
+            const candidates = state.inventory.filter(item => item.id !== 'mimic_chest' && !item.effect?.mimic && item.effect);
+            let prevTarget = mimicItem.effect?.mimic?.target;
             if (candidates.length > 0) {
                 const target = candidates[Math.floor(Math.random() * candidates.length)];
-                // [FIX] Улучшенная логика мимика: копируем весь объект эффекта
+                // Копируем весь объект эффекта поверх базового эффекта мимика
                 mimicItem.effect = { ...ALL_ITEMS.find(i => i.id === 'mimic_chest').effect, ...target.effect };
-                mimicItem.effect.mimic.target = target.id; // Сохраняем ID для отображения
+                mimicItem.effect.mimic = { target: target.id };
+                // Если у цели есть uses и она breakable — копируем uses
+                if (target.effect.breakable && typeof target.uses !== 'undefined') {
+                    mimicItem.uses = target.uses;
+                } else {
+                    delete mimicItem.uses;
+                }
+                if (prevTarget !== target.id) {
+                    addLog(`Сундук-Мимик теперь копирует: ${target.name}`, 'win');
+                }
             } else {
-                mimicItem.effect = { ...ALL_ITEMS.find(i => i.id === 'mimic_chest').effect }; // Сброс к базовому эффекту
+                // Нет кандидатов — сбрасываем к базовому эффекту
+                mimicItem.effect = { ...ALL_ITEMS.find(i => i.id === 'mimic_chest').effect };
+                mimicItem.effect.mimic = { target: undefined };
+                delete mimicItem.uses;
+                if (prevTarget !== undefined) {
+                    addLog('Сундук-Мимик сбросил цель копирования.', 'loss');
+                }
             }
-            animateInventoryItem('mimic_chest');
+            // Обновляем UI описания предмета сразу
+            if (typeof renderInventory === 'function') renderInventory();
+            if (typeof renderPlanningInventory === 'function') renderPlanningInventory();
         }
     }
 
