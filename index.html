@@ -240,6 +240,7 @@
     </div>
     
     <script src="items.js"></script>
+    <script type="module" src="tutorial.js"></script>
     <script src="passives.js"></script>
     <script src="skript.js"></script>
     <script>
@@ -350,6 +351,12 @@
                 });
             }
         });
+    </script>
+    <script type="module">
+      import { setupTutorialHandlers } from './tutorial.js';
+      window.addEventListener('DOMContentLoaded', () => {
+        setupTutorialHandlers();
+      });
     </script>
     <style>
     @keyframes debt-pulse {
