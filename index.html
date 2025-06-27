@@ -75,7 +75,7 @@
 
         <div class="ui-panel">
             <div class="ui-box">
-                <h3>Состояние Цикл <span id="stat-run" style="color: var(--highlight-color);">1</span></h3>
+                <h3>Цикл <span id="stat-run" style="color: var(--highlight-color);">1</span></h3>
                 <div class="stats-grid compact-stats">
                     <span>Раунд:</span><span id="stat-turn">1 / 3</span>
                     <span style="color: var(--money-color);">Наличные:</span><span id="stat-coins" style="color: var(--money-color);">0</span>
@@ -353,9 +353,10 @@
         });
     </script>
     <script type="module">
-      import { setupTutorialHandlers } from './tutorial.js';
+      import { startTutorial } from './tutorial.js';
       window.addEventListener('DOMContentLoaded', () => {
-        setupTutorialHandlers();
+        const btn = document.getElementById('btn-show-tutorial');
+        if (btn) btn.onclick = startTutorial;
       });
     </script>
     <style>

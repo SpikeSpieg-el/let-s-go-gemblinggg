@@ -2093,6 +2093,7 @@ document.addEventListener('DOMContentLoaded', () => {
             echoStoneMultiplier: 1,
             purchasesThisRound: 0,
         };
+        window.state = state;
         lastKnownTickets = state.tickets;
         lastKnownCoins = state.coins;
         
