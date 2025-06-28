@@ -1748,21 +1748,45 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 
 /* Улучшенные стили для select в dev меню */
 #dev-item-select {
-    font-size: 13px;
-    line-height: 1.4;
-    max-height: 300px;
+    background: var(--cell-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 200px;
 }
 
 #dev-item-select option {
-    padding: 6px 8px;
-    margin: 2px 0;
-    border-radius: 3px;
-    transition: background-color 0.2s;
+    background: var(--cell-bg);
+    color: var(--text-color);
+    padding: 8px;
 }
 
 #dev-item-select option:hover {
-    background-color: var(--highlight-color) !important;
-    color: var(--bg-color) !important;
+    background: var(--highlight-color);
+    color: white;
+}
+
+#dev-passive-select {
+    background: var(--cell-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 200px;
+}
+
+#dev-passive-select option {
+    background: var(--cell-bg);
+    color: var(--text-color);
+    padding: 8px;
+}
+
+#dev-passive-select option:hover {
+    background: var(--highlight-color);
+    color: white;
 }
 
 /* Обновленные стили для luck-chance-popup */

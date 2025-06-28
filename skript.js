@@ -1204,9 +1204,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // --- ПАССИВКА: Обучение на ошибках ---
             if (hasPassive('learning_from_mistakes')) {
                 state.flags.consecutiveLosses++;
-                if (state.flags.consecutiveLosses >= 5) {
-                    state.permanentLuckBonus++;
-                    addLog(`Обучение на ошибках: +1 к перманентной удаче!`, 'win');
+                if (state.flags.consecutiveLosses >= 4) {
+                    state.permanentLuckBonus += 2;
+                    addLog(`Обучение на ошибках: +2 к перманентной удаче!`, 'win');
                     state.flags.consecutiveLosses = 0;
                 }
             }
@@ -2021,6 +2021,140 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // --- конец блока сбоя реальности ---
 
+        // --- DEV РЕЖИМ: 100% ПРОИГРЫШНЫЕ ПРОКРУТЫ ---
+        if (state.dev100LoseMode) {
+            // Функция для проверки выигрышных линий
+            function hasWinningLines(grid) {
+                let activePaylines = [...PAYLINES];
+                // Добавляем дополнительные линии от предметов
+                state.inventory.forEach(item => {
+                    if (item.effect?.add_payline) { activePaylines.push(item.effect.add_payline); }
+                });
+                
+                // Проверяем каждую линию
+                for (const line of activePaylines) {
+                    if (!line.scannable) continue;
+                    
+                    const symbolsOnLine = line.positions.map(pos => grid[pos]);
+                    let i = 0;
+                    
+                    while (i < symbolsOnLine.length) {
+                        let currentSymbol = symbolsOnLine[i];
+                        let comboLength = 0;
+                        
+                        for (let j = i; j < symbolsOnLine.length; j++) {
+                            if (symbolsOnLine[j].id === currentSymbol.id) {
+                                comboLength++;
+                            } else {
+                                break;
+                            }
+                        }
+                        
+                        // Если есть 3 или больше одинаковых символов подряд - это выигрыш
+                        if (comboLength >= 3) {
+                            return true;
+                        }
+                        
+                        i += comboLength;
+                    }
+                }
+                return false;
+            }
+            
+            // Генерируем проигрышную сетку с проверкой
+            let badGrid = [];
+            let attempts = 0;
+            const maxAttempts = 100;
+            
+            do {
+                badGrid = [];
+                const allSymbols = SYMBOLS;
+                
+                // Создаем массив всех символов и перемешиваем его
+                let shuffledSymbols = [...allSymbols];
+                for (let i = shuffledSymbols.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffledSymbols[i], shuffledSymbols[j]] = [shuffledSymbols[j], shuffledSymbols[i]];
+                }
+                
+                // Заполняем сетку перемешанными символами
+                for (let i = 0; i < CONFIG.ROWS * CONFIG.COLS; i++) {
+                    badGrid.push(shuffledSymbols[i % shuffledSymbols.length]);
+                }
+                
+                // Дополнительно перемешиваем несколько позиций для большей случайности
+                for (let i = 0; i < 5; i++) {
+                    const pos1 = Math.floor(Math.random() * badGrid.length);
+                    const pos2 = Math.floor(Math.random() * badGrid.length);
+                    [badGrid[pos1], badGrid[pos2]] = [badGrid[pos2], badGrid[pos1]];
+                }
+                
+                attempts++;
+            } while (hasWinningLines(badGrid) && attempts < maxAttempts);
+            
+            // Если не удалось создать проигрышную сетку, используем принудительно проигрышную
+            if (attempts >= maxAttempts) {
+                badGrid = [];
+                const symbols = SYMBOLS;
+                // Создаем сетку где каждый символ отличается от соседних
+                for (let i = 0; i < CONFIG.ROWS * CONFIG.COLS; i++) {
+                    const prevSymbol = i > 0 ? badGrid[i - 1] : null;
+                    const aboveSymbol = i >= CONFIG.COLS ? badGrid[i - CONFIG.COLS] : null;
+                    
+                    let availableSymbols = symbols.filter(s => 
+                        (!prevSymbol || s.id !== prevSymbol.id) && 
+                        (!aboveSymbol || s.id !== aboveSymbol.id)
+                    );
+                    
+                    if (availableSymbols.length === 0) {
+                        availableSymbols = symbols;
+                    }
+                    
+                    badGrid.push(availableSymbols[Math.floor(Math.random() * availableSymbols.length)]);
+                }
+            }
+            
+            state.grid = badGrid;
+            await runSpinAnimation();
+            calculateWinnings();
+            addLog('Dev: 100% проигрышный прокрут', 'loss');
+            
+            setTimeout(() => {
+                state.tempLuck = 0;
+                state.isSpinning = false;
+                ui.lever.classList.remove('pulled');
+                
+                // [NEW] Логика для breakable предметов без luck_chance
+                let itemsToRemove = [];
+                state.inventory.forEach((item, idx) => {
+                    if (item.effect?.breakable && !item.effect?.luck_chance) {
+                        if (item.uses === undefined) item.uses = item.effect.max_uses || 10;
+                        item.uses--;
+                        if (item.uses <= 0) {
+                            addLog(`${item.name} сломался!`, 'loss');
+                            
+                            if (hasPassive('phoenix_passive')) {
+                                state.luck += 5;
+                                const bonus = 10 * (state.run || 1);
+                                state.coins += bonus;
+                                addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💰 за поломку предмета!', 'win');
+                            }
+                            itemsToRemove.push(idx);
+                        }
+                    }
+                });
+                
+                // Удаляем сломанные предметы
+                for (let i = itemsToRemove.length - 1; i >= 0; i--) {
+                    state.inventory.splice(itemsToRemove[i], 1);
+                }
+                
+                updateUI();
+            }, 900);
+            return;
+        }
+        // --- конец dev режима ---
+
         state.grid = generateGrid();
         await runSpinAnimation();
         calculateWinnings();
@@ -2153,6 +2287,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activatedItemsThisSpin: new Set(),
             echoStoneMultiplier: 1,
             purchasesThisRound: 0,
+            dev100LoseMode: false,
         };
         window.state = state;
         lastKnownTickets = state.tickets;
@@ -3118,7 +3253,7 @@ document.addEventListener('DOMContentLoaded', () => {
             costSpan.className = 'item-cost';
             costSpan.textContent = `${currentCost}🎟️`;
             if (oldCost && currentCost < oldCost) {
-                costSpan.innerHTML += ` <s style="opacity:0.6">${oldCost}🎟️</s>`;
+                costSpan.innerHTML += ` <s style="opacity:0.6">${oldCost}🎟️`;
             }
             headerDiv.appendChild(costSpan);
         }
@@ -3482,10 +3617,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const devGiveItem = document.getElementById('dev-give-item');
     const devClose = document.getElementById('dev-close-menu');
     const devItemSelect = document.getElementById('dev-item-select');
+    const devPassiveSelect = document.getElementById('dev-passive-select');
+    const devGivePassive = document.getElementById('dev-give-passive');
+    const devPassivesList = document.getElementById('dev-passives-list');
     const devSymbolChances = document.getElementById('dev-symbol-chances');
     const devApplyChances = document.getElementById('dev-apply-chances');
     const devApplyLuck = document.getElementById('dev-apply-luck');
     const devLuckInput = document.getElementById('dev-luck-input');
+    const dev100LoseMode = document.getElementById('dev-100-lose-mode');
 
     devBtn.onclick = () => { 
         devModal.classList.remove('hidden');
@@ -3506,6 +3645,30 @@ document.addEventListener('DOMContentLoaded', () => {
             
             devItemSelect.appendChild(opt);
         });
+        
+        // Заполняем список пассивок
+        devPassiveSelect.innerHTML = '';
+        ALL_PASSIVES.forEach(passive => {
+            const opt = document.createElement('option');
+            opt.value = passive.id;
+            
+            // Определяем цвет типа пассивки
+            let typeColor = '#aaa'; // по умолчанию
+            if (passive.type === 'one_time') typeColor = '#ff6b6b';
+            else if (passive.type === 'slot_modifier') typeColor = '#4ecdc4';
+            else if (passive.type === 'item_mod') typeColor = '#45b7d1';
+            
+            // Создаем HTML с эмодзи и цветовой индикацией
+            opt.innerHTML = `<span style="color: ${typeColor};">${passive.emoji}</span> ${passive.name} <span style="color: ${typeColor}; font-size: 0.9em;">(${passive.type})</span>`;
+            opt.style.color = typeColor;
+            opt.style.fontWeight = 'bold';
+            
+            devPassiveSelect.appendChild(opt);
+        });
+        
+        // Показываем активные пассивки
+        updateDevPassivesList();
+        
         devSymbolChances.innerHTML = '';
         SYMBOLS.forEach((sym, idx) => {
             const row = document.createElement('div');
@@ -3517,7 +3680,36 @@ document.addEventListener('DOMContentLoaded', () => {
             devSymbolChances.appendChild(row);
         });
         devLuckInput.value = state.tempLuck;
+        dev100LoseMode.checked = state.dev100LoseMode || false;
     };
+    
+    function updateDevPassivesList() {
+        if (!devPassivesList) return;
+        
+        devPassivesList.innerHTML = '';
+        if (!state.activePassives || state.activePassives.length === 0) {
+            devPassivesList.innerHTML = '<span style="color: #666; font-style: italic;">Нет активных пассивок</span>';
+            return;
+        }
+        
+        state.activePassives.forEach(passive => {
+            const passiveEl = document.createElement('div');
+            passiveEl.style.marginBottom = '4px';
+            passiveEl.style.padding = '4px';
+            passiveEl.style.backgroundColor = 'var(--cell-bg)';
+            passiveEl.style.borderRadius = '3px';
+            passiveEl.style.border = '1px solid var(--border-color)';
+            
+            let typeColor = '#aaa';
+            if (passive.type === 'one_time') typeColor = '#ff6b6b';
+            else if (passive.type === 'slot_modifier') typeColor = '#4ecdc4';
+            else if (passive.type === 'item_mod') typeColor = '#45b7d1';
+            
+            passiveEl.innerHTML = `<span style="color: ${typeColor};">${passive.emoji}</span> <strong>${passive.name}</strong> <span style="color: ${typeColor}; font-size: 0.8em;">(${passive.type})</span>`;
+            devPassivesList.appendChild(passiveEl);
+        });
+    }
+    
     devClose.onclick = () => { devModal.classList.add('hidden'); };
     devAddCoins.onclick = () => { state.coins += 1000; addLog('Dev: +1000 монет', 'win'); updateUI(); };
     devAddTickets.onclick = () => { state.tickets += 100; addLog('Dev: +100 талонов', 'win'); updateUI(); };
@@ -3531,6 +3723,18 @@ document.addEventListener('DOMContentLoaded', () => {
             updateUI();
         } else {
             addLog('Dev: Этот предмет уже есть в инвентаре.', 'loss');
+        }
+    };
+    devGivePassive.onclick = () => {
+        const id = devPassiveSelect.value;
+        if (!state.activePassives.some(p => p.id === id)) {
+            const passive = ALL_PASSIVES.find(p => p.id === id);
+            applyPassive(passive, state);
+            addLog(`Dev: Добавлена пассивка: ${passive.name}`, 'win');
+            updateDevPassivesList();
+            updateUI();
+        } else {
+            addLog('Dev: Эта пассивка уже активна.', 'loss');
         }
     };
     devApplyChances.onclick = () => {
@@ -3551,6 +3755,15 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog(`Dev: Итоговая удача: ${totalLuck}, веса: ${weights}`);
             devDebugLuck = true;
             updateUI();
+        }
+    };
+
+    dev100LoseMode.onchange = () => {
+        state.dev100LoseMode = dev100LoseMode.checked;
+        if (state.dev100LoseMode) {
+            addLog('Dev: Включен режим 100% проигрышных прокрутов', 'loss');
+        } else {
+            addLog('Dev: Отключен режим 100% проигрышных прокрутов', 'win');
         }
     };
 
