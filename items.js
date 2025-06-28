@@ -43,9 +43,29 @@ const ALL_ITEMS = [
   { id: 'almost_perfect', name: 'Почти идеально', desc: 'Линии из 4 символов дополнительно дают +10💰.', cost: 3, rarity: 'common', thumbnail: '👍', effect: { on_line_win_bonus: { length: 4, coins: 10 } } },
   { id: 'sour_profit', name: 'Кислая прибыль', desc: 'Выигрышные линии из Лимонов 🍋 дополнительно дают +1🎟️.', cost: 4, rarity: 'common', thumbnail: '🍋', effect: { symbol_win_bonus_ticket: { symbol: 'lemon', tickets: 1 } } }, // Логика в calculateWinnings
   { id: 'bookends', name: 'Книжные подпорки', desc: 'Если символы в левом верхнем и правом нижнем углах совпадают, вы получаете +4💰.', cost: 2, rarity: 'common', thumbnail: '📚', on_spin_bonus: (grid) => { /* Логика в skript.js */ } },
+  
   { id: 'minimalist', name: 'Минималист', desc: 'Дает +1💰 за каждый пустой слот для амулета (бонус применяется после выигрыша).', cost: 3, rarity: 'common', thumbnail: '📦', effect: { per_empty_slot_bonus: 1 } }, // Логика в calculateWinnings
+  {
+    id: 'hoarders_pride',
+    name: 'Гордость барахольщика',
+    desc: 'Даёт +1 к удаче за каждый пустой слот для амулета.',
+    cost: 3,
+    rarity: 'common',
+    thumbnail: '📦',
+    effect: { per_empty_slot_luck: 1 }
+  },
+  {
+    id: 'slot_illusionist',
+    name: 'Иллюзионист слотов',
+    desc: 'Все предметы, дающие бонус за пустой слот, не занимают место в инвентаре (включая этот предмет).',
+    cost: 7,
+    rarity: 'rare',
+    thumbnail: '🎩',
+    effect: { ignore_slot_for_empty_bonus: true }
+  },
+
   { id: 'early_bird_spins', name: 'Ранняя пташка', desc: 'Ваши первые 3 прокрута в каждом раунде получают +1 к множителю на все выигрыши.', cost: 4, rarity: 'common', thumbnail: '🐦', effect: { first_spins_bonus: { count: 3, multiplier_add: 1 } } }, // Логика в spin
-  { id: 'ticket_hoarder', name: 'Коллекционер талонов', desc: 'Дает +1 к удаче за каждые 10🎟️, которые у вас есть.', cost: 2, rarity: 'common', thumbnail: '🧐', effect: { per_ticket_luck: { per: 10, luck: 1 } } }, // Логика в generateGrid
+  { id: 'ticket_hoarder', name: 'Коллекционер талонов', desc: 'Дает +1 к удаче за каждые 5🎟️, которые у вас есть.', cost: 2, rarity: 'common', thumbnail: '🧐', effect: { per_ticket_luck: { per: 5, luck: 1 } } }, // Логика в generateGrid
   { id: 'magnifying_glass', name: 'Лупа', desc: 'Увеличивает базовую ценность Клеверов 🍀 и Вишен 🍒 на 1.', cost: 5, rarity: 'common', thumbnail: '🔎', effect: { base_value_increase: { symbols: ['clover', 'cherry'], amount: 1 } } }, // Логика в initGame/startNewCycle
   { id: 'oddly_lucky', name: 'Странная удача', desc: 'В нечетные раунды (1-й и 3-й) все денежные выигрыши увеличены на 20%.', cost: 4, rarity: 'common', thumbnail: '🌗', effect: { odd_round_multiplier: 1.2 } }, // Логика в calculateWinnings
 

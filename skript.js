@@ -243,7 +243,13 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.id = 'passive-choice-modal';
         modal.className = 'passive-choice-modal';
 
-        const passives = getRandomPassives(3, excludeIds);
+        // --- ПАССИВКА: Расширенный выбор ---
+        let passiveCount = 3;
+        if (hasPassive('expanded_choice')) {
+            passiveCount = 4;
+        }
+
+        const passives = getRandomPassives(passiveCount, excludeIds);
         let choicesHTML = '';
 
         const typeMap = {
@@ -387,10 +393,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const perRunLuck = hasItem('growing_debt') ? getItemEffectValue('per_run_bonus.luck', 0, 'sum') * state.run : 0;
         
-        // [FIX] Пассивка "Гордость барахольщика" теперь использует getMaxInventorySize
+        // [FIX] Предмет "Гордость барахольщика" теперь использует getEffectiveEmptySlots
         let hoarderLuck = 0;
-        if (hasPassive('hoarders_pride')) {
-            hoarderLuck = Math.max(0, getMaxInventorySize() - state.inventory.length);
+        if (hasItem('hoarders_pride')) {
+            hoarderLuck = getEffectiveEmptySlots();
         }
 
         // [NEW] Логика предмета 'ticket_hoarder'
@@ -1074,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         if (hasItem('minimalist') && totalWinnings > 0) {
-            let bonus = Math.max(0, getMaxInventorySize() - state.inventory.length);
+            let bonus = getEffectiveEmptySlots();
              if (bonus > 0) {
                 totalWinnings += applyCoinDoubler(bonus);
                 addLog(`Минималист: +${applyCoinDoubler(bonus)}💰 за пустые слоты.`, 'win');
@@ -1652,6 +1658,28 @@ document.addEventListener('DOMContentLoaded', () => {
             rares.splice(randomIndex, 1);
         }
 
+        // --- Гарантированный легендарный амулет в первом магазине 4-го цикла (если 20+ талонов) ---
+        if (state.run === 4 && state.turn === 1 && state.tickets >= 20 && legendaries.length > 0) {
+            const randomIndex = Math.floor(Math.random() * legendaries.length);
+            const legendaryItem = { ...legendaries[randomIndex] };
+            // Сброс uses для breakable предметов
+            if (legendaryItem.effect && legendaryItem.effect.luck_chance && legendaryItem.effect.luck_chance.breakable) {
+                legendaryItem.uses = legendaryItem.effect.luck_chance.max_uses || 1;
+            }
+            if (legendaryItem.effect && legendaryItem.effect.breakable && !legendaryItem.effect.luck_chance) {
+                legendaryItem.uses = legendaryItem.effect.max_uses || 10;
+            }
+            // [NEW] Сброс uses для wild_clover_next_spin.breakable
+            if (legendaryItem.effect && legendaryItem.effect.wild_clover_next_spin && legendaryItem.effect.wild_clover_next_spin.breakable) {
+                legendaryItem.uses = legendaryItem.effect.wild_clover_next_spin.max_uses || 1;
+            }
+            state.shop.push(legendaryItem);
+            addLog(`🏆 Легендарная удача! В магазине появился ${legendaryItem.name} (у вас ${state.tickets}🎟️)!`, 'win');
+            const idx = availableItems.findIndex(x => x.id === legendaryItem.id);
+            if (idx !== -1) availableItems.splice(idx, 1);
+            legendaries.splice(randomIndex, 1);
+        }
+
         for (let i = state.shop.length; i < 5; i++) {
             let pool = [];
             const roll = Math.random();
@@ -1713,41 +1741,74 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showLuckChancePopups(triggeredItems) {
         if (!triggeredItems || triggeredItems.length === 0) return;
+        
         let idx = 0;
+        
         function showNext() {
             const item = triggeredItems[idx];
+            
+            // Создаем основной контейнер поп-апа
             const popup = document.createElement('div');
-            popup.className = 'doubloon-popup';
+            popup.className = 'luck-chance-popup';
+            
+            // Создаем содержимое поп-апа
             popup.innerHTML = `
-                <div class="doubloon-star">
-                    <svg viewBox="0 0 100 100" width="50" height="50" class="doubloon-svg">
-                        <polygon points="50,8 61,38 94,38 67,58 77,90 50,70 23,90 33,58 6,38 39,38" fill="gold" stroke="#fffbe6" stroke-width="2"/>
-                    </svg>
-                    <span class="doubloon-text">${item.name}</span>
+                <div class="luck-chance-content">
+                    <div class="luck-chance-icon">
+                        <svg viewBox="0 0 100 100" width="80" height="80" class="luck-chance-svg">
+                            <rect x="10" y="10" width="80" height="80" fill="#1a1a1a" stroke="#fffbe6" stroke-width="3"/>
+                            <text x="50" y="55" text-anchor="middle" font-size="20" fill="white" font-weight="bold">${item.thumbnail}</text>
+                        </svg>
+                    </div>
+                    <div class="luck-chance-info">
+                        <div class="luck-chance-name">${item.name}</div>
+                        <div class="luck-chance-effect">Активирован!</div>
+                    </div>
+                    <div class="luck-chance-particles"></div>
                 </div>
             `;
-            const controls = document.querySelector('.controls');
-            if (controls) {
-                const rect = controls.getBoundingClientRect();
-                popup.style.position = 'fixed';
-                popup.style.top = (rect.top - 10) + 'px';
-                popup.style.left = (rect.left - 10) + 'px';
-                popup.style.transform = 'scale(0)';
-            }
+            
+            // Позиционируем поп-ап в центре экрана
+            popup.style.position = 'fixed';
+            popup.style.top = '50%';
+            popup.style.left = '50%';
+            popup.style.transform = 'translate(-50%, -50%) scale(0)';
+            popup.style.zIndex = '3000';
+            
             document.body.appendChild(popup);
+            
+            // Анимация появления
             setTimeout(() => {
+                popup.style.transform = 'translate(-50%, -50%) scale(1)';
                 popup.classList.add('show');
+                
+                // Создаем частицы
+                createLuckParticles(popup.querySelector('.luck-chance-particles'));
+                
+                // Анимация исчезновения
                 setTimeout(() => {
-                    popup.classList.remove('show');
                     popup.classList.add('fade-out');
                     setTimeout(() => {
                         popup.remove();
                         idx++;
-                        if (idx < triggeredItems.length) showNext();
-                    }, 500);
-                }, 1200);
+                        if (idx < triggeredItems.length) {
+                            setTimeout(showNext, 200); // Небольшая пауза между поп-апами
+                        }
+                    }, 600);
+                }, 2500);
             }, 100);
         }
+        
+        function createLuckParticles(container) {
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'luck-particle';
+                particle.style.setProperty('--angle', `${(i * 30)}deg`);
+                particle.style.setProperty('--delay', `${i * 0.1}s`);
+                container.appendChild(particle);
+            }
+        }
+        
         showNext();
     }
 
@@ -2638,8 +2699,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function buyItem(itemId) {
-        if (state.inventory.length >= getMaxInventorySize()) {
-            addLog(`В инвентаре максимум ${getMaxInventorySize()} амулетов!`, 'loss');
+        // Проверяем эффективное количество использованных слотов с учетом "Иллюзионист слотов"
+        const maxSize = getMaxInventorySize();
+        const effectiveSlots = getEffectiveEmptySlots();
+        const effectiveUsed = maxSize - effectiveSlots;
+        
+        if (effectiveUsed >= maxSize) {
+            addLog(`В инвентаре максимум ${maxSize} амулетов!`, 'loss');
             return;
         }
         const item = state.shop.find(i => i.id === itemId);
@@ -2691,6 +2757,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Исправлено: только если куплен mimic_chest и у него нет цели, выбираем цель
         if (item.id === 'mimic_chest') {
             updateMimicTarget();
+        }
+        
+        // --- [NEW] Специальное сообщение для "Иллюзионист слотов" ---
+        if (item.id === 'slot_illusionist') {
+            addLog(`🎩 Иллюзионист слотов активирован! Предметы с бонусами за пустые слоты больше не занимают место в инвентаре.`, 'win');
         }
         
         // --- [NEW] Немедленное применение эффектов, которые должны работать сразу ---
@@ -2785,10 +2856,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ticketLuck = Math.floor(state.tickets / effect.per) * effect.luck;
         }
 
-        // [FIX] Добавляем расчет бонуса от пассивки "Гордость барахольщика"
+        // [FIX] Добавляем расчет бонуса от "Гордость барахольщика"
         let hoarderLuck = 0;
-        if (hasPassive('hoarders_pride')) {
-            hoarderLuck = Math.max(0, getMaxInventorySize() - state.inventory.length);
+        if (hasItem('hoarders_pride')) {
+            hoarderLuck = getEffectiveEmptySlots();
         }
 
         // --- Универсальный подсчёт временной удачи от всех temporary_luck_on_spin ---
@@ -3188,8 +3259,14 @@ document.addEventListener('DOMContentLoaded', () => {
             counter.style.marginBottom = '4px';
             ui.inventoryItems.parentElement.insertBefore(counter, ui.inventoryItems);
         }
-        counter.textContent = `Амулеты: ${state.inventory.length} / ${getMaxInventorySize()}`;
-        if (state.inventory.length >= getMaxInventorySize()) {
+        
+        // Показываем эффективное количество слотов с учетом "Иллюзионист слотов"
+        const maxSize = getMaxInventorySize();
+        const effectiveSlots = getEffectiveEmptySlots();
+        const effectiveUsed = maxSize - effectiveSlots;
+        
+        counter.textContent = `Амулеты: ${effectiveUsed} / ${maxSize}`;
+        if (effectiveUsed >= maxSize) {
             counter.style.color = 'var(--danger-color)';
             counter.style.fontWeight = 'bold';
             counter.style.textShadow = '0 0 6px var(--danger-color)';
@@ -3253,8 +3330,14 @@ document.addEventListener('DOMContentLoaded', () => {
             counter.style.marginBottom = '4px';
             ui.planningInventoryItems.parentElement.insertBefore(counter, ui.planningInventoryItems);
         }
-        counter.textContent = `Амулеты: ${state.inventory.length} / ${getMaxInventorySize()}`;
-        if (state.inventory.length >= getMaxInventorySize()) {
+        
+        // Показываем эффективное количество слотов с учетом "Иллюзионист слотов"
+        const maxSize = getMaxInventorySize();
+        const effectiveSlots = getEffectiveEmptySlots();
+        const effectiveUsed = maxSize - effectiveSlots;
+        
+        counter.textContent = `Амулеты: ${effectiveUsed} / ${maxSize}`;
+        if (effectiveUsed >= maxSize) {
             counter.style.color = 'var(--danger-color)';
             counter.style.fontWeight = 'bold';
             counter.style.textShadow = '0 0 6px var(--danger-color)';
@@ -3410,7 +3493,17 @@ document.addEventListener('DOMContentLoaded', () => {
         ALL_ITEMS.forEach(item => {
             const opt = document.createElement('option');
             opt.value = item.id;
-            opt.textContent = `${item.name} (${item.rarity})`;
+            
+            // Определяем цвет редкости
+            let rarityColor = '#aaa'; // common
+            if (item.rarity === 'rare') rarityColor = '#536dfe';
+            else if (item.rarity === 'legendary') rarityColor = '#ffab40';
+            
+            // Создаем HTML с иконкой и цветовой индикацией
+            opt.innerHTML = `<span style="color: ${rarityColor};">${item.thumbnail}</span> ${item.name} <span style="color: ${rarityColor}; font-size: 0.9em;">(${item.rarity})</span>`;
+            opt.style.color = rarityColor;
+            opt.style.fontWeight = 'bold';
+            
             devItemSelect.appendChild(opt);
         });
         devSymbolChances.innerHTML = '';
@@ -3467,7 +3560,8 @@ document.addEventListener('DOMContentLoaded', () => {
         popup.innerHTML = `
             <div class="doubloon-star">
                 <svg viewBox="0 0 100 100" width="50" height="50" class="doubloon-svg">
-                    <polygon points="50,8 61,38 94,38 67,58 77,90 50,70 23,90 33,58 6,38 39,38" fill="gold" stroke="#fffbe6" stroke-width="2"/>
+                    <rect x="10" y="10" width="80" height="80" fill="#1a1a1a" stroke="#fffbe6" stroke-width="3"/>
+                    <text x="50" y="55" text-anchor="middle" font-size="16" fill="white" font-weight="bold">${item.thumbnail}</text>
                 </svg>
                 <span class="doubloon-text">Дублон +1</span>
             </div>
@@ -3500,7 +3594,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.initGame = function() {
         origInitGame.apply(this, arguments);
         updateStartDebt();
-    };
+    }
 
     function getDepositAmountAll() {
         return state.coins;
@@ -3590,6 +3684,24 @@ document.addEventListener('DOMContentLoaded', () => {
         let base = 9;
         if (hasPassive('inventory_plus_one')) base += 1;
         return base;
+    }
+
+    // --- ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Расчет эффективных пустых слотов ---
+    function getEffectiveEmptySlots() {
+        const maxSize = getMaxInventorySize();
+        const currentSize = state.inventory.length;
+        
+        // Если есть "Иллюзионист слотов", предметы с бонусами за пустые слоты не занимают место
+        if (hasItem('slot_illusionist')) {
+            const itemsWithEmptySlotBonus = state.inventory.filter(item => 
+                item.effect?.per_empty_slot_bonus || item.effect?.per_empty_slot_luck || item.effect?.ignore_slot_for_empty_bonus
+            );
+            // Сам "Иллюзионист слотов" также не занимает место согласно описанию
+            const effectiveUsedSlots = currentSize - itemsWithEmptySlotBonus.length; // Убираем -1, так как "Иллюзионист слотов" уже включен в itemsWithEmptySlotBonus
+            return Math.max(0, maxSize - effectiveUsedSlots);
+        }
+        
+        return Math.max(0, maxSize - currentSize);
     }
 
     // === БОНУСЫ ОТ НОВЫХ ПРЕДМЕТОВ ===
@@ -4005,4 +4117,41 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+
+    // --- ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ АКТУАЛЬНЫХ ЗНАЧЕНИЙ СИМВОЛОВ ---
+    function getSymbolCurrentValues() {
+        // Создаём копию символов с базовыми значениями
+        let currentSymbols = JSON.parse(JSON.stringify(SYMBOLS));
+        
+        // Применяем увеличение базовой ценности от Лупы
+        if (hasItem('magnifying_glass')) {
+            const effect = ALL_ITEMS.find(i => i.id === 'magnifying_glass').effect.base_value_increase;
+            currentSymbols.forEach(s => {
+                if (effect.symbols.includes(s.id)) {
+                    s.value += effect.amount;
+                }
+            });
+        }
+        
+        // Применяем множители от предметов
+        const symbolMultipliers = {};
+        state.inventory.forEach(item => {
+            if (item.effect?.symbol_value_multiplier) {
+                const eff = item.effect.symbol_value_multiplier;
+                symbolMultipliers[eff.symbol] = (symbolMultipliers[eff.symbol] || 1) * eff.multiplier;
+            }
+        });
+        
+        // Применяем множители к значениям
+        currentSymbols.forEach(symbol => {
+            if (symbolMultipliers[symbol.id]) {
+                symbol.value = Math.floor(symbol.value * symbolMultipliers[symbol.id]);
+            }
+        });
+        
+        return currentSymbols;
+    }
+
+    // Экспортируем функцию для использования в статистике
+    window.getSymbolCurrentValues = getSymbolCurrentValues;
 });

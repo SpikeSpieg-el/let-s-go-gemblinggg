@@ -28,136 +28,82 @@ const ALL_PASSIVES = [
         type: 'one_time',
         effect: (state) => { state.tickets += 5; }
     },
-    // --- Слот-эффекты ---
+    // --- Слот-эффекты (объединённые пары) ---
     {
-        id: 'lemon_less',
-        name: 'Горький лимон',
-        desc: 'Лимоны 🍋 выпадают на 30% реже.',
-        emoji: '🍋',
+        id: 'fruit_less',
+        name: 'Горькие фрукты',
+        desc: 'Лимоны 🍋 и Вишни 🍒 выпадают на 25% реже.',
+        emoji: '🍋🍒',
         type: 'slot_modifier',
         effect: (state) => {
             const lemon = window.SYMBOLS.find(s => s.id === 'lemon');
-            if (lemon) lemon.weight = Math.floor(lemon.weight * 0.7);
+            const cherry = window.SYMBOLS.find(s => s.id === 'cherry');
+            if (lemon) lemon.weight = Math.floor(lemon.weight * 0.75);
+            if (cherry) cherry.weight = Math.floor(cherry.weight * 0.75);
         }
     },
     {
-        id: 'lemon_more',
-        name: 'Лимонная удача',
-        desc: 'Лимоны 🍋 выпадают на 20% чаще.',
-        emoji: '🍋',
+        id: 'fruit_more',
+        name: 'Фруктовая удача',
+        desc: 'Лимоны 🍋 и Вишни 🍒 выпадают на 20% чаще.',
+        emoji: '🍋🍒',
         type: 'slot_modifier',
         effect: (state) => {
             const lemon = window.SYMBOLS.find(s => s.id === 'lemon');
+            const cherry = window.SYMBOLS.find(s => s.id === 'cherry');
             if (lemon) lemon.weight = Math.floor(lemon.weight * 1.2);
-        }
-    },
-    {
-        id: 'cherry_less',
-        name: 'Кислая вишня',
-        desc: 'Вишни 🍒 выпадают на 30% реже.',
-        emoji: '🍒',
-        type: 'slot_modifier',
-        effect: (state) => {
-            const cherry = window.SYMBOLS.find(s => s.id === 'cherry');
-            if (cherry) cherry.weight = Math.floor(cherry.weight * 0.7);
-        }
-    },
-    {
-        id: 'cherry_more',
-        name: 'Вишнёвая удача',
-        desc: 'Вишни 🍒 выпадают на 20% чаще.',
-        emoji: '🍒',
-        type: 'slot_modifier',
-        effect: (state) => {
-            const cherry = window.SYMBOLS.find(s => s.id === 'cherry');
             if (cherry) cherry.weight = Math.floor(cherry.weight * 1.2);
         }
     },
     {
-        id: 'clover_less',
-        name: 'Увядший клевер',
-        desc: 'Клеверы 🍀 выпадают на 30% реже.',
-        emoji: '🍀',
+        id: 'lucky_less',
+        name: 'Неудачливые символы',
+        desc: 'Клеверы 🍀 и Колокольчики 🔔 выпадают на 25% реже.',
+        emoji: '🍀🔔',
         type: 'slot_modifier',
         effect: (state) => {
             const clover = window.SYMBOLS.find(s => s.id === 'clover');
-            if (clover) clover.weight = Math.floor(clover.weight * 0.7);
+            const bell = window.SYMBOLS.find(s => s.id === 'bell');
+            if (clover) clover.weight = Math.floor(clover.weight * 0.75);
+            if (bell) bell.weight = Math.floor(bell.weight * 0.75);
         }
     },
     {
-        id: 'clover_more',
-        name: 'Клеверная удача',
-        desc: 'Клеверы 🍀 выпадают на 20% чаще.',
-        emoji: '🍀',
+        id: 'lucky_more',
+        name: 'Удачливые символы',
+        desc: 'Клеверы 🍀 и Колокольчики 🔔 выпадают на 20% чаще.',
+        emoji: '🍀🔔',
         type: 'slot_modifier',
         effect: (state) => {
             const clover = window.SYMBOLS.find(s => s.id === 'clover');
+            const bell = window.SYMBOLS.find(s => s.id === 'bell');
             if (clover) clover.weight = Math.floor(clover.weight * 1.2);
-        }
-    },
-    {
-        id: 'bell_less',
-        name: 'Тихий звон',
-        desc: 'Колокольчики 🔔 выпадают на 30% реже.',
-        emoji: '🔔',
-        type: 'slot_modifier',
-        effect: (state) => {
-            const bell = window.SYMBOLS.find(s => s.id === 'bell');
-            if (bell) bell.weight = Math.floor(bell.weight * 0.7);
-        }
-    },
-    {
-        id: 'bell_more',
-        name: 'Звонкая удача',
-        desc: 'Колокольчики 🔔 выпадают на 20% чаще.',
-        emoji: '🔔',
-        type: 'slot_modifier',
-        effect: (state) => {
-            const bell = window.SYMBOLS.find(s => s.id === 'bell');
             if (bell) bell.weight = Math.floor(bell.weight * 1.2);
         }
     },
     {
-        id: 'diamond_less',
-        name: 'Тусклый алмаз',
-        desc: 'Алмазы 💎 выпадают на 30% реже.',
-        emoji: '💎',
+        id: 'premium_less',
+        name: 'Тусклые драгоценности',
+        desc: 'Алмазы 💎 и Монеты 💰 выпадают на 25% реже.',
+        emoji: '💎💰',
         type: 'slot_modifier',
         effect: (state) => {
             const diamond = window.SYMBOLS.find(s => s.id === 'diamond');
-            if (diamond) diamond.weight = Math.floor(diamond.weight * 0.7);
+            const coins = window.SYMBOLS.find(s => s.id === 'coins');
+            if (diamond) diamond.weight = Math.floor(diamond.weight * 0.75);
+            if (coins) coins.weight = Math.floor(coins.weight * 0.75);
         }
     },
     {
-        id: 'diamond_more',
-        name: 'Алмазная удача',
-        desc: 'Алмазы 💎 выпадают на 20% чаще.',
-        emoji: '💎',
+        id: 'premium_more',
+        name: 'Сверкающие драгоценности',
+        desc: 'Алмазы 💎 и Монеты 💰 выпадают на 20% чаще.',
+        emoji: '💎💰',
         type: 'slot_modifier',
         effect: (state) => {
             const diamond = window.SYMBOLS.find(s => s.id === 'diamond');
+            const coins = window.SYMBOLS.find(s => s.id === 'coins');
             if (diamond) diamond.weight = Math.floor(diamond.weight * 1.2);
-        }
-    },
-    {
-        id: 'coins_less',
-        name: 'Потерянные монеты',
-        desc: 'Монеты 💰 выпадают на 30% реже.',
-        emoji: '💰',
-        type: 'slot_modifier',
-        effect: (state) => {
-            const coins = window.SYMBOLS.find(s => s.id === 'coins');
-            if (coins) coins.weight = Math.floor(coins.weight * 0.7);
-        }
-    },
-    {
-        id: 'coins_more',
-        name: 'Монетная удача',
-        desc: 'Монеты 💰 выпадают на 20% чаще.',
-        emoji: '💰',
-        type: 'slot_modifier',
-        effect: (state) => {
-            const coins = window.SYMBOLS.find(s => s.id === 'coins');
             if (coins) coins.weight = Math.floor(coins.weight * 1.2);
         }
     },
@@ -175,118 +121,15 @@ const ALL_PASSIVES = [
     {
         id: 'seven_more',
         name: 'Семёрочная удача',
-        desc: 'Семёрки 7️⃣ выпадают на 20% чаще.',
+        desc: 'Семёрки 7️⃣ выпадают на 25% чаще.',
         emoji: '7️⃣',
         type: 'slot_modifier',
         effect: (state) => {
             const seven = window.SYMBOLS.find(s => s.id === 'seven');
-            if (seven) seven.weight = Math.floor(seven.weight * 1.2);
+            if (seven) seven.weight = Math.floor(seven.weight * 1.25);
         }
     },
-    // --- Предметные эффекты ---
-    {
-        id: 'clover_bonus',
-        name: 'Клеверный бонус',
-        desc: 'Каждый клевер 🍀 на поле даёт +1💰 при выигрыше.',
-        emoji: '🌱',
-        type: 'item_mod',
-        effect: (state) => {
-            // Логика применяется в calculateWinnings
-        }
-    },
-    {
-        id: 'cherry_luck',
-        name: 'Вишнёвая удача',
-        desc: 'Каждый прокрут с вишней 🍒 даёт +1 к удаче на этот спин.',
-        emoji: '🍒',
-        type: 'item_mod',
-        effect: (state) => {
-            // Логика применяется в calculateWinnings и generateGrid
-        }
-    },
-
-    // --- СИНЕРГИЯ С ПРЕДМЕТАМИ ---
-    {
-        id: 'piggy_bank_pro',
-        name: 'Профессиональная копилка',
-        desc: 'Амулет "Копилка" 🐷 собирает в 2 раза больше монет с проигрышных прокрутов.',
-        emoji: '🏦',
-        type: 'item_mod',
-        effect: (state) => {} // Логика в skript.js
-    },
-    {
-        id: 'watchmaker_precision',
-        name: 'Точность часовщика',
-        desc: 'Амулет "Карманные часы" 🕰️ имеет 50% шанс дать +2 прокрута вместо +1.',
-        emoji: '⌛',
-        type: 'item_mod',
-        effect: (state) => {} // Логика в skript.js
-    },
-    {
-        id: 'ritualist_focus',
-        name: 'Фокус ритуалиста',
-        desc: 'Амулет "Кровавый Ритуал" 🩸 стоит на 1💰 дешевле и даёт на 2 удачи больше.',
-        emoji: '🔪',
-        type: 'item_mod',
-        effect: (state) => {} // Логика в skript.js
-    },
-    {
-        id: 'lucky_bomb',
-        name: 'Счастливая бомба',
-        desc: 'Амулет "Вишневая бомба" 💣 теперь также даёт +1🎟️ при срабатывании.',
-        emoji: '🧨',
-        type: 'item_mod',
-        effect: (state) => {} // Логика в skript.js
-    },
-    {
-        id: 'magnetic_personality',
-        name: 'Магнитная личность',
-        desc: 'Амулет "Денежный магнит" 🧲 теперь также притягивает +1💰 за каждый Алмаз 💎 на поле.',
-        emoji: '✨',
-        type: 'item_mod',
-        effect: (state) => {} // Логика в items.js
-    },
-    {
-        id: 'vault_insurance_passive',
-        name: 'Страхование вклада',
-        desc: 'Амулет "Ключ от хранилища" 🔑 дополнительно не даёт процентной ставке упасть ниже 10%.',
-        emoji: '🛡️',
-        type: 'item_mod',
-        effect: (state) => {} // Логика в skript.js
-    },
-    {
-        id: 'golden_touch',
-        name: 'Золотое прикосновение',
-        desc: 'Множитель амулета "Золотой Лимон" 🍋 увеличен на 1 (с x3 до x4).',
-        emoji: '🏆',
-        type: 'item_mod',
-        effect: (state) => {} // Логика в skript.js
-    },
-    {
-        id: 'gamblers_delight',
-        name: 'Восторг игрока',
-        desc: 'Удваивает шанс срабатывания амулета "Дублон" 🏴.',
-        emoji: '🎲',
-        type: 'item_mod',
-        effect: (state) => {} // Логика в skript.js
-    },
-    {
-        id: 'wilder_clover',
-        name: 'Дичайший клевер',
-        desc: 'Если у вас есть "Дикий Клевер" 🃏, каждый клевер на поле дополнительно даёт +1💰 (даже при проигрыше).',
-        emoji: '🌿',
-        type: 'item_mod',
-        effect: (state) => {} // Логика в skript.js
-    },
-    {
-        id: 'sticky_fingers_plus',
-        name: 'Очень липкие пальцы',
-        desc: 'Амулет "Липкие пальцы" 🤏 теперь даёт +2💰 вместо +1💰.',
-        emoji: '🙌',
-        type: 'item_mod',
-        effect: (state) => {} // Логика в skript.js
-    },
-
+    
     // --- СИНЕРГИЯ С МЕХАНИКАМИ ---
     {
         id: 'bankers_friend',
@@ -380,14 +223,6 @@ const ALL_PASSIVES = [
         emoji: '🧑‍🏫',
         type: 'slot_modifier',
         effect: (state) => {} // Логика в skript.js updateInterestRate
-    },
-    {
-        id: 'hoarders_pride',
-        name: 'Гордость барахольщика',
-        desc: 'Даёт +1 к удаче за каждый пустой слот для амулета.',
-        emoji: '📦',
-        type: 'slot_modifier',
-        effect: (state) => {} // Логика в skript.js generateGrid
     },
     {
         id: 'learning_from_mistakes',
@@ -508,6 +343,14 @@ const ALL_PASSIVES = [
         emoji: '📜',
         type: 'one_time',
         effect: (state) => { state.flags = {...state.flags, nextDebtReduced: true }; }
+    },
+    {
+        id: 'expanded_choice',
+        name: 'Расширенный выбор',
+        desc: 'При выборе пассивок вам будет предложено 4 варианта вместо 3.',
+        emoji: '🎯',
+        type: 'slot_modifier',
+        effect: (state) => { state.flags = {...state.flags, expandedPassiveChoice: true }; }
     },
     {
         id: 'prosperity_clover',

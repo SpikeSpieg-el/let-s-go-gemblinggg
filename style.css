@@ -87,7 +87,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2em;
+    font-size: 40px;
     padding: 10%;
 }
 
@@ -802,7 +802,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .doubloon-popup {
     z-index: 2000;
     opacity: 0;
-    transition: all 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.5s;
+    transition: all 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.8s;
     pointer-events: none;
     /* transform и позиционирование теперь задаются в JS */
 }
@@ -812,7 +812,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 }
 .doubloon-popup.fade-out {
     opacity: 0 !important;
-    transition: opacity 0.5s;
+    transition: opacity 0.8s;
 }
 .doubloon-star {
     width: 150px;
@@ -826,8 +826,25 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     width: 250px;
     height: 250px;
     display: block;
-    animation: doubloon-rotate 3s linear infinite;
+    /* Убираем вращение */
 }
+
+/* Анимированная обводка прямоугольника */
+.doubloon-svg rect {
+    stroke-dasharray: 8, 8;
+    stroke-dashoffset: 0;
+    animation: strokeAnimation 2s ease-in-out infinite;
+}
+
+@keyframes strokeAnimation {
+    0% {
+        stroke-dashoffset: 0;
+    }
+    100% {
+        stroke-dashoffset: -16;
+    }
+}
+
 .doubloon-text {
     position: absolute;
     left: 45%;
@@ -842,10 +859,11 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     user-select: none;
     white-space: nowrap;
 }
-@keyframes doubloon-rotate {
+/* Убираем анимацию вращения */
+/* @keyframes doubloon-rotate {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
+} */
 
 /* NEW POPUP STYLES */
 .amulet-popup-overlay {
@@ -1185,34 +1203,30 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10000;
-    backdrop-filter: blur(5px);
-    padding: 20px;
+    z-index: 1000;
+    animation: modalSlideIn 0.3s ease-out;
 }
 
 .passive-choice-content {
-    background-color: var(--panel-bg);
+    background: var(--cell-bg);
     border: 2px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 30px;
-    max-width: 800px;
-    width: 100%;
-    max-height: 90vh;
+    max-width: 500px;
+    width: 90%;
+    max-height: 85vh;
     overflow-y: auto;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-    animation: modalSlideIn 0.3s ease-out;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .passive-choice-content h2 {
     color: var(--highlight-color);
     text-align: center;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
     font-size: 24px;
-    text-shadow: 0 0 10px rgba(0, 255, 127, 0.2);
 }
 
 .passive-choice-content > p {
-    color: #ccc;
     text-align: center;
     margin-bottom: 25px;
     font-size: 16px;
@@ -1224,6 +1238,8 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     gap: 20px;
     justify-items: center;
     flex-direction: column;
+    max-height: 60vh;
+    overflow-y: auto;
 }
 
 .passive-choice {
@@ -1324,10 +1340,12 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     .passive-choice-content {
         padding: 20px;
         margin: 10px;
+        max-height: 90vh;
     }
 
     .passive-choices {
         gap: 15px;
+        max-height: 70vh;
     }
 
     .passive-choice {
@@ -1494,12 +1512,20 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   margin-bottom: 0;
   text-shadow: 0 0 2px #000a;
 }
+.styled-symbol-chance .symbol-value {
+  font-size: 0.95em;
+  font-weight: bold;
+  color: var(--ticket-color);
+  margin-bottom: 2px;
+  text-shadow: 0 0 2px #000a;
+}
 @media (max-width: 600px) {
   .styled-symbol-chances { gap: 4px; }
   .styled-symbol-chance { min-width: 60px; padding: 7px 6px; }
   .styled-symbol-chance .symbol-emoji { font-size: 1.4em; }
   .styled-symbol-chance .symbol-name { font-size: 0.95em; }
   .styled-symbol-chance .symbol-chance { font-size: 0.98em; }
+  .styled-symbol-chance .symbol-value { font-size: 0.9em; }
 }
 
 .warning-modal {
@@ -1700,3 +1726,689 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     75% { transform: translate(-50%, -50%) scale(1.05) rotate(-0.5deg); }
     100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
 }
+
+.dev-select, .dev-input {
+    background: var(--cell-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    min-width: 200px;
+}
+
+.dev-select option {
+    background: var(--cell-bg);
+    color: var(--text-color);
+    padding: 8px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+}
+
+/* Улучшенные стили для select в dev меню */
+#dev-item-select {
+    font-size: 13px;
+    line-height: 1.4;
+    max-height: 300px;
+}
+
+#dev-item-select option {
+    padding: 6px 8px;
+    margin: 2px 0;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+#dev-item-select option:hover {
+    background-color: var(--highlight-color) !important;
+    color: var(--bg-color) !important;
+}
+
+/* Обновленные стили для luck-chance-popup */
+.luck-chance-popup {
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.luck-chance-popup.show {
+    opacity: 1;
+}
+
+.luck-chance-popup.fade-out {
+    opacity: 0 !important;
+    transform: translate(-50%, -50%) scale(0.8) !important;
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.luck-chance-content {
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    border: 2px solid #fffbe6;
+    border-radius: 15px;
+    padding: 25px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 251, 230, 0.3);
+    min-width: 300px;
+    backdrop-filter: blur(10px);
+}
+
+.luck-chance-icon {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.luck-chance-svg {
+    display: block;
+    filter: drop-shadow(0 0 8px rgba(255, 251, 230, 0.5));
+}
+
+/* Анимированная пунктирная обводка */
+.luck-chance-svg rect {
+    stroke-dasharray: 8, 8;
+    stroke-dashoffset: 0;
+    animation: luckStrokeAnimation 2s ease-in-out infinite;
+}
+
+@keyframes luckStrokeAnimation {
+    0% {
+        stroke-dashoffset: 0;
+    }
+    100% {
+        stroke-dashoffset: -16;
+    }
+}
+
+.luck-chance-info {
+    flex-grow: 1;
+    text-align: left;
+}
+
+.luck-chance-name {
+    color: #fffbe6;
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 0 0 6px #bfa700, 0 0 2px #fff;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+.luck-chance-effect {
+    color: #4CAF50;
+    font-size: 14px;
+    font-weight: 600;
+    text-shadow: 0 0 4px #4CAF50;
+    animation: luckEffectPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes luckEffectPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.luck-chance-particles {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
+    pointer-events: none;
+}
+
+.luck-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: #fffbe6;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: luckParticleExplode 1.5s ease-out infinite;
+    animation-delay: var(--delay);
+}
+
+@keyframes luckParticleExplode {
+    0% {
+        transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0) scale(0);
+        opacity: 1;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) rotate(var(--angle)) translateX(80px) scale(0);
+        opacity: 0;
+    }
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 600px) {
+    .luck-chance-content {
+        padding: 20px;
+        gap: 15px;
+        min-width: 280px;
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .luck-chance-svg {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .luck-chance-name {
+        font-size: 16px;
+    }
+    
+    .luck-chance-effect {
+        font-size: 13px;
+    }
+    
+    .luck-chance-particles {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .luck-particle {
+        width: 3px;
+        height: 3px;
+    }
+}
+@keyframes debt-pulse {
+    0% { filter: brightness(1); transform: scale(1); }
+    100% { filter: brightness(1.5); transform: scale(1.08); }
+  }
+  .dev-section {
+      margin: 15px 0;
+      padding: 15px;
+      background: var(--cell-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+  }
+  .dev-section h3 {
+      margin: 0 0 10px 0;
+      color: var(--highlight-color);
+      font-size: 1.1em;
+  }
+  .dev-buttons {
+      display: grid;
+      gap: 8px;
+  }
+  .dev-button {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      background: var(--button-bg);
+      color: var(--text-color);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: 0.2s;
+  }
+  .dev-button:hover {
+      background: var(--button-hover-bg);
+  }
+  .dev-button.money {
+      color: var(--money-color);
+      border-color: var(--money-color);
+  }
+  .dev-button.ticket {
+      color: var(--ticket-color);
+      border-color: var(--ticket-color);
+  }
+  .dev-item-control, .dev-luck-control {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-direction: row;
+      flex-wrap: wrap;
+  }
+  .dev-select, .dev-input {
+      flex: 1;
+      padding: 8px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      border-radius: 4px;
+  }
+  .dev-select option {
+      /* Браузеры по-разному обрабатывают стили опций, 
+         поэтому для надежности задаем стандартный вид */
+      background: #242424;
+      color: #eaeaea;
+  }
+  .dev-chances {
+      margin: 10px 0;
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+  }
+  .dev-chances label {
+      justify-self: start;
+  }
+  .dev-chances input {
+       width: 60px;
+       padding: 4px;
+       background: var(--input-bg);
+       border: 1px solid var(--border-color);
+       color: var(--text-color);
+       border-radius: 3px;
+  }
+  .dev-close {
+      width: 100%;
+      margin-top: 20px;
+      background: var(--danger-color);
+      color: #fff;
+      border: none;
+  }
+  .dev-close:hover {
+       filter: brightness(1.2);
+  }
+  #dev-menu-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      padding: 7px 16px;
+      font-size: 15px;
+      background: #222;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s;
+  }
+  #dev-menu-btn:hover {
+      background: #333;
+  }
+  /* --- Стили для панели лога --- */
+  .log-panel-wrapper {
+      position: fixed;
+      left: 0;
+      top: 0;
+      height: 100vh;
+      width: 320px;
+      max-width: 90%;
+      background-color: var(--bg-color, #1a1a1a);
+      border-right: 1px solid var(--border-color, #444);
+      z-index: 1800;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease-in-out;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.2);
+  }
+  .log-panel-wrapper.visible {
+      transform: translateX(0);
+  }
+  .log-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 15px;
+      border-bottom: 1px solid var(--border-color, #444);
+      background-color: var(--cell-bg, #232323);
+  }
+  .log-panel-header h3 {
+      margin: 0;
+      font-size: 1.1em;
+      color: var(--highlight-color);
+  }
+  .log-panel-close {
+      background: none;
+      border: none;
+      color: var(--text-color, #fff);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0 8px;
+      line-height: 1;
+  }
+  .log-panel-close:hover {
+      color: var(--danger-color);
+  }
+  #log-panel p:first-child {
+      margin-top: 0;
+  }
+  #log-panel p:last-child {
+      margin-bottom: 0;
+  }
+
+  /* --- Стили для модального окна статистики --- */
+  .stats-section {
+      margin-bottom: 15px;
+      padding: 15px;
+      background: var(--panel-bg, #1a1a1a);
+      border: 2px solid var(--border-color, #444);
+      border-radius: 8px;
+      box-shadow: inset 0 0 10px #000;
+  }
+  .stats-section h3 {
+      margin: 0 0 12px 0;
+      color: var(--highlight-color, #ffd700);
+      font-size: 1.1em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 1px solid var(--border-color, #444);
+      padding-bottom: 8px;
+  }
+  
+
+  /* --- UI для выбора пассивки (в стиле игры) --- */
+  #passive-choice-modal.modal-overlay {
+    position: fixed;
+    z-index: 2000;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #passive-choice-modal .modal-card {
+    background: var(--cell-bg, #232323);
+    border-radius: 12px;
+    padding: 28px 24px 20px 24px;
+    box-shadow: 0 4px 24px #000a;
+    min-width: 340px;
+    max-width: 95vw;
+    text-align: center;
+    color: var(--text-color, #fff);
+    position: relative;
+    border: 1.5px solid var(--border-color, #444);
+  }
+  #passive-choice-modal h2 {
+    margin-bottom: 18px;
+    font-size: 1.25em;
+    color: var(--highlight-color, #ffd700);
+    letter-spacing: 0.5px;
+  }
+  #passive-choices {
+    margin-bottom: 18px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+  .passive-choice-card {
+    background: var(--input-bg, #292929);
+    border: 1.5px solid var(--border-color, #444);
+    border-radius: 8px;
+    padding: 14px 10px 10px 10px;
+    min-width: 120px;
+    min-height: 90px;
+    cursor: pointer;
+    transition: border-color 0.18s, box-shadow 0.18s, background 0.18s, transform 0.12s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 1em;
+    box-shadow: 0 1px 4px #0002;
+  }
+  .passive-choice-card.selected, .passive-choice-card:focus {
+    border-color: var(--highlight-color, #ffd700);
+    background: #2a2512;
+    box-shadow: 0 0 0 2px #ffd70033;
+    transform: scale(1.03);
+  }
+  .passive-choice-card:hover {
+    border-color: var(--ticket-color, #b388ff);
+    background: #23202a;
+    box-shadow: 0 0 0 1.5px #b388ff33;
+    transform: scale(1.02);
+  }
+  .passive-choice-emoji {
+    font-size: 1.7em;
+    margin-bottom: 6px;
+    filter: drop-shadow(0 1px 2px #0005);
+  }
+  .passive-choice-name {
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: var(--highlight-color, #ffd700);
+    font-size: 1em;
+  }
+  .passive-choice-desc {
+    color: var(--text-color, #ccc);
+    font-size: 0.97em;
+    margin-bottom: 0;
+  }
+  #passive-confirm-btn {
+    background: var(--highlight-color, #ffd700);
+    color: #222;
+    border: none;
+    border-radius: 6px;
+    font-size: 1em;
+    font-weight: bold;
+    padding: 8px 26px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px #0002;
+    transition: background 0.18s, color 0.18s;
+    margin-top: 6px;
+  }
+  #passive-confirm-btn:disabled {
+    background: #888;
+    color: #eee;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  .deposit-dropdown {
+      position: absolute;
+      left: 0;
+      top: 40px;
+      background: var(--cell-bg, #232323);
+      border: 1px solid var(--border-color, #444);
+      border-radius: 6px;
+      box-shadow: 0 2px 12px #0005;
+      z-index: 2000;
+      min-width: 180px;
+      padding: 4px 0;
+  }
+  .deposit-dropdown.hidden { display: none; }
+  .deposit-option {
+      padding: 10px 18px;
+      cursor: pointer;
+      color: var(--text-color, #fff);
+      font-size: 15px;
+      transition: background 0.15s;
+  }
+  .deposit-option:hover {
+      background: var(--highlight-color, #ffd700);
+      color: var(--bg-color, #222);
+  }
+  
+  .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 20px 0;
+  }
+
+  .modal-actions button {
+      width: 100%;
+  }
+  
+  @keyframes item-pulse-effect {
+      0% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0px var(--highlight-color);
+      }
+      50% {
+          transform: scale(1.08);
+          box-shadow: 0 0 10px 4px rgba(255, 215, 0, 0.5);
+          border-color: var(--highlight-color);
+      }
+      100% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0px rgba(255, 215, 0, 0);
+      }
+  }
+  .item.item-activated {
+      animation: item-pulse-effect 0.8s ease-out;
+      position: relative; /* Needed for z-index if any */
+      z-index: 10;
+  }
+  
+  /* Анимация для изменения статов */
+  .ticket-change-popup, .coin-change-popup {
+      position: fixed;
+      font-weight: bold;
+      font-size: 1.1em;
+      z-index: 2000;
+      pointer-events: none;
+      animation: move-up-fade-out 1.5s ease-out forwards;
+      transform: translateY(-50%); /* Для вертикального центрирования */
+      text-shadow: 0 0 4px rgba(0,0,0,0.7);
+  }
+
+  .ticket-change-popup.gain, .coin-change-popup.gain {
+      color: var(--ticket-color);
+  }
+
+  .ticket-change-popup.loss, .coin-change-popup.loss {
+      color: var(--danger-color);
+  }
+
+  .coin-change-popup.gain {
+      color: var(--money-color);
+  }
+
+  @keyframes move-up-fade-out {
+      0% {
+          opacity: 1;
+          transform: translateY(-50%);
+      }
+      100% {
+          opacity: 0;
+          transform: translateY(-150%);
+      }
+  }
+
+  .passive-item {
+      padding: 12px;
+      margin: 6px 0;
+      background: var(--cell-bg, #2a2a2a);
+      border: 1px solid var(--border-color, #444);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: inset 0 0 5px #000;
+      transition: border-color 0.2s, background 0.2s;
+  }
+  
+  .passive-item:hover {
+      border-color: var(--highlight-color, #ffd700);
+      background: var(--input-bg, #323232);
+  }
+  
+  .passive-emoji {
+      font-size: 1.8em;
+      filter: drop-shadow(0 1px 2px #0005);
+  }
+  
+  .passive-content {
+      flex: 1;
+  }
+  
+  .passive-name {
+      font-weight: bold;
+      margin-bottom: 6px;
+      color: var(--highlight-color, #ffd700);
+      font-size: 1.1em;
+      letter-spacing: 0.5px;
+  }
+  
+  .passive-desc {
+      font-size: 0.9em;
+      color: var(--text-color, #ccc);
+      margin-bottom: 6px;
+      line-height: 1.4;
+  }
+  
+  .passive-type-badge {
+      font-size: 0.8em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+  }
+  
+  .symbol-weight-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      margin: 4px 0;
+      background: var(--cell-bg, #2a2a2a);
+      border: 1px solid var(--border-color, #444);
+      border-radius: 6px;
+      box-shadow: inset 0 0 3px #000;
+      transition: border-color 0.2s, background 0.2s;
+  }
+  
+  .symbol-weight-row:hover {
+      border-color: var(--highlight-color, #ffd700);
+      background: var(--input-bg, #323232);
+  }
+  
+  .symbol-weight-row:last-child {
+      margin-bottom: 0;
+  }
+  
+  .symbol-weight-symbol {
+      font-size: 1.4em;
+      margin-right: 12px;
+      filter: drop-shadow(0 1px 2px #0005);
+  }
+  
+  .symbol-weight-info {
+      flex: 1;
+  }
+  
+  .symbol-weight-name {
+      font-weight: bold;
+      font-size: 1em;
+      color: var(--text-color, #fff);
+      text-transform: capitalize;
+      letter-spacing: 0.5px;
+  }
+  
+  .symbol-weight-details {
+      font-size: 0.85em;
+      color: var(--text-color-darker, #aaa);
+      margin-top: 2px;
+  }
+  
+  .symbol-weight-value {
+      font-weight: bold;
+      color: var(--highlight-color, #ffd700);
+      font-size: 1em;
+      text-shadow: 0 0 4px rgba(255, 215, 0, 0.3);
+  }
+  
+  .symbol-weight-zero {
+      color: var(--danger-color, #ff6b6b);
+      opacity: 0.7;
+      text-shadow: 0 0 4px rgba(255, 107, 107, 0.3);
+  }
+  
+  .symbol-weight-removed {
+      text-decoration: line-through;
+      opacity: 0.4;
+      background: rgba(255, 0, 0, 0.1);
+  }
+  
+  /* Стили для кнопки закрытия статистики */
+  #btn-close-run-stats:hover {
+      background: var(--button-hover-bg, #ffed4e) !important;
+      transform: scale(1.02);
+  }
+  
+  #btn-close-run-stats:active {
+      transform: scale(0.98);
+  }
