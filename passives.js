@@ -230,17 +230,6 @@ const ALL_PASSIVES = [
         effect: (state) => {} // Логика в skript.js
     },
     {
-        id: 'diamond_hands',
-        name: 'Алмазные руки',
-        desc: 'Алмазы 💎 выпадают на 25% чаще.',
-        emoji: '💎',
-        type: 'slot_modifier',
-        effect: (state) => {
-            const diamond = window.SYMBOLS.find(s => s.id === 'diamond');
-            if (diamond) diamond.weight = Math.floor(diamond.weight * 1.25);
-        }
-    },
-    {
         id: 'early_bird',
         name: 'Ранняя пташка',
         desc: 'Бонусы за досрочное погашение долга увеличены на 50%.',
@@ -301,10 +290,10 @@ const ALL_PASSIVES = [
     {
         id: 'bulk_buyer',
         name: 'Оптовый покупатель',
-        desc: 'Стоимость покупки "7 прокрутов" перманентно снижена на 2💰.',
+        desc: 'Стоимость покупки "7 прокрутов" перманентно снижена на 15%.',
         emoji: '🛒',
         type: 'one_time',
-        effect: (state) => { CONFIG.SPIN_PACKAGE_1.cost = Math.max(1, CONFIG.SPIN_PACKAGE_1.base_cost - 2); }
+        effect: (state) => { CONFIG.SPIN_PACKAGE_1.cost = Math.max(1, Math.floor(CONFIG.SPIN_PACKAGE_1.base_cost * 0.85)); }
     },
     {
         id: 'calculated_risk',

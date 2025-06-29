@@ -306,9 +306,9 @@ const ALL_ITEMS = [
 const ITEM_MODIFIERS = [
   {
     id: 'slot_boost',
-    name: '+1 к модификатору для слотов',
-    desc: 'Увеличивает эффективность предметов, работающих с пустыми слотами',
-    effect: { slot_modifier_boost: 1 }
+    name: '+1 к множителю символов',
+    desc: 'Увеличивает множитель всех символов на +1',
+    effect: { all_symbols_multiplier_boost: 1 }
   },
   {
     id: 'no_slot_usage',

@@ -169,9 +169,14 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: "Небо", positions: [2, 6, 7, 8, 12], multiplier: 7, type: "Небо/Земля" },
         { name: "Земля", positions: [5, 1, 7, 13, 9], multiplier: 7, type: "Небо/Земля" },
         
+        { name: "Третий Глаз", positions: [1, 6, 12, 8, 3], multiplier: 5, type: "Секретная" },
+        
         { name: "Рамка", positions: [0, 1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14], multiplier: 10, type: "Специальная" },
         { name: "Крест", positions: [0, 5, 10, 11, 13, 14, 9, 4], multiplier: 10, type: "Специальная" },
     ];
+
+    // Делаем PAYLINES глобально доступным
+    window.PAYLINES = PAYLINES;
 
     let state = {};
     let weightedSymbols = [];
@@ -661,6 +666,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 symbolMultipliers[eff.symbol] = (symbolMultipliers[eff.symbol] || 1) * eff.multiplier;
             }
         });
+        
+        // Обработка множителя для всех символов
+        const allSymbolsMultiplierBoost = getItemEffectValue('all_symbols_multiplier_boost', 0);
+        if (allSymbolsMultiplierBoost > 0) {
+            // Применяем бонус ко всем символам
+            ['lemon', 'cherry', 'clover', 'bell', 'diamond', 'coins', 'seven'].forEach(symbolId => {
+                symbolMultipliers[symbolId] = (symbolMultipliers[symbolId] || 1) + allSymbolsMultiplierBoost;
+            });
+        }
         const lineLengthBonuses = {};
         state.inventory.forEach(item => {
             if (item.effect?.line_length_win_bonus) {
@@ -3272,7 +3286,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (purchaseCallback) {
             itemDiv.onclick = () => purchaseCallback(item.id);
-            if (state.tickets < currentCost || state.inventory.length >= getMaxInventorySize()) {
+            if (state.tickets < currentCost || getEffectiveEmptySlots() <= 0) {
                 itemDiv.style.opacity = '0.5';
                 itemDiv.style.cursor = 'not-allowed';
             }
@@ -4572,6 +4586,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 symbolMultipliers[eff.symbol] = (symbolMultipliers[eff.symbol] || 1) * eff.multiplier;
             }
         });
+        
+        // Обработка множителя для всех символов
+        const allSymbolsMultiplierBoost = getItemEffectValue('all_symbols_multiplier_boost', 0);
+        if (allSymbolsMultiplierBoost > 0) {
+            // Применяем бонус ко всем символам
+            ['lemon', 'cherry', 'clover', 'bell', 'diamond', 'coins', 'seven'].forEach(symbolId => {
+                symbolMultipliers[symbolId] = (symbolMultipliers[symbolId] || 1) + allSymbolsMultiplierBoost;
+            });
+        }
         
         // Применяем множители к значениям
         currentSymbols.forEach(symbol => {

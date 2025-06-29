@@ -799,6 +799,60 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     text-shadow: 0 0 20px var(--money-color), 0 0 40px var(--highlight-color);
 }
 
+/* Адаптивность для двухколоночной статистики */
+@media (max-width: 900px) {
+    .stats-two-columns {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .compact-stats-modal {
+        max-width: 95vw !important;
+        padding: 15px 10px !important;
+    }
+    
+    .stats-left-column, .stats-right-column {
+        gap: 12px;
+    }
+}
+
+@media (max-width: 600px) {
+    .stats-two-columns {
+        gap: 10px;
+    }
+    
+    .compact-stats-modal {
+        max-width: 98vw !important;
+        padding: 12px 8px !important;
+    }
+    
+    .stats-left-column, .stats-right-column {
+        gap: 10px;
+    }
+}
+
+/* Компактное модальное окно статистики */
+.compact-stats-modal { max-width: 1000px !important; padding: 18px 12px !important; }
+
+/* Двухколоночная структура для статистики */
+.stats-two-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.stats-left-column, .stats-right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.stats-section.compact { margin-bottom: 0; padding: 8px 0 4px 0; background: none; border: none; box-shadow: none; }
+.compact-passives-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.compact-passive-btn { background: var(--cell-bg); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 10px; font-size: 0.98em; cursor: pointer; color: var(--highlight-color); transition: background 0.15s, border-color 0.15s; }
+.compact-passive-btn:hover { background: var(--highlight-color); color: var(--bg-color); border-color: var(--highlight-color); }
+
 .doubloon-popup {
     z-index: 2000;
     opacity: 0;
@@ -1446,8 +1500,23 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 }
 
 /* Компактное модальное окно статистики */
-.compact-stats-modal { max-width: 420px !important; padding: 18px 12px !important; }
-.stats-section.compact { margin-bottom: 8px; padding: 8px 0 4px 0; background: none; border: none; box-shadow: none; }
+.compact-stats-modal { max-width: 1000px !important; padding: 18px 12px !important; }
+
+/* Двухколоночная структура для статистики */
+.stats-two-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.stats-left-column, .stats-right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.stats-section.compact { margin-bottom: 0; padding: 8px 0 4px 0; background: none; border: none; box-shadow: none; }
 .compact-passives-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .compact-passive-btn { background: var(--cell-bg); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 10px; font-size: 0.98em; cursor: pointer; color: var(--highlight-color); transition: background 0.15s, border-color 0.15s; }
 .compact-passive-btn:hover { background: var(--highlight-color); color: var(--bg-color); border-color: var(--highlight-color); }
@@ -2166,8 +2235,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     cursor: pointer;
     transition: border-color 0.18s, box-shadow 0.18s, background 0.18s, transform 0.12s;
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    flex-direction: column;    align-items: center;
     font-size: 1em;
     box-shadow: 0 1px 4px #0002;
   }
@@ -2696,3 +2764,215 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   animation: shimmer-red 4s linear infinite;
   font-weight: bold;
 }
+
+.amulet-popup-title.modifier-bad {
+    color: var(--danger-color) !important;
+    animation: shimmer-red 2s infinite;
+  }
+
+  /* --- Двухколоночная структура для dev меню --- */
+  .dev-menu-two-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+  }
+
+  .dev-left-column, .dev-right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+  }
+
+  /* Адаптивность для dev меню */
+  @media (max-width: 900px) {
+      .dev-menu-two-columns {
+          grid-template-columns: 1fr;
+          gap: 15px;
+      }
+      
+      #dev-menu-modal .modal-content {
+          max-width: 95vw !important;
+          padding: 20px 15px !important;
+      }
+  }
+
+  @media (max-width: 600px) {
+      .dev-menu-two-columns {
+          gap: 12px;
+      }
+      
+      #dev-menu-modal .modal-content {
+          max-width: 98vw !important;
+          padding: 15px 10px !important;
+      }
+      
+      .dev-left-column, .dev-right-column {
+          gap: 10px;
+      }
+  }
+
+  /* Стили для кнопок фильтра линий */
+  .filter-btn {
+      background: #333;
+      color: white;
+      border: 1px solid #555;
+      padding: 6px 12px;
+      margin: 3px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 0.9em;
+      font-family: inherit;
+  }
+
+  .filter-btn.active {
+      background: var(--highlight-color);
+      color: var(--bg-color);
+      border-color: var(--highlight-color);
+  }
+
+  .filter-btn:hover {
+      background: #555;
+      border-color: #777;
+  }
+
+  .filter-btn.active:hover {
+      background: var(--highlight-color);
+      color: var(--bg-color);
+  }
+
+  /* Стили для множителей и типов в визуализации линий */
+  .multiplier {
+      color: #ff6b6b;
+      font-weight: bold;
+  }
+
+  .type {
+      color: #4ecdc4;
+  }
+
+  /* Адаптивность для кнопок фильтра */
+  @media (max-width: 768px) {
+      .filter-btn {
+          padding: 4px 8px;
+          font-size: 0.8em;
+          margin: 2px;
+      }
+  }
+
+  /* Двухколоночная структура для статистики */
+  .stats-two-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 15px;
+  }
+
+  .stats-left-column, .stats-right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+  }
+
+  /* Адаптивность для двухколоночной статистики */
+  @media (max-width: 900px) {
+      .stats-two-columns {
+          grid-template-columns: 1fr;
+          gap: 15px;
+      }
+      
+      .compact-stats-modal {
+          max-width: 95vw !important;
+          padding: 15px 10px !important;
+      }
+      
+      .stats-left-column, .stats-right-column {
+          gap: 12px;
+      }
+  }
+
+  @media (max-width: 600px) {
+      .stats-two-columns {
+          gap: 10px;
+      }
+      
+      .compact-stats-modal {
+          max-width: 98vw !important;
+          padding: 12px 8px !important;
+      }
+      
+      .stats-left-column, .stats-right-column {
+          gap: 10px;
+      }
+  }
+
+  /* --- АДАПТИВНЫЕ СТИЛИ ДЛЯ РЕЖИМА ПЛАНИРОВАНИЯ --- */
+  @media (max-width: 900px) {
+      .planning-modal-content {
+          max-width: 95vw !important;
+          padding: 15px 10px !important;
+          max-height: 90vh !important;
+      }
+      
+      .planning-grid {
+          grid-template-columns: 1fr !important;
+          gap: 15px !important;
+      }
+      
+      .planning-modal-content h3 {
+          font-size: 1.1em;
+          margin-bottom: 8px;
+      }
+      
+      .planning-modal-content p {
+          font-size: 0.95em;
+          margin-bottom: 15px;
+      }
+  }
+
+  @media (max-width: 600px) {
+      .planning-modal-content {
+          max-width: 98vw !important;
+          padding: 12px 8px !important;
+          max-height: 95vh !important;
+      }
+      
+      .planning-grid {
+          gap: 12px !important;
+          margin: 15px 0 !important;
+      }
+      
+      .planning-modal-content h2 {
+          font-size: 1.2em;
+          margin-bottom: 8px;
+      }
+      
+      .planning-modal-content h3 {
+          font-size: 1em;
+          margin-bottom: 6px;
+      }
+      
+      .planning-modal-content p {
+          font-size: 0.9em;
+          margin-bottom: 12px;
+      }
+      
+      .planning-tickets-info {
+          padding: 8px !important;
+          margin: 10px 0 !important;
+          font-size: 0.95em;
+      }
+      
+      #btn-planning-reroll {
+          font-size: 11px !important;
+          padding: 4px 6px !important;
+          margin-top: 8px !important;
+      }
+      
+      #btn-finish-planning {
+          margin-top: 15px !important;
+          padding: 10px 20px !important;
+          font-size: 0.95em !important;
+      }
+  }
