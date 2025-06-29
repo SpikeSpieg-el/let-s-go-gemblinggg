@@ -2976,3 +2976,65 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
           font-size: 0.95em !important;
       }
   }
+
+  /* --- СТИЛИ ДЛЯ ЗОЛОТЫХ СИМВОЛОВ --- */
+  .symbol.golden {
+    animation: goldenGlow 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 4px #ffd700);
+    color: #ffd700;
+    
+  }
+
+  @keyframes goldenGlow {
+    0%, 100% { 
+        filter: drop-shadow(0 0 8px #ffd700);
+        text-shadow: 0 0 10px #ffd700;
+        transform: scale(1);
+    }
+    50% { 
+        filter: drop-shadow(0 0 12px #ffd700) drop-shadow(0 0 20px #ffd700);
+        text-shadow: 0 0 15px #ffd700, 0 0 25px #ffd700;
+        transform: scale(1.1);
+    }
+  }
+
+  /* Анимация превращения в золотой */
+  .symbol.turning-golden {
+    animation: turnGolden 0.6s ease-in-out forwards;
+  }
+
+  @keyframes turnGolden {
+    0% {
+        filter: none;
+        color: inherit;
+        text-shadow: none;
+        transform: scale(1);
+    }
+    50% {
+        filter: brightness(1.3) saturate(1.5);
+        color: #ffd700;
+        text-shadow: 0 0 8px #ffd700;
+        transform: scale(1.15);
+    }
+    100% {
+        filter: drop-shadow(0 0 8px #ffd700);
+        color: #ffd700;
+        text-shadow: 0 0 10px #ffd700;
+        transform: scale(1);
+    }
+  }
+
+  /* Анимация перелива для золотого символа */
+  .symbol.golden, .symbol.turning-golden {
+    background: linear-gradient(90deg, #ffd700, #fffbe6, #ffd700, #fffbe6, #ffd700);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: goldenShimmer 2.5s linear infinite;
+  }
+
+  @keyframes goldenShimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }

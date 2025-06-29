@@ -525,6 +525,34 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // --- ЭФФЕКТ: golden_symbol_chance (Позолота) ---
+        const goldenPolishItems = state.inventory.filter(item => item.effect?.golden_symbol_chance);
+        goldenPolishItems.forEach(item => {
+            const effect = item.effect.golden_symbol_chance;
+            const targetSymbol = effect.symbol;
+            const chance = effect.chance;
+            const multiplier = effect.multiplier;
+            
+            // Проходим по всем позициям в сетке
+            grid.forEach((symbol, index) => {
+                if (symbol && symbol.id === targetSymbol && Math.random() < chance) {
+                    // Создаем золотую версию символа
+                    const goldenSymbol = {
+                        ...symbol,
+                        id: symbol.id,
+                        value: symbol.value * multiplier,
+                        isGolden: true,
+                        originalValue: symbol.value
+                    };
+                    grid[index] = goldenSymbol;
+                    
+                    // Добавляем лог о превращении
+                    addLog(`✨ Позолота ${symbol.graphic}: символ стал золотым! (${symbol.value} → ${goldenSymbol.value})`, 'win');
+                    animateInventoryItem(item.id);
+                }
+            });
+        });
+
         // --- СЕКРЕТНЫЙ СИМВОЛ: ПИРАТСКИЙ ФЛАГ ---
         // После генерации обычной сетки, для каждой горизонтальной линии пробуем вставить флаг
         const pirateSymbol = { id: 'pirate', value: 0, weight: 0, graphic: GRAPHICS.pirate };
@@ -564,6 +592,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return grid;
+    }
+
+    // --- ФУНКЦИЯ ДЛЯ ВИЗУАЛЬНОГО ПРЕВРАЩЕНИЯ СИМВОЛОВ В ЗОЛОТЫЕ ---
+    function animateGoldenTransformation(symbolElement, symbolData) {
+        if (!symbolElement || !symbolData.isGolden) return;
+
+        // Добавляем класс для анимации превращения
+        symbolElement.classList.add('turning-golden');
+        
+        // После завершения анимации превращения добавляем постоянный золотой эффект
+        setTimeout(() => {
+            symbolElement.classList.remove('turning-golden');
+            symbolElement.classList.add('golden');
+        }, 600);
+    }
+
+    // --- ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ОТОБРАЖЕНИЯ ЗОЛОТЫХ СИМВОЛОВ ---
+    function updateGoldenSymbolsDisplay() {
+        const reels = ui.slotMachine.querySelectorAll('.reel');
+        const finalGrid = state.grid;
+
+        reels.forEach((reel, i) => {
+            const symbols = reel.querySelectorAll('.symbol');
+            const symbolData = finalGrid[i];
+            
+            if (symbolData && symbolData.isGolden) {
+                const symbolElement = symbols[symbols.length - 1]; // Последний символ - текущий
+                if (symbolElement && !symbolElement.classList.contains('golden')) {
+                    animateGoldenTransformation(symbolElement, symbolData);
+                }
+            }
+        });
     }
 
     function showTotalWinPopup(amount) {
@@ -3211,6 +3271,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const symbolDiv = document.createElement('div');
                 symbolDiv.className = 'symbol';
                 symbolDiv.textContent = symbol.graphic;
+                
+                // Добавляем золотой класс если символ золотой
+                if (symbol.isGolden) {
+                    symbolDiv.classList.add('golden');
+                }
+                
                 reel.appendChild(symbolDiv); 
             });
 
@@ -3244,6 +3310,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         await Promise.all(promises);
         await new Promise(res => setTimeout(res, 200));
+        
+        // Обновляем отображение золотых символов после завершения анимации
+        updateGoldenSymbolsDisplay();
     }
 
     function createItemElement(item, purchaseCallback) {
