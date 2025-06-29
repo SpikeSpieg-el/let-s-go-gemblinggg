@@ -2412,13 +2412,18 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (state.run === 5) state.targetDebt = 8888;
         else state.targetDebt = Math.min(Math.floor(state.targetDebt * 2.5 + 10000), 88888888);
 
-        // --- В банк уходит только выплаченная сумма долга ---
+        
+        // Устанавливаем банковский счет равным сумме, потраченной на погашение долга
+        // (не добавляем к существующему, а заменяем)
         if (paidToBank) {
-            state.bankBalance += paidToBank;
+            state.bankBalance = paidToBank;
+            console.log(`[DEBUG][startNewCycle] Устанавливаем bankBalance=${paidToBank} из paidToBank`);
+        } else {
+            state.bankBalance = 0; // Сбрасываем банковский счет в новом цикле
+            console.log(`[DEBUG][startNewCycle] Сбрасываем bankBalance=0 (paidToBank=${paidToBank})`);
         }
 
-        // coins остаётся равным накоплениям (и к ним прибавляются бонусы)
-        // (state.coins уже содержит накопления + бонусы после payDebtEarly)
+        
 
         state.tickets += (5 + state.run - 1) + bonusTickets;
         state.spinsLeft = 0;
@@ -2634,7 +2639,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.coins >= cost) {
                 state.coins -= cost;
                 state.spinsLeft += 1;
-                state.purchasesThisRound++; // <-- УВЕЛИЧИВАЕМ СЧЕТЧИК
+                state.purchasesThisRound++; // Оставляем, если нужно для других механик
                 addLog(`Куплен 1 прокрут за ${cost}💰 (без талонов).`, 'win');
             } else {
                 addLog('Недостаточно наличных.', 'loss');
@@ -2645,23 +2650,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (pkg) {
             let finalCost = pkg.cost;
-            // Убираем проверку bulk_buyer отсюда, так как она теперь в updateSpinCosts
-
+            // Стоимость уже считается без инфляции в updateSpinCosts
             if (state.coins >= finalCost) {
                 state.coins -= finalCost;
                 state.spinsLeft += pkg.spins;
                 state.tickets += pkg.tickets;
-                state.purchasesThisRound++; // <-- УВЕЛИЧИВАЕМ СЧЕТЧИК
+                state.purchasesThisRound++; // Оставляем, если нужно для других механик
                 addLog(`Куплено: ${pkg.spins} прокрутов и ${pkg.tickets} талон(а/ов).`);
-                
-                // ВАЖНО: После покупки нужно обновить отображение цен в модальном окне
-                updateSpinCosts(); // Вызываем пересчет
-                // Обновляем текст на кнопках в открытом модальном окне
+                updateSpinCosts();
                 ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${CONFIG.SPIN_PACKAGE_1.cost}💰)`;
                 ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${CONFIG.SPIN_PACKAGE_2.cost}💰)`;
                 ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
                 ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
-                setupSpinCostTooltip(); // Обновляем тултипы после изменения цен
+                setupSpinCostTooltip();
             } else { addLog(`Недостаточно наличных.`, 'loss'); }
         }
         ui.spinPurchaseModal.classList.add('hidden');
@@ -2729,7 +2730,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(bonusCoins > 0 || bonusTickets > 0) {
             bonusText = `Бонус за быстроту: <span style="color:var(--money-color)">+${formatNumberWithComma(bonusCoins)}💰</span> и <span style="color:var(--ticket-color)">+${formatNumberWithComma(bonusTickets)}🎟️</span>.<br>`;
         }
-        ui.judgementText.innerHTML = `Вы выжили. Весь баланс <span style="color:var(--money-color)">${formatNumberWithComma(totalMoney)}💰</span> переведен в банк.<br>
+        ui.judgementText.innerHTML = `Вы выжили. Наличные: <span style="color:var(--money-color)">${formatNumberWithComma(totalMoney)}💰</span>.<br>
                                      Стандартная награда: <span style="color:var(--ticket-color)">${formatNumberWithComma(standardTickets)}🎟️</span>.<br>
                                      ${bonusText}`;
 
@@ -2744,7 +2745,8 @@ document.addEventListener('DOMContentLoaded', () => {
         addLog(`СУДНЫЙ ДЕНЬ. Ваша сумма: ${formatNumberWithComma(totalMoney)}💰. Требуется: ${formatNumberWithComma(state.targetDebt)}💰.`);
         
         if (totalMoney >= state.targetDebt) {
-            advanceToNextCycle();
+            // При обычном переходе сохраняем текущий банковский счет
+            advanceToNextCycle(0, 0, state.bankBalance);
         } else {
             gameOver();
         }
@@ -2752,6 +2754,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function payDebtEarly() {
         if (state.turn >= 3) return;
+        // Проверяем общую сумму (наличные + банк) для досрочного погашения
         const totalMoney = state.coins + state.bankBalance;
         if (totalMoney < state.targetDebt) return;
 
@@ -2776,31 +2779,33 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog(`Ранняя пташка: бонусы увеличены! (+${formatNumberWithComma(bonusCoins - oldCoins)}💰, +${formatNumberWithComma(bonusTickets - oldTickets)}🎟️)`, 'win');
         }
         
-        // Сохраняем, сколько было coins до выплаты
-        // (но не используем savingsBefore для расчёта накоплений)
-
-        // --- Списание долга ---
+        // --- Списание долга из наличных, затем из банка при необходимости ---
         let remainingDebt = state.targetDebt;
         let paidFromCoins = 0;
+        
+        // Сначала списываем из наличных
         if (state.coins > 0) {
             paidFromCoins = Math.min(state.coins, remainingDebt);
             state.coins -= paidFromCoins;
             remainingDebt -= paidFromCoins;
-            addLog(`Списано ${formatNumberWithComma(paidFromCoins)}💰 из наличных.`);
+            addLog(`Списано ${formatNumberWithComma(paidFromCoins)}💰 из наличных для погашения долга.`);
         }
+        
+        // Если долг не погашен, списываем из банка
         if (remainingDebt > 0) {
             state.bankBalance -= remainingDebt;
-            addLog(`Списано ${formatNumberWithComma(remainingDebt)}💰 из банка.`);
+            addLog(`Списано ${formatNumberWithComma(remainingDebt)}💰 из банка для погашения долга.`);
         }
 
-        // coins уже равен накоплениям (остаток на руках)
         // Прибавляем бонусы
         state.coins += bonusCoins;
         state.tickets += bonusTickets;
         addLog(`Получен бонус: +${formatNumberWithComma(bonusCoins)}💰 и +${formatNumberWithComma(bonusTickets)}🎟️!`, 'win');
 
-        // В банк уходит только то, что реально потратили из coins
-        advanceToNextCycle(bonusCoins, bonusTickets, paidFromCoins);
+        // В банк уходит вся сумма долга (из наличных + из банка)
+        const totalPaidToBank = paidFromCoins + (remainingDebt > 0 ? remainingDebt : 0);
+        console.log(`[DEBUG][payDebtEarly] Передаем в advanceToNextCycle: totalPaidToBank=${totalPaidToBank} (paidFromCoins=${paidFromCoins} + remainingDebt=${remainingDebt})`);
+        advanceToNextCycle(bonusCoins, bonusTickets, totalPaidToBank);
     }
     
     function gameOver() {
@@ -4298,9 +4303,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getSpinCostBreakdown(pkgNum) {
         const run = state.run;
         const bank = state.bankBalance;
-        const purchases = state.purchasesThisRound || 0;
         const debt = state.targetDebt;
-        const inflationRate = 0.25;
         const cycleMultiplier = run === 1 ? 1 : Math.pow(1.9, run - 1);
         let wealthTax = 0;
         if (run > 1) {
@@ -4310,23 +4313,20 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (bank > 1000) wealthTax = Math.floor(bank / 250);
         }
         const debtTax = run === 1 ? 0 : Math.floor(debt / 6);
-        let baseCost, inflationCost, finalCost;
+        let baseCost, finalCost;
         if (pkgNum === 1) {
             baseCost = Math.floor(CONFIG.SPIN_PACKAGE_1.base_cost * cycleMultiplier);
-            inflationCost = Math.floor(baseCost * purchases * inflationRate);
             if (hasPassive('bulk_buyer')) baseCost = Math.max(1, baseCost - 2);
-            finalCost = baseCost + wealthTax + debtTax + inflationCost;
+            finalCost = baseCost + wealthTax + debtTax;
         } else {
             baseCost = Math.floor(CONFIG.SPIN_PACKAGE_2.base_cost * cycleMultiplier);
-            inflationCost = Math.floor(baseCost * purchases * inflationRate);
-            finalCost = baseCost + wealthTax + debtTax + inflationCost;
+            finalCost = baseCost + wealthTax + debtTax;
         }
         let lines = [];
         lines.push(`<b>Базовая стоимость:</b> ${baseCost}💰`);
         lines.push(`<b>Множитель цикла (x${cycleMultiplier.toFixed(2)}):</b> ${baseCost !== CONFIG.SPIN_PACKAGE_1.base_cost && baseCost !== CONFIG.SPIN_PACKAGE_2.base_cost ? `+${baseCost - (pkgNum === 1 ? CONFIG.SPIN_PACKAGE_1.base_cost : CONFIG.SPIN_PACKAGE_2.base_cost)}💰` : '+0💰'}`);
         lines.push(`<b>Налог на богатство:</b> +${wealthTax}💰`);
         lines.push(`<b>Налог от долга:</b> +${debtTax}💰`);
-        lines.push(`<b>Инфляция (покупка #${purchases+1}):</b> +${inflationCost}💰`);
         lines.push(`<b>Итого:</b> <span style='color:var(--money-color)'>${finalCost}💰</span>`);
         return lines.join('<br>');
     }
