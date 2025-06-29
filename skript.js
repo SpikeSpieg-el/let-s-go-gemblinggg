@@ -74,13 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
         pirate: '🏴‍☠️', // Секретный символ
     };
     const SYMBOLS = [
-        { id: 'lemon',    value: 2, weight: 194, graphic: GRAPHICS.lemon },   // 19.4%
-        { id: 'cherry',   value: 2, weight: 194, graphic: GRAPHICS.cherry },  // 19.4%
-        { id: 'clover',   value: 3, weight: 149, graphic: GRAPHICS.clover },  // 14.9%
-        { id: 'bell',     value: 3, weight: 149, graphic: GRAPHICS.bell },    // 14.9%
-        { id: 'diamond',  value: 5, weight: 119, graphic: GRAPHICS.diamond }, // 11.9%
-        { id: 'coins',    value: 5, weight: 119, graphic: GRAPHICS.coins },   // 11.9%
-        { id: 'seven',    value: 7, weight: 75,  graphic: GRAPHICS.seven },   // 7.5%
+        { id: 'lemon',    value: 1, weight: 194, graphic: GRAPHICS.lemon },   // 19.4%
+        { id: 'cherry',   value: 1, weight: 194, graphic: GRAPHICS.cherry },  // 19.4%
+        { id: 'clover',   value: 2, weight: 149, graphic: GRAPHICS.clover },  // 14.9%
+        { id: 'bell',     value: 2, weight: 149, graphic: GRAPHICS.bell },    // 14.9%
+        { id: 'diamond',  value: 3, weight: 119, graphic: GRAPHICS.diamond }, // 11.9%
+        { id: 'coins',    value: 3, weight: 119, graphic: GRAPHICS.coins },   // 11.9%
+        { id: 'seven',    value: 6, weight: 75,  graphic: GRAPHICS.seven },   // 7.5%
     ];
     window.SYMBOLS = SYMBOLS;
     const ORIGINAL_SYMBOLS = JSON.parse(JSON.stringify(SYMBOLS)); // Для сброса шансов в новой игре
@@ -718,7 +718,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 symbolValue = Math.floor(symbolValue * itemMultiplier);
 
-                win = symbolValue * lineMultiplier;
+                //за каждый символ в линии даётся вознаграждение
+                win = symbolValue * winLength * lineMultiplier;
                 
                 if (lineLengthBonuses[winLength]) {
                     let bonus = lineLengthBonuses[winLength];
@@ -2408,8 +2409,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Расчет нового долга
         if (state.run === 2) state.targetDebt = 111;
         else if (state.run === 3) state.targetDebt = 450;
-        else if (state.run === 4) state.targetDebt = 3333;
-        else if (state.run === 5) state.targetDebt = 8888;
+        else if (state.run === 4) state.targetDebt = 1999;
+        else if (state.run === 5) state.targetDebt = 3333;
+        else if (state.run === 6) state.targetDebt = 8888;
         else state.targetDebt = Math.min(Math.floor(state.targetDebt * 2.5 + 10000), 88888888);
 
         

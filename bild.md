@@ -477,3 +477,16 @@ pathfinder | Искатель пути | Каждый Зиг-Заг получа
 death_bell | Колокол Смерти | Каждый 🔔 на поле отнимает 2 монеты, но увеличивает множитель x3.
 
 line_extender | Расширитель Линий | Каждая линия на 4 символа проверяется как 5. | common |
+
+
+724 //за каждый символ в линии даётся вознаграждение
+                win = symbolValue * winLength * lineMultiplier;
+
+
+2409 // Расчет нового долга
+        if (state.run === 2) state.targetDebt = 111;
+        else if (state.run === 3) state.targetDebt = 450;
+        else if (state.run === 4) state.targetDebt = 1999;
+        else if (state.run === 5) state.targetDebt = 3333;
+        else if (state.run === 6) state.targetDebt = 8888;
+        else state.targetDebt = Math.min(Math.floor(state.targetDebt * 2.5 + 10000), 88888888);
