@@ -32,7 +32,7 @@ const ALL_PASSIVES = [
     {
         id: 'fruit_less',
         name: 'Горькие фрукты',
-        desc: 'Лимоны 🍋 и Вишни 🍒 выпадают на 25% реже.',
+        desc: 'Лимоны 🍋 и Вишни 🍒 выпадают реже.',
         emoji: '🍋🍒',
         type: 'slot_modifier',
         effect: (state) => {
@@ -43,9 +43,22 @@ const ALL_PASSIVES = [
         }
     },
     {
+        id: 'fruit_less2',
+        name: 'Забытые фрукты',
+        desc: 'Лимоны 🍋 и Вишни 🍒 выпадают сильно реже.',
+        emoji: '🍋🍒',
+        type: 'slot_modifier',
+        effect: (state) => {
+            const lemon = window.SYMBOLS.find(s => s.id === 'lemon');
+            const cherry = window.SYMBOLS.find(s => s.id === 'cherry');
+            if (lemon) lemon.weight = Math.floor(lemon.weight * 0.4);
+            if (cherry) cherry.weight = Math.floor(cherry.weight * 0.4);
+        }
+    },
+    {
         id: 'fruit_more',
         name: 'Фруктовая удача',
-        desc: 'Лимоны 🍋 и Вишни 🍒 выпадают на 20% чаще.',
+        desc: 'Лимоны 🍋 и Вишни 🍒 выпадают чаще.',
         emoji: '🍋🍒',
         type: 'slot_modifier',
         effect: (state) => {
@@ -58,7 +71,7 @@ const ALL_PASSIVES = [
     {
         id: 'lucky_less',
         name: 'Неудачливые символы',
-        desc: 'Клеверы 🍀 и Колокольчики 🔔 выпадают на 25% реже.',
+        desc: 'Клеверы 🍀 и Колокольчики 🔔 выпадают реже.',
         emoji: '🍀🔔',
         type: 'slot_modifier',
         effect: (state) => {
@@ -69,9 +82,22 @@ const ALL_PASSIVES = [
         }
     },
     {
+        id: 'lucky_less2',
+        name: 'Проклятые символы',
+        desc: 'Клеверы 🍀 и Колокольчики 🔔 выпадают сильно реже.',
+        emoji: '🍀🔔',
+        type: 'slot_modifier',
+        effect: (state) => {
+            const clover = window.SYMBOLS.find(s => s.id === 'clover');
+            const bell = window.SYMBOLS.find(s => s.id === 'bell');
+            if (clover) clover.weight = Math.floor(clover.weight * 0.4);
+            if (bell) bell.weight = Math.floor(bell.weight * 0.4);
+        }
+    },
+    {
         id: 'lucky_more',
         name: 'Удачливые символы',
-        desc: 'Клеверы 🍀 и Колокольчики 🔔 выпадают на 20% чаще.',
+        desc: 'Клеверы 🍀 и Колокольчики 🔔 выпадают чаще.',
         emoji: '🍀🔔',
         type: 'slot_modifier',
         effect: (state) => {
@@ -84,7 +110,7 @@ const ALL_PASSIVES = [
     {
         id: 'premium_less',
         name: 'Тусклые драгоценности',
-        desc: 'Алмазы 💎 и Монеты 💰 выпадают на 25% реже.',
+        desc: 'Алмазы 💎 и Монеты 💰 выпадают реже.',
         emoji: '💎💰',
         type: 'slot_modifier',
         effect: (state) => {
@@ -95,9 +121,22 @@ const ALL_PASSIVES = [
         }
     },
     {
+        id: 'premium_less2',
+        name: 'Потухшие драгоценности',
+        desc: 'Алмазы 💎 и Монеты 💰 выпадают сильно реже.',
+        emoji: '💎💰',
+        type: 'slot_modifier',
+        effect: (state) => {
+            const diamond = window.SYMBOLS.find(s => s.id === 'diamond');
+            const coins = window.SYMBOLS.find(s => s.id === 'coins');
+            if (diamond) diamond.weight = Math.floor(diamond.weight * 0.4);
+            if (coins) coins.weight = Math.floor(coins.weight * 0.4);
+        }
+    },
+    {
         id: 'premium_more',
         name: 'Сверкающие драгоценности',
-        desc: 'Алмазы 💎 и Монеты 💰 выпадают на 20% чаще.',
+        desc: 'Алмазы 💎 и Монеты 💰 выпадают чаще.',
         emoji: '💎💰',
         type: 'slot_modifier',
         effect: (state) => {
@@ -110,7 +149,7 @@ const ALL_PASSIVES = [
     {
         id: 'seven_less',
         name: 'Потерянная семёрка',
-        desc: 'Семёрки 7️⃣ выпадают на 30% реже.',
+        desc: 'Семёрки 7️⃣ выпадают реже.',
         emoji: '7️⃣',
         type: 'slot_modifier',
         effect: (state) => {
@@ -119,9 +158,20 @@ const ALL_PASSIVES = [
         }
     },
     {
+        id: 'seven_less2',
+        name: 'Забытая семёрка',
+        desc: 'Семёрки 7️⃣ выпадают сильно реже.',
+        emoji: '7️⃣',
+        type: 'slot_modifier',
+        effect: (state) => {
+            const seven = window.SYMBOLS.find(s => s.id === 'seven');
+            if (seven) seven.weight = Math.floor(seven.weight * 0.4);
+        }
+    },
+    {
         id: 'seven_more',
         name: 'Семёрочная удача',
-        desc: 'Семёрки 7️⃣ выпадают на 25% чаще.',
+        desc: 'Семёрки 7️⃣ выпадают чаще.',
         emoji: '7️⃣',
         type: 'slot_modifier',
         effect: (state) => {
@@ -383,13 +433,44 @@ const ALL_PASSIVES = [
         emoji: '🔥',
         type: 'item_mod',
         effect: (state) => { /* Логика реализуется в skript.js при поломке предмета */ }
+    },
+    {
+        id: 'modification_master',
+        name: 'Мастер модификаций',
+        desc: 'Предметы с модификаторами больше не получают штраф увеличения стоимости (+20%).',
+        emoji: '⚡',
+        type: 'item_mod',
+        effect: (state) => { /* Логика реализуется в items.js addRandomModifier */ }
     }
 ];
 
 // --- ВЫБОР 3 СЛУЧАЙНЫХ ПАССИВОК ---
 // Пассивка, которую игрок только что использовал, не будет предложена в следующем выборе.
-function getRandomPassives(count = 3, excludeIds = []) {
-    const available = ALL_PASSIVES.filter(p => !excludeIds.includes(p.id));
+// Пассивки второго уровня появляются только после получения пассивки первого уровня той же категории.
+function getRandomPassives(count = 3, excludeIds = [], state = null) {
+    let available = ALL_PASSIVES.filter(p => !excludeIds.includes(p.id));
+    
+    // Если передан state, проверяем зависимости пассивок второго уровня
+    if (state && state.activePassives) {
+        const activePassiveIds = state.activePassives.map(p => p.id);
+        
+        // Определяем пассивки второго уровня и их зависимости
+        const secondLevelDependencies = {
+            'fruit_less2': 'fruit_less',
+            'lucky_less2': 'lucky_less', 
+            'premium_less2': 'premium_less',
+            'seven_less2': 'seven_less'
+        };
+        
+        // Фильтруем пассивки второго уровня, если не получена зависимость
+        available = available.filter(passive => {
+            if (secondLevelDependencies[passive.id]) {
+                return activePassiveIds.includes(secondLevelDependencies[passive.id]);
+            }
+            return true;
+        });
+    }
+    
     const shuffled = [...available].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, count);
 }
@@ -413,6 +494,39 @@ function applyPassive(passive, state) {
             state.activePassives.push(passive);
             debugLogPassive(`Пассивка ${passive.name} (${passive.id}) активирована.`);
             passive.effect(state);
+            
+            // --- ОСОБАЯ ЛОГИКА ДЛЯ ПАССИВКИ "МАСТЕР МОДИФИКАЦИЙ" ---
+            if (passive.id === 'modification_master') {
+                // Обновляем цены в текущем магазине
+                if (state.shop && state.shop.length > 0) {
+                    let updatedCount = 0;
+                    state.shop.forEach(item => {
+                        if (item.modifier) {
+                            // Восстанавливаем оригинальную стоимость (убираем штраф +20%)
+                            const originalCost = Math.ceil(item.cost / 1.2);
+                            if (item.cost !== originalCost) {
+                                item.cost = originalCost;
+                                updatedCount++;
+                            }
+                        }
+                    });
+                    
+                    if (updatedCount > 0) {
+                        // Добавляем сообщение в лог
+                        if (typeof window.addLog === 'function') {
+                            window.addLog(`⚡ Мастер модификаций: цены ${updatedCount} модифицированных предметов обновлены!`, 'win');
+                        }
+                        
+                        // Обновляем UI магазина
+                        if (typeof window.renderShop === 'function') {
+                            window.renderShop();
+                        }
+                        if (typeof window.renderPlanningShop === 'function') {
+                            window.renderPlanningShop();
+                        }
+                    }
+                }
+            }
         }
         // После любого выбора пассивки — обновляем веса и статистику
         if (typeof window.updateWeightedSymbols === 'function') window.updateWeightedSymbols();

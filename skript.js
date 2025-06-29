@@ -704,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 symbolValue = Math.floor(symbolValue * itemMultiplier);
 
-                win = winLength * symbolValue * lineMultiplier;
+                win = symbolValue * lineMultiplier;
                 
                 if (lineLengthBonuses[winLength]) {
                     let bonus = lineLengthBonuses[winLength];
@@ -1145,6 +1145,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 totalWinnings *= jackpotMultiplier;
                 addLog(`Сердце автомата: В джекпот-ячейке выпал 7️⃣! Выигрыш умножен на 100!`, 'win');
                 animateInventoryItem('slot_machine_heart');
+            }
+        }
+
+        // --- ШТРАФ ОТ МОДИФИКАТОРА "НЕ ЗАНИМАЕТ МЕСТО" ---
+        const itemsWithWinPenalty = state.inventory.filter(item => 
+            item.effect?.win_penalty || item.modifier?.effect?.win_penalty
+        );
+        if (itemsWithWinPenalty.length > 0 && totalWinnings > 0) {
+            const totalPenalty = itemsWithWinPenalty.reduce((sum, item) => {
+                return sum + (item.effect?.win_penalty || item.modifier?.effect?.win_penalty || 0);
+            }, 0);
+            if (totalPenalty > 0) {
+                const penaltyAmount = Math.floor(totalWinnings * totalPenalty);
+                totalWinnings -= penaltyAmount;
+                addLog(`Штраф "Не занимает место": -${penaltyAmount}💰 (${(totalPenalty * 100).toFixed(0)}%)`, 'loss');
             }
         }
 
@@ -1652,7 +1667,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rareItem.effect && rareItem.effect.wild_clover_next_spin && rareItem.effect.wild_clover_next_spin.breakable) {
                 rareItem.uses = rareItem.effect.wild_clover_next_spin.max_uses || 1;
             }
-            state.shop.push(rareItem);
+            // Применяем случайный модификатор
+            const modifiedRareItem = addRandomModifier(rareItem);
+            if (modifiedRareItem.modifier) {
+                addLog(`✨ Редкий предмет с модификатором: ${modifiedRareItem.name}`, 'win');
+            }
+            state.shop.push(modifiedRareItem);
             const idx = availableItems.findIndex(x => x.id === rareItem.id);
             if (idx !== -1) availableItems.splice(idx, 1);
             rares.splice(randomIndex, 1);
@@ -1673,8 +1693,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (legendaryItem.effect && legendaryItem.effect.wild_clover_next_spin && legendaryItem.effect.wild_clover_next_spin.breakable) {
                 legendaryItem.uses = legendaryItem.effect.wild_clover_next_spin.max_uses || 1;
             }
-            state.shop.push(legendaryItem);
-            addLog(`🏆 Легендарная удача! В магазине появился ${legendaryItem.name} (у вас ${state.tickets}🎟️)!`, 'win');
+            // Применяем случайный модификатор
+            const modifiedLegendaryItem = addRandomModifier(legendaryItem);
+            if (modifiedLegendaryItem.modifier) {
+                addLog(`✨ Легендарный предмет с модификатором: ${modifiedLegendaryItem.name}`, 'win');
+            }
+            state.shop.push(modifiedLegendaryItem);
+            addLog(`🏆 Легендарная удача! В магазине появился ${modifiedLegendaryItem.name} (у вас ${state.tickets}🎟️)!`, 'win');
             const idx = availableItems.findIndex(x => x.id === legendaryItem.id);
             if (idx !== -1) availableItems.splice(idx, 1);
             legendaries.splice(randomIndex, 1);
@@ -1703,12 +1728,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (item.effect && item.effect.wild_clover_next_spin && item.effect.wild_clover_next_spin.breakable) {
                     item.uses = item.effect.wild_clover_next_spin.max_uses || 1;
                 }
-                state.shop.push(item);
+                // Применяем случайный модификатор
+                const modifiedItem = addRandomModifier(item);
+                if (modifiedItem.modifier) {
+                    addLog(`✨ В магазине появился модифицированный предмет: ${modifiedItem.name}`, 'win');
+                }
+                state.shop.push(modifiedItem);
                 const idx = availableItems.findIndex(x => x.id === item.id);
                 if (idx !== -1) availableItems.splice(idx, 1);
                 if (pool === commons) commons.splice(commons.indexOf(item), 1);
                 if (pool === rares) rares.splice(rares.indexOf(item), 1);
                 if (pool === legendaries) legendaries.splice(legendaries.indexOf(item), 1);
+            }
+        }
+        
+        // --- ПРИМЕНЕНИЕ ПАССИВКИ "МАСТЕР МОДИФИКАЦИЙ" К НОВЫМ ПРЕДМЕТАМ ---
+        if (hasPassive('modification_master')) {
+            let updatedCount = 0;
+            state.shop.forEach(item => {
+                if (item.modifier) {
+                    // Восстанавливаем оригинальную стоимость (убираем штраф +20%)
+                    const originalCost = Math.ceil(item.cost / 1.2);
+                    if (item.cost !== originalCost) {
+                        item.cost = originalCost;
+                        updatedCount++;
+                    }
+                }
+            });
+            
+            if (updatedCount > 0) {
+                addLog(`⚡ Мастер модификаций: ${updatedCount} новых модифицированных предметов без штрафа стоимости!`, 'win');
             }
         }
     }
@@ -2899,6 +2948,11 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog(`🎩 Иллюзионист слотов активирован! Предметы с бонусами за пустые слоты больше не занимают место в инвентаре.`, 'win');
         }
         
+        // --- [NEW] Специальное сообщение для модификатора "Не занимает место" ---
+        if (item.modifier && item.modifier.id === 'no_slot_usage') {
+            addLog(`📦 Модификатор "Не занимает место" активирован! Все выигрыши уменьшены на 10%.`, 'win');
+        }
+        
         // --- [NEW] Немедленное применение эффектов, которые должны работать сразу ---
         // Бесплатные рероллы
         let newFreeRerolls = getItemEffectValue('free_reroll_per_round', 0);
@@ -3227,6 +3281,101 @@ document.addEventListener('DOMContentLoaded', () => {
             itemDiv.onclick = () => showAmuletPopup(item);
         }
 
+        // --- [NEW] Добавляем всплывающие подсказки для предметов в магазине ---
+        if (purchaseCallback) {
+            let tooltip = null;
+            let tooltipTimeout = null;
+            
+            // Функция для скрытия tooltip
+            const hideTooltip = () => {
+                if (tooltipTimeout) {
+                    clearTimeout(tooltipTimeout);
+                    tooltipTimeout = null;
+                }
+                if (tooltip) {
+                    tooltip.classList.remove('show');
+                    setTimeout(() => {
+                        if (tooltip && tooltip.parentNode) {
+                            tooltip.parentNode.removeChild(tooltip);
+                        }
+                        tooltip = null;
+                    }, 200);
+                }
+            };
+            
+            itemDiv.addEventListener('mouseenter', (e) => {
+                // Скрываем все существующие тултипы перед созданием нового
+                hideAllTooltips();
+                
+                // Создаем tooltip только если его еще нет
+                if (!tooltip) {
+                    try {
+                        tooltip = createItemTooltip(item, currentCost, oldCost);
+                        if (tooltip) {
+                            document.body.appendChild(tooltip);
+                        }
+                    } catch (error) {
+                        console.error('Ошибка создания тултипа:', error);
+                        tooltip = null;
+                        return;
+                    }
+                }
+                
+                // Показываем tooltip с небольшой задержкой
+                tooltipTimeout = setTimeout(() => {
+                    if (tooltip && tooltip.parentNode) {
+                        tooltip.classList.add('show');
+                    }
+                }, 300);
+                
+                // Позиционируем tooltip
+                if (tooltip) {
+                    positionTooltip(tooltip, e);
+                }
+            });
+            
+            itemDiv.addEventListener('mousemove', (e) => {
+                if (tooltip && tooltip.parentNode) {
+                    positionTooltip(tooltip, e);
+                }
+            });
+            
+            itemDiv.addEventListener('mouseleave', hideTooltip);
+            
+            // Скрываем tooltip при клике на предмет
+            const originalOnClick = itemDiv.onclick;
+            itemDiv.onclick = (e) => {
+                hideTooltip();
+                if (originalOnClick) {
+                    originalOnClick.call(itemDiv, e);
+                }
+            };
+            
+            // Добавляем обработчик для скрытия тултипа при скролле или изменении размера окна
+            const hideOnScrollOrResize = () => {
+                if (tooltip && tooltip.parentNode) {
+                    hideTooltip();
+                }
+            };
+            
+            window.addEventListener('scroll', hideOnScrollOrResize, { passive: true });
+            window.addEventListener('resize', hideOnScrollOrResize, { passive: true });
+            
+            // Очищаем обработчики при удалении элемента
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'childList' && !document.contains(itemDiv)) {
+                        hideTooltip();
+                        window.removeEventListener('scroll', hideOnScrollOrResize);
+                        window.removeEventListener('resize', hideOnScrollOrResize);
+                        observer.disconnect();
+                    }
+                });
+            });
+            
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+
         const thumbnailDiv = document.createElement('div');
         thumbnailDiv.className = 'item-thumbnail';
         const thumbnailValue = item.thumbnail || '?';
@@ -3234,6 +3383,14 @@ document.addEventListener('DOMContentLoaded', () => {
             thumbnailDiv.innerHTML = `<img src="img/${thumbnailValue}" alt="${item.name}" style="width:100%; height:100%; object-fit:cover;">`;
         } else {
             thumbnailDiv.textContent = thumbnailValue;
+        }
+        
+        // Добавляем класс modified для модифицированных предметов
+        if (item.modifier) {
+            thumbnailDiv.classList.add('modified');
+            if (item.isPenalty) {
+                thumbnailDiv.classList.add('modifier-bad');
+            }
         }
 
         const infoDiv = document.createElement('div');
@@ -3245,6 +3402,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const nameSpan = document.createElement('span');
         nameSpan.className = 'item-name';
         nameSpan.textContent = item.name;
+        
+        // Добавляем класс modified для модифицированных предметов
+        if (item.modifier) {
+            nameSpan.classList.add('modified');
+            if (item.isPenalty) {
+                nameSpan.classList.add('modifier-bad');
+            }
+        }
         
         headerDiv.appendChild(nameSpan);
 
@@ -3303,6 +3468,14 @@ document.addEventListener('DOMContentLoaded', () => {
             infoDiv.appendChild(mimicDiv);
         }
 
+        // Отображение модификатора
+        if (item.modifier) {
+            const modifierDiv = document.createElement('div');
+            modifierDiv.style.cssText = 'color:#4caf50; font-size:11px; margin-top: auto; font-weight: bold; border-top: 1px solid #4caf50; padding-top: 4px;';
+            modifierDiv.innerHTML = `✨ ${item.modifier.name}`;
+            infoDiv.appendChild(modifierDiv);
+        }
+
         itemDiv.appendChild(thumbnailDiv);
         itemDiv.appendChild(infoDiv);
 
@@ -3312,6 +3485,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderShop() {
+        // Скрываем все тултипы перед обновлением магазина
+        hideAllTooltips();
+        
         ui.shopItems.innerHTML = '';
         if (state.shop.length === 0) {
             ui.shopItems.innerHTML = '<p style="text-align:center; color: #777;">Пусто</p>';
@@ -3336,11 +3512,28 @@ document.addEventListener('DOMContentLoaded', () => {
             thumbnailHTML = thumbnailValue;
         }
         
+        let modifierHTML = '';
+        if (item.modifier) {
+            const isPenalty = item.isPenalty || false;
+            const modifierIcon = isPenalty ? '💀' : '✨';
+            const modifierColor = isPenalty ? '#e53935' : '#4caf50';
+            const modifierBgColor = isPenalty ? 'rgba(229, 57, 53, 0.1)' : 'rgba(76, 175, 80, 0.1)';
+            const modifierBorderColor = isPenalty ? '#e53935' : '#4caf50';
+            
+            modifierHTML = `<div style="color:${modifierColor}; font-weight: bold; margin-top: 10px; padding: 8px; background: ${modifierBgColor}; border-radius: 4px; border-left: 3px solid ${modifierBorderColor};">
+                ${modifierIcon} Модификатор: ${item.modifier.name}<br>
+                <span style="font-weight: normal; font-size: 0.9em;">${item.modifier.desc}</span>
+            </div>`;
+        }
+        
+        // Добавляем класс для переливающегося названия модифицированного предмета
+        const titleClass = item.modifier ? `amulet-popup-title modified${item.isPenalty ? ' modifier-bad' : ''}` : 'amulet-popup-title';
         amuletPopup.innerHTML = `
             <div class="amulet-popup-card">
                 <div class="amulet-popup-thumbnail">${thumbnailHTML}</div>
-                <div class="amulet-popup-title">${item.name}</div>
+                <div class="${titleClass}">${item.name}</div>
                 <div class="amulet-popup-desc">${item.desc}</div>
+                ${modifierHTML}
                 <div style="margin-top: 20px;">
                     <button class="amulet-popup-remove">Выкинуть</button>
                     <button class="amulet-popup-close">Закрыть</button>
@@ -3400,12 +3593,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const effectiveSlots = getEffectiveEmptySlots();
         const effectiveUsed = maxSize - effectiveSlots;
         
+        // Подсчитываем модифицированные предметы
+        const modifiedCount = state.inventory.filter(item => item.modifier && !item.removed).length;
+        
         counter.textContent = `Амулеты: ${effectiveUsed} / ${maxSize}`;
+        if (modifiedCount > 0) {
+            counter.textContent += ` | Модифицированные: ${modifiedCount}`;
+            if (modifiedCount >= 4) {
+                counter.textContent += ' ⚠️';
+                counter.style.color = 'var(--danger-color)';
+                counter.style.fontWeight = 'bold';
+                counter.style.textShadow = '0 0 6px var(--danger-color)';
+            } else if (modifiedCount >= 3) {
+                counter.style.color = '#ffaa00';
+                counter.style.fontWeight = 'bold';
+            }
+        }
+        
         if (effectiveUsed >= maxSize) {
             counter.style.color = 'var(--danger-color)';
             counter.style.fontWeight = 'bold';
             counter.style.textShadow = '0 0 6px var(--danger-color)';
-        } else {
+        } else if (modifiedCount < 3) {
             counter.style.color = '';
             counter.style.fontWeight = '';
             counter.style.textShadow = '';
@@ -3444,6 +3653,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPlanningShop() {
+        // Скрываем все тултипы перед обновлением планируемого магазина
+        hideAllTooltips();
+        
         ui.planningShopItems.innerHTML = '';
         if (state.shop.length === 0) {
             ui.planningShopItems.innerHTML = '<p style="text-align:center; color: #777;">Пусто</p>';
@@ -3914,7 +4126,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return Math.max(0, maxSize - effectiveUsedSlots);
         }
         
-        return Math.max(0, maxSize - currentSize);
+        // Проверяем предметы с модификатором ignore_slot_for_empty_bonus
+        const itemsWithNoSlotUsage = state.inventory.filter(item => 
+            item.effect?.ignore_slot_for_empty_bonus || item.modifier?.effect?.ignore_slot_for_empty_bonus
+        );
+        const effectiveUsedSlots = currentSize - itemsWithNoSlotUsage.length;
+        
+        return Math.max(0, maxSize - effectiveUsedSlots);
     }
 
     // === БОНУСЫ ОТ НОВЫХ ПРЕДМЕТОВ ===
@@ -4367,4 +4585,200 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Экспортируем функцию для использования в статистике
     window.getSymbolCurrentValues = getSymbolCurrentValues;
+
+    // --- [NEW] Функция создания всплывающей подсказки ---
+    function createItemTooltip(item, currentCost, oldCost) {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'item-tooltip';
+        
+        const thumbnailValue = item.thumbnail || '?';
+        let thumbnailHTML = '';
+        if (thumbnailValue.endsWith('.png') || thumbnailValue.endsWith('.jpg') || thumbnailValue.endsWith('.gif')) {
+            thumbnailHTML = `<img src="img/${thumbnailValue}" alt="${item.name}" style="width:100%; height:100%; object-fit:cover;">`;
+        } else {
+            thumbnailHTML = thumbnailValue;
+        }
+        
+        let costHTML = '';
+        if (item.cost) {
+            costHTML = `${currentCost}🎟️`;
+            if (oldCost && currentCost < oldCost) {
+                costHTML += ` <s style="opacity:0.6">${oldCost}🎟️`;
+            }
+        }
+        
+        let modifierHTML = '';
+        if (item.modifier) {
+            const isPenalty = item.isPenalty || false;
+            const modifierIcon = isPenalty ? '💀' : '✨';
+            const modifierClass = isPenalty ? 'item-tooltip-modifier penalty' : 'item-tooltip-modifier';
+            
+            modifierHTML = `
+                <div class="${modifierClass}">
+                    <div class="item-tooltip-modifier-title">${modifierIcon} ${item.modifier.name}</div>
+                    <div class="item-tooltip-modifier-desc">${item.modifier.desc}</div>
+                </div>
+            `;
+        }
+        
+        let usesHTML = '';
+        let showUses = false;
+        let uses = null;
+        let maxUses = null;
+        if (typeof item.uses !== 'undefined' && (item.effect?.max_uses || item.effect?.luck_chance?.max_uses)) {
+            showUses = true;
+            uses = item.uses;
+            maxUses = item.effect.max_uses || item.effect.luck_chance?.max_uses;
+        } else if (item.effect?.luck_chance?.breakable) {
+            showUses = true;
+            uses = item.uses !== undefined ? item.uses : (item.effect.luck_chance.max_uses || 10);
+            maxUses = item.effect.luck_chance.max_uses || 10;
+        } else if (item.effect?.breakable && item.effect?.max_uses) {
+            showUses = true;
+            uses = item.uses !== undefined ? item.uses : item.effect.max_uses;
+            maxUses = item.effect.max_uses;
+        }
+        if (showUses && maxUses) {
+            usesHTML = `<div class="item-tooltip-uses">Использований: ${uses}/${maxUses}</div>`;
+        }
+        
+        let mimicHTML = '';
+        if (item.id === 'mimic_chest') {
+            let mimicInfoText = '';
+            if (item.effect?.mimic?.target) {
+                const target = ALL_ITEMS.find(i => i.id === item.effect.mimic.target);
+                mimicInfoText = target ? `Копирует: <b>${target.name}</b>` : `Цель не найдена`;
+            } else {
+                mimicInfoText = `<i>Нет цели для копирования</i>`;
+            }
+            mimicHTML = `<div class="item-tooltip-mimic">${mimicInfoText}</div>`;
+        }
+        
+        // Определяем класс для названия
+        const titleClass = item.modifier ? 'item-tooltip-title modified' : 'item-tooltip-title';
+        
+        tooltip.innerHTML = `
+            <div class="item-tooltip-header">
+                <div class="item-tooltip-thumbnail">${thumbnailHTML}</div>
+                <div class="${titleClass}">${item.name}</div>
+                ${costHTML ? `<div class="item-tooltip-cost">${costHTML}</div>` : ''}
+            </div>
+            <div class="item-tooltip-desc">${item.desc}</div>
+            ${modifierHTML}
+            ${usesHTML}
+            ${mimicHTML}
+        `;
+        
+        return tooltip;
+    }
+    
+    // --- [NEW] Функция позиционирования tooltip ---
+    function positionTooltip(tooltip, event) {
+        if (!tooltip || !tooltip.parentNode) return;
+        
+        // Проверяем, что тултип видим и имеет размеры
+        const rect = tooltip.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+            // Если тултип еще не отрендерен, используем примерные размеры
+            tooltip.style.visibility = 'hidden';
+            tooltip.style.display = 'block';
+            const tempRect = tooltip.getBoundingClientRect();
+            tooltip.style.visibility = '';
+            tooltip.style.display = '';
+            
+            if (tempRect.width === 0 || tempRect.height === 0) {
+                // Если все еще нет размеров, используем фиксированные значения
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                
+                let tooltipLeft = event.clientX + 15;
+                let tooltipTop = event.clientY - 10;
+                
+                // Проверяем, не выходит ли tooltip за правый край экрана
+                if (tooltipLeft + 320 > vw - 20) {
+                    tooltipLeft = event.clientX - 320 - 15;
+                }
+                
+                // Проверяем, не выходит ли tooltip за левый край экрана
+                if (tooltipLeft < 20) {
+                    tooltipLeft = 20;
+                }
+                
+                // Проверяем, не выходит ли tooltip за нижний край экрана
+                if (tooltipTop + 200 > vh - 20) {
+                    tooltipTop = event.clientY - 200 - 10;
+                }
+                
+                // Проверяем, не выходит ли tooltip за верхний край экрана
+                if (tooltipTop < 20) {
+                    tooltipTop = 20;
+                }
+                
+                tooltip.style.left = tooltipLeft + 'px';
+                tooltip.style.top = tooltipTop + 'px';
+                return;
+            }
+        }
+        
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        let left = event.clientX + 15;
+        let top = event.clientY - 10;
+        
+        // Проверяем, не выходит ли tooltip за правый край экрана
+        if (left + rect.width > viewportWidth - 20) {
+            left = event.clientX - rect.width - 15;
+        }
+        
+        // Проверяем, не выходит ли tooltip за левый край экрана
+        if (left < 20) {
+            left = 20;
+        }
+        
+        // Проверяем, не выходит ли tooltip за нижний край экрана
+        if (top + rect.height > viewportHeight - 20) {
+            top = event.clientY - rect.height - 10;
+        }
+        
+        // Проверяем, не выходит ли tooltip за верхний край экрана
+        if (top < 20) {
+            top = 20;
+        }
+        
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+    }
+
+    // --- [NEW] Глобальная функция для принудительного скрытия всех тултипов ---
+    function hideAllTooltips() {
+        const tooltips = document.querySelectorAll('.item-tooltip');
+        tooltips.forEach(tooltip => {
+            if (tooltip.parentNode) {
+                tooltip.classList.remove('show');
+                setTimeout(() => {
+                    if (tooltip && tooltip.parentNode) {
+                        tooltip.parentNode.removeChild(tooltip);
+                    }
+                }, 200);
+            }
+        });
+    }
+
+    // Экспортируем функцию для использования в консоли браузера
+    window.hideAllTooltips = hideAllTooltips;
+
+    // --- [NEW] Глобальный обработчик для скрытия тултипов при клике вне их области ---
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.item-tooltip') && !e.target.closest('.item')) {
+            hideAllTooltips();
+        }
+    });
+
+    // --- [NEW] Обработчик для скрытия тултипов при нажатии Escape ---
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            hideAllTooltips();
+        }
+    });
 });

@@ -214,7 +214,7 @@ body {
     flex-shrink: 0;
     width: 48px;
     height: 48px;
-    background-color: #111;
+    background-color: #1e1e1e;
     border: 1px solid var(--border-color);
     border-radius: 4px;
     display: flex;
@@ -892,7 +892,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .amulet-popup-thumbnail {
     width: 96px;
     height: 96px;
-    background-color: #111;
+    background-color: #1e1e1e;
     border: 2px solid var(--border-color);
     border-radius: 8px;
     display: flex;
@@ -2436,3 +2436,263 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   #btn-close-run-stats:active {
       transform: scale(0.98);
   }
+
+  /* --- СТИЛИ ДЛЯ ВСПЛЫВАЮЩИХ ПОДСКАЗОК ПРЕДМЕТОВ --- */
+  .item-tooltip {
+      position: absolute;
+      background: var(--cell-bg);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      max-width: 320px;
+      min-width: 280px;
+      color: var(--text-color);
+      font-size: 14px;
+      line-height: 1.4;
+      z-index: 10000;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.9);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      backdrop-filter: blur(4px);
+      /* Добавляем дополнительные свойства для предотвращения зависания */
+      will-change: opacity, transform;
+      contain: layout style paint;
+      /* Убеждаемся, что тултип не выходит за границы экрана */
+      max-height: calc(100vh - 40px);
+      overflow: hidden;
+  }
+
+  .item-tooltip.show {
+      opacity: 1;
+      transform: scale(1);
+  }
+
+  /* Добавляем стили для скрытия тултипов при проблемах */
+  .item-tooltip.hidden {
+      opacity: 0 !important;
+      transform: scale(0.9) !important;
+      pointer-events: none !important;
+  }
+
+  /* Добавляем стили для анимации исчезновения */
+  .item-tooltip.fade-out {
+      opacity: 0 !important;
+      transform: scale(0.9) !important;
+      transition: opacity 0.15s ease, transform 0.15s ease !important;
+  }
+
+  .item-tooltip-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+  }
+
+  .item-tooltip-thumbnail {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      background: var(--cell-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      flex-shrink: 0;
+  }
+
+  .item-tooltip-title {
+      font-weight: bold;
+      font-size: 16px;
+      color: var(--text-color);
+      flex-grow: 1;
+  }
+
+  .item-tooltip-cost {
+      font-weight: bold;
+      color: var(--ticket-color);
+      font-size: 14px;
+  }
+
+  .item-tooltip-desc {
+      margin-bottom: 12px;
+      color: var(--text-color);
+      opacity: 0.9;
+  }
+
+  .item-tooltip-modifier {
+      margin-top: 12px;
+      padding: 8px;
+      background: rgba(76, 175, 80, 0.1);
+      border-left: 3px solid #4caf50;
+      border-radius: 4px;
+  }
+
+  .item-tooltip-modifier.penalty {
+      background: rgba(229, 57, 53, 0.1);
+      border-left: 3px solid #e53935;
+  }
+
+  .item-tooltip-modifier-title {
+      font-weight: bold;
+      color: #4caf50;
+      margin-bottom: 4px;
+  }
+
+  .item-tooltip-modifier.penalty .item-tooltip-modifier-title {
+      color: #e53935;
+  }
+
+  .item-tooltip-modifier-desc {
+      color: var(--text-color);
+      opacity: 0.9;
+      font-size: 13px;
+  }
+
+  .item-tooltip-uses {
+      margin-top: 8px;
+      color: #ffab40;
+      font-size: 12px;
+      font-style: italic;
+  }
+
+  .item-tooltip-mimic {
+      margin-top: 8px;
+      color: #b388ff;
+      font-size: 12px;
+  }
+
+  /* --- СТИЛИ ДЛЯ ПЕРЕЛИВАЮЩИХСЯ НАЗВАНИЙ МОДИФИЦИРОВАННЫХ ПРЕДМЕТОВ --- */
+  .item-name.modified:not(.modifier-bad) {
+      background: linear-gradient(90deg, #43e97b, #38f9d7, #4caf50, #66bb6a, #43e97b, #38f9d7, #4caf50);
+      background-size: 600% 600%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer-green 4s linear infinite;
+      font-weight: bold;
+  }
+
+  @keyframes shimmer-green {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+  }
+
+  /* Адаптивность для мобильных устройств */
+  @media (max-width: 768px) {
+      .item-tooltip {
+          max-width: 280px;
+          min-width: 240px;
+          padding: 12px;
+          font-size: 13px;
+      }
+      
+      .item-tooltip-thumbnail {
+          width: 32px;
+          height: 32px;
+          font-size: 20px;
+      }
+      
+      .item-tooltip-title {
+          font-size: 14px;
+      }
+      
+      .item-name.modified:not(.modifier-bad) {
+          background-size: 200% 200%;
+          animation-duration: 1.5s;
+      }
+  }
+
+  .item-name.modified, .amulet-popup-title.modified:not(.modifier-bad) {
+    background: linear-gradient(90deg, #43e97b, #38f9d7, #4caf50, #66bb6a, #43e97b, #38f9d7, #4caf50);
+    background-size: 600% 600%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer-green 4s linear infinite;
+    font-weight: bold;
+}
+
+@keyframes shimmer-green {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.item-tooltip-title.modified:not(.modifier-bad) {
+    background: linear-gradient(90deg, #43e97b, #38f9d7, #4caf50, #66bb6a, #43e97b, #38f9d7, #4caf50);
+    background-size: 600% 600%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer-green 4s linear infinite;
+    font-weight: bold;
+}
+
+/* --- СТИЛИ ДЛЯ ПЕРЕЛИВАЮЩИХСЯ ЭМОДЗИ В THUMBNAIL МОДИФИЦИРОВАННЫХ ПРЕДМЕТОВ --- */
+.item-thumbnail.modified:not(.modifier-bad) {
+    background: linear-gradient(90deg, #43e97b, #38f9d7, #4caf50, #66bb6a, #43e97b, #38f9d7, #4caf50);
+    background-size: 600% 600%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer-green 4s linear infinite;
+}
+
+/* Плохие модификаторы: красный стиль */
+.modifier-bad {
+  color: #e53935 !important;
+  
+}
+
+/* Красный градиент для названий плохих модификаторов */
+.item-name.modifier-bad {
+  background: linear-gradient(90deg, #8e3c3b, #e7756d, #be5858);
+  background-size: 600% 600%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer-red 4s linear infinite;
+  font-weight: bold;
+}
+
+/* Красный градиент для эмодзи плохих модификаторов */
+.item-thumbnail.modifier-bad {
+  background: linear-gradient(90deg, #8e3c3b, #e7756d, #be5858);
+  background-size: 600% 600%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer-red 4s linear infinite;
+}
+
+@keyframes shimmer-red {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.amulet-popup-title.modified:not(.modifier-bad) {
+  background: linear-gradient(90deg, #43e97b, #38f9d7, #4caf50, #66bb6a, #43e97b, #38f9d7, #4caf50);
+  background-size: 600% 600%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer-green 4s linear infinite;
+  font-weight: bold;
+}
+
+.amulet-popup-title.modifier-bad {
+  background: linear-gradient(90deg, #8e3c3b, #e7756d, #be5858);
+  background-size: 600% 600%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer-red 4s linear infinite;
+  font-weight: bold;
+}

@@ -301,3 +301,181 @@ const ALL_ITEMS = [
     effect: { permanent_spins: 4 }
   },
 ]
+
+// --- СИСТЕМА СЛУЧАЙНЫХ МОДИФИКАТОРОВ ---
+const ITEM_MODIFIERS = [
+  {
+    id: 'slot_boost',
+    name: '+1 к модификатору для слотов',
+    desc: 'Увеличивает эффективность предметов, работающих с пустыми слотами',
+    effect: { slot_modifier_boost: 1 }
+  },
+  {
+    id: 'no_slot_usage',
+    name: 'Не занимает место',
+    desc: 'Этот предмет не занимает место в инвентаре, но все выигрыши уменьшены на 10%',
+    effect: { ignore_slot_for_empty_bonus: true, win_penalty: 0.1 }
+  },
+  {
+    id: 'luck_boost',
+    name: '+1 к удаче',
+    desc: 'Дополнительная удача',
+    effect: { luck: 1 }
+  },
+  {
+    id: 'line_modifier',
+    name: '+1 модификатор для линий',
+    desc: 'Увеличивает множители всех линий',
+    effect: { line_type_multiplier_bonus: { types: ["Горизонтальная", "Вертикальная", "Диагональная", "Зиг-Заг", "Небо/Земля", "Секретная"], bonus: 1 } }
+  },
+  {
+    id: 'combo_boost',
+    name: '+10% к комбо',
+    desc: 'Увеличивает бонус от комбо-выигрышей',
+    effect: { combo_bonus_multiplier: 1.1 }
+  },
+  {
+    id: 'bank_boost',
+    name: '+2% в банк',
+    desc: 'Увеличивает процентную ставку банка',
+    effect: { interest_rate_bonus: 0.02 }
+  }
+];
+
+// Штрафные модификаторы
+const PENALTY_MODIFIERS = [
+  {
+    id: 'cursed_slot',
+    name: 'Проклятый слот',
+    desc: 'Этот предмет занимает 2 слота вместо одного',
+    effect: { slot_penalty: 1 }
+  },
+  {
+    id: 'bad_luck',
+    name: '-1 к удаче',
+    desc: 'Уменьшает удачу на 1',
+    effect: { luck: -1 }
+  },
+  {
+    id: 'line_weakness',
+    name: '-1 модификатор для линий',
+    desc: 'Уменьшает множители всех линий',
+    effect: { line_type_multiplier_bonus: { types: ["Горизонтальная", "Вертикальная", "Диагональная", "Зиг-Заг", "Небо/Земля", "Секретная"], bonus: -1 } }
+  },
+  {
+    id: 'combo_penalty',
+    name: '-10% к комбо',
+    desc: 'Уменьшает бонус от комбо-выигрышей',
+    effect: { combo_bonus_multiplier: 0.9 }
+  },
+  {
+    id: 'bank_penalty',
+    name: '-2% в банк',
+    desc: 'Уменьшает процентную ставку банка',
+    effect: { interest_rate_bonus: -0.02 }
+  },
+  {
+    id: 'win_penalty',
+    name: 'Штраф выигрыша',
+    desc: 'Все выигрыши уменьшены на 15%',
+    effect: { win_penalty: 0.15 }
+  }
+];
+
+// Функция для подсчета модифицированных предметов у игрока
+function countModifiedItems() {
+  if (typeof window === 'undefined' || !window.state || !window.state.inventory) {
+    return 0;
+  }
+  // Считаем только активные предметы с модификаторами (не удаленные)
+  return window.state.inventory.filter(item => item.modifier && !item.removed).length;
+}
+
+// Функция для добавления случайного модификатора к предмету
+function addRandomModifier(item) {
+  // Увеличиваем шанс для редких и легендарных предметов
+  let chance = 0.1; // 10% для обычных
+  if (item.rarity === 'rare') chance = 0.15; // 15% для редких
+  if (item.rarity === 'legendary') chance = 0.25; // 25% для легендарных
+  
+  if (Math.random() < chance) {
+    const modifiedItem = { ...item };
+    const modifiedItemsCount = countModifiedItems();
+    
+    let modifier;
+    let isPenalty = false;
+    
+    // Если у игрока 4+ модифицированных предметов, применяем штрафную систему
+    if (modifiedItemsCount >= 4) {
+      // Уменьшаем шанс хороших модификаторов в 2 раза
+      const goodModifierChance = 0.33; // 33% шанс хорошего модификатора
+      
+      if (Math.random() < goodModifierChance) {
+        modifier = ITEM_MODIFIERS[Math.floor(Math.random() * ITEM_MODIFIERS.length)];
+        if (typeof window.addLog === 'function') {
+          window.addLog(`🎲 Штрафная система: выпал хороший модификатор для ${item.name}`, 'win');
+        }
+      } else {
+        modifier = PENALTY_MODIFIERS[Math.floor(Math.random() * PENALTY_MODIFIERS.length)];
+        isPenalty = true;
+        if (typeof window.addLog === 'function') {
+          window.addLog(`💀 Штрафная система: выпал плохой модификатор для ${item.name}`, 'loss');
+        }
+      }
+    } else {
+      // Обычная логика без штрафов
+      modifier = ITEM_MODIFIERS[Math.floor(Math.random() * ITEM_MODIFIERS.length)];
+    }
+    
+    // Добавляем модификатор к названию
+    if (isPenalty) {
+      modifiedItem.name = `${modifiedItem.name} 💀`;
+    } else {
+      modifiedItem.name = `${modifiedItem.name} ✨`;
+    }
+    
+    // Объединяем эффекты
+    if (!modifiedItem.effect) modifiedItem.effect = {};
+    modifiedItem.effect = { ...modifiedItem.effect, ...modifier.effect };
+    
+    // Добавляем информацию о модификаторе
+    modifiedItem.modifier = modifier;
+    modifiedItem.isPenalty = isPenalty;
+    
+    // Проверяем наличие пассивки "Мастер модификаций"
+    let shouldIncreaseCost = true;
+    if (typeof window !== 'undefined' && window.state && window.state.activePassives) {
+      const hasModificationMaster = window.state.activePassives.some(p => p.id === 'modification_master');
+      if (hasModificationMaster) {
+        shouldIncreaseCost = false;
+        // Добавляем сообщение в лог о том, что пассивка сработала
+        if (typeof window.addLog === 'function') {
+          window.addLog(`⚡ Мастер модификаций: ${modifiedItem.name} не получил штраф стоимости!`, 'win');
+        }
+      }
+    }
+    
+    // Увеличиваем стоимость для модифицированных предметов только если пассивка не активна
+    if (shouldIncreaseCost) {
+      const costMultiplier = isPenalty ? 0.8 : 1.2; // Штрафные модификаторы дешевле
+      modifiedItem.cost = Math.ceil(modifiedItem.cost * costMultiplier);
+    }
+    
+    // Добавляем сообщение в лог о штрафной системе
+    if (modifiedItemsCount >= 4 && typeof window.addLog === 'function') {
+      window.addLog(`⚠️ Штрафная система модификаторов активна! (${modifiedItemsCount}/4+ предметов)`, 'warning');
+    }
+    
+    return modifiedItem;
+  }
+  return item;
+}
+
+// Экспортируем функции в глобальную область видимости
+if (typeof window !== 'undefined') {
+  window.addRandomModifier = addRandomModifier;
+  window.countModifiedItems = countModifiedItems;
+  window.ALL_ITEMS = ALL_ITEMS;
+  window.ITEM_MODIFIERS = ITEM_MODIFIERS;
+  window.PENALTY_MODIFIERS = PENALTY_MODIFIERS;
+}
