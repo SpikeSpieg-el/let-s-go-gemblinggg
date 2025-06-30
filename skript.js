@@ -728,11 +728,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         // Обработка множителя для всех символов
-        const allSymbolsMultiplierBoost = getItemEffectValue('all_symbols_multiplier_boost', 0);
-        if (allSymbolsMultiplierBoost > 0) {
+        // Суммируем обычный бонус и бонус за цикл
+        const baseAllSymbolsMultiplierBoost = getItemEffectValue('all_symbols_multiplier_boost', 0, 'sum');
+        const perRunAllSymbolsMultiplierBoost = state.inventory.reduce((acc, item) => {
+            if (item.effect?.per_run_bonus?.all_symbols_multiplier_boost) {
+                return acc + item.effect.per_run_bonus.all_symbols_multiplier_boost * state.run;
+            }
+            return acc;
+        }, 0);
+        const allSymbolsMultiplierBoostCurrent = baseAllSymbolsMultiplierBoost + perRunAllSymbolsMultiplierBoost;
+        if (allSymbolsMultiplierBoostCurrent > 0) {
             // Применяем бонус ко всем символам
             ['lemon', 'cherry', 'clover', 'bell', 'diamond', 'coins', 'seven'].forEach(symbolId => {
-                symbolMultipliers[symbolId] = (symbolMultipliers[symbolId] || 1) + allSymbolsMultiplierBoost;
+                symbolMultipliers[symbolId] = (symbolMultipliers[symbolId] || 1) + allSymbolsMultiplierBoostCurrent;
             });
         }
         const lineLengthBonuses = {};
@@ -875,7 +883,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (comboLength >= 3) {
                         let lineMultiplier = lengthMultipliers[comboLength];
-                        const typeBonus = state.inventory.filter(item => item.effect?.line_type_multiplier_bonus).reduce((acc, item) => item.effect.line_type_multiplier_bonus.types.some(type => line.type === type) ? acc + item.effect.line_type_multiplier_bonus.bonus : acc, 0);
+                        // Суммируем обычный бонус и бонус за цикл для line_type_multiplier_bonus
+                        const typeBonus = state.inventory.reduce((acc, item) => {
+                            // Обычный бонус
+                            if (item.effect?.line_type_multiplier_bonus && item.effect.line_type_multiplier_bonus.types.some(type => line.type === type)) {
+                                acc += item.effect.line_type_multiplier_bonus.bonus;
+                            }
+                            // Бонус за цикл
+                            if (item.effect?.per_run_bonus?.line_type_multiplier_bonus && item.effect.per_run_bonus.line_type_multiplier_bonus.types.some(type => line.type === type)) {
+                                acc += item.effect.per_run_bonus.line_type_multiplier_bonus.bonus * (window.state?.run || 1);
+                            }
+                            return acc;
+                        }, 0);
                         lineMultiplier += typeBonus;
                         
                         const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => (item.effect.line_length_multiplier_bonus.length === comboLength) ? acc * item.effect.line_length_multiplier_bonus.multiplier : acc, 1);
@@ -930,7 +949,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (symbolsOnLine.every(s => s.id === lineSymbol.id || (wildSymbolIds.length > 0 && wildSymbolIds.includes(s.id)))) {
                     let lineMultiplier = line.multiplier;
-                    const typeBonus = state.inventory.filter(item => item.effect?.line_type_multiplier_bonus).reduce((acc, item) => item.effect.line_type_multiplier_bonus.types.some(type => line.type === type) ? acc + item.effect.line_type_multiplier_bonus.bonus : acc, 0);
+                    // Суммируем обычный бонус и бонус за цикл для line_type_multiplier_bonus
+                    const typeBonus = state.inventory.reduce((acc, item) => {
+                        // Обычный бонус
+                        if (item.effect?.line_type_multiplier_bonus && item.effect.line_type_multiplier_bonus.types.some(type => line.type === type)) {
+                            acc += item.effect.line_type_multiplier_bonus.bonus;
+                        }
+                        // Бонус за цикл
+                        if (item.effect?.per_run_bonus?.line_type_multiplier_bonus && item.effect.per_run_bonus.line_type_multiplier_bonus.types.some(type => line.type === type)) {
+                            acc += item.effect.per_run_bonus.line_type_multiplier_bonus.bonus * (window.state?.run || 1);
+                        }
+                        return acc;
+                    }, 0);
                     lineMultiplier += typeBonus;
 
                     const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => (item.effect.line_length_multiplier_bonus.length === line.positions.length) ? acc * item.effect.line_length_multiplier_bonus.multiplier : acc, 1);
@@ -1277,6 +1307,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 addLog(`На волне успеха (x${state.winStreak}): +${finalBonus}💰`, 'win');
                 animateInventoryItem('hot_streak');
             }
+            
 
             // === GLASS CANNON ===
             const glassCannonIdx = state.inventory.findIndex(item => item.id === 'glass_cannon');
@@ -1290,6 +1321,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else { 
             addLog('Ничего не выпало.');
+            if (hasItem('scrap_metal')) {
+                const lossBonus = getItemEffectValue('on_loss_bonus', 0);
+                state.piggyBank += lossBonus;
+                addLog(`Копилка впитала: +${lossBonus}💰. Всего: ${state.piggyBank}💰`);
+            }
             state.winStreak = 0; // [NEW] Сброс серии побед
             // --- ПАССИВКА: Обучение на ошибках ---
             if (hasPassive('learning_from_mistakes')) {
@@ -1299,14 +1335,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     addLog(`Обучение на ошибках: +2 к перманентной удаче!`, 'win');
                     state.flags.consecutiveLosses = 0;
                 }
-            }
-
-            if (hasItem('scrap_metal') && state.piggyBank > 0) {
-                const piggyBankBonus = applyCoinDoubler(state.piggyBank);
-                addLog(`💥 Копилка разбита! Вы получили +${formatNumberWithComma(piggyBankBonus)}💰.`, 'win');
-                state.coins += piggyBankBonus;
-                state.piggyBank = 0;
-                animateInventoryItem('scrap_metal');
             }
             // === DEMON CONTRACT ===
             const demonItem = state.inventory.find(item => item.id === 'demon_contract');
@@ -1384,6 +1412,18 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             state.lastWinningSymbol = undefined;
         }
+
+        // --- Бонусы on_win_bonus (например, Камень-резонатор) ---
+        state.inventory.forEach(item => {
+          if (typeof item.on_win_bonus === 'function') {
+            const bonus = item.on_win_bonus(state.grid, totalWinnings, state, winningLinesInfo);
+            if (bonus > 0) {
+              totalWinnings += bonus;
+              addLog(`${item.name}: +${bonus}💰`, 'win');
+              animateInventoryItem(item.id);
+            }
+          }
+        });
     }
 
     function highlightWinningCells(positions, winAmount, isCombo = false, winningLines = []) {
@@ -2550,7 +2590,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function startTurn() {
         repairDwarfsWorkshop(); // Мастерская гнома теперь срабатывает в начале раунда
         updateSpinCosts(); // Обновляем стоимость в начале каждого раунда
-
+        state.spinsLeft = 0;
         state.tempLuck = 0;
         state.firstSpinUsed = false;
         state.roundSpinsMade = 0;
@@ -2968,12 +3008,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const maxSize = getMaxInventorySize();
         const effectiveSlots = getEffectiveEmptySlots();
         const effectiveUsed = maxSize - effectiveSlots;
-        
-        if (effectiveUsed >= maxSize) {
+        const item = state.shop.find(i => i.id === itemId);
+        // --- ИСПРАВЛЕНИЕ: разрешаем покупку "невесомых" амулетов даже при полном инвентаре ---
+        if (
+            effectiveUsed >= maxSize &&
+            !(item && (item.effect?.ignore_slot_for_empty_bonus || item.modifier?.effect?.ignore_slot_for_empty_bonus))
+        ) {
             addLog(`В инвентаре максимум ${maxSize} амулетов!`, 'loss');
             return;
         }
-        const item = state.shop.find(i => i.id === itemId);
         
         let cost = item.cost;
         let bonusApplied = false;
@@ -3057,10 +3100,9 @@ document.addEventListener('DOMContentLoaded', () => {
             animateInventoryItem(item.id);
         }
         // +Постоянные спинны (например, бесконечные спинны)
-        let newPermanentSpins = getItemEffectValue('permanent_spins', 0);
-        if (newPermanentSpins > 0) {
-            state.spinsLeft += newPermanentSpins;
-            addLog(`+${newPermanentSpins} прокрут(ов) сразу после покупки!`, 'win');
+        if (item && item.effect && item.effect.permanent_spins) {
+            state.spinsLeft += item.effect.permanent_spins;
+            addLog(`+${item.effect.permanent_spins} прокрут(ов) сразу после покупки!`, 'win');
             animateInventoryItem(item.id);
         }
         // Можно добавить аналогично для других эффектов, если потребуется
@@ -3362,7 +3404,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (purchaseCallback) {
             itemDiv.onclick = () => purchaseCallback(item.id);
-            if (state.tickets < currentCost || getEffectiveEmptySlots() <= 0) {
+            // --- ИСПРАВЛЕНИЕ: разрешаем покупку "невесомых" амулетов даже при полном инвентаре ---
+            const maxSize = getMaxInventorySize();
+            const effectiveSlots = getEffectiveEmptySlots();
+            const effectiveUsed = maxSize - effectiveSlots;
+            const isNoSlot = item.effect?.ignore_slot_for_empty_bonus || item.modifier?.effect?.ignore_slot_for_empty_bonus;
+            if (state.tickets < currentCost || (effectiveUsed >= maxSize && !isNoSlot)) {
                 itemDiv.style.opacity = '0.5';
                 itemDiv.style.cursor = 'not-allowed';
             }
@@ -3519,6 +3566,30 @@ document.addEventListener('DOMContentLoaded', () => {
         
         infoDiv.appendChild(headerDiv);
         infoDiv.appendChild(descP);
+
+        // Универсальное отображение всех бонусов per_run_bonus
+        if (item.effect?.per_run_bonus) {
+            const run = window.state?.run || 1;
+            const bonusLines = [];
+            for (const [key, value] of Object.entries(item.effect.per_run_bonus)) {
+                if (typeof value === 'number') {
+                    bonusLines.push(`<span style='color:#2196f3;'>Сейчас: +${value * run}</span>`);
+                } else if (typeof value === 'object' && value !== null) {
+                    if (typeof value.bonus === 'number') {
+                        bonusLines.push(`<span style='color:#2196f3;'>Сейчас: +${value.bonus * run}</span>`);
+                    } else {
+                        bonusLines.push(`<span style='color:#aaa;'>${JSON.stringify(value)}</span>`);
+                    }
+                }
+            }
+            if (bonusLines.length > 0) {
+                const bonusDiv = document.createElement('div');
+                bonusDiv.className = 'item-bonus-inline';
+                bonusDiv.style.cssText = 'font-size:12px; margin-top:2px;';
+                bonusDiv.innerHTML = bonusLines.join('<br>');
+                infoDiv.appendChild(bonusDiv);
+            }
+        }
 
         // Универсальное отображение uses/max_uses для всех breakable предметов
         let showUses = false;
@@ -4659,11 +4730,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         // Обработка множителя для всех символов
-        const allSymbolsMultiplierBoost = getItemEffectValue('all_symbols_multiplier_boost', 0);
-        if (allSymbolsMultiplierBoost > 0) {
+        // Суммируем обычный бонус и бонус за цикл
+        const baseAllSymbolsMultiplierBoost = getItemEffectValue('all_symbols_multiplier_boost', 0, 'sum');
+        const perRunAllSymbolsMultiplierBoost = state.inventory.reduce((acc, item) => {
+            if (item.effect?.per_run_bonus?.all_symbols_multiplier_boost) {
+                return acc + item.effect.per_run_bonus.all_symbols_multiplier_boost * state.run;
+            }
+            return acc;
+        }, 0);
+        const allSymbolsMultiplierBoostCurrent = baseAllSymbolsMultiplierBoost + perRunAllSymbolsMultiplierBoost;
+        if (allSymbolsMultiplierBoostCurrent > 0) {
             // Применяем бонус ко всем символам
             ['lemon', 'cherry', 'clover', 'bell', 'diamond', 'coins', 'seven'].forEach(symbolId => {
-                symbolMultipliers[symbolId] = (symbolMultipliers[symbolId] || 1) + allSymbolsMultiplierBoost;
+                symbolMultipliers[symbolId] = (symbolMultipliers[symbolId] || 1) + allSymbolsMultiplierBoostCurrent;
             });
         }
         
