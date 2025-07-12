@@ -3038,3 +3038,172 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     0% { background-position: 0% 50%; }
     100% { background-position: 100% 50%; }
   }
+
+  /* --- СТИЛИ ДЛЯ ПОП-АПОВ ПРОВЕРКИ ДЕНЕГ В КОНЦЕ 3-ГО РАУНДА --- */
+  
+  /* Общие стили для поп-апов проверки денег */
+  .insufficient-money-popup,
+  .sufficient-money-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+
+  .insufficient-money-popup.show,
+  .sufficient-money-popup.show {
+    opacity: 1;
+  }
+
+  .insufficient-money-popup.fade-out,
+  .sufficient-money-popup.fade-out {
+    opacity: 0;
+  }
+
+  /* Стили для контента поп-апов */
+  .insufficient-money-content,
+  .sufficient-money-content {
+    background: var(--cell-bg);
+    border: 3px solid;
+    border-radius: 15px;
+    padding: 30px;
+    max-width: 500px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    transform: scale(0.8);
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .insufficient-money-popup.show .insufficient-money-content,
+  .sufficient-money-popup.show .sufficient-money-content {
+    transform: scale(1);
+  }
+
+  /* Специфичные стили для поп-апа недостатка денег */
+  .insufficient-money-content {
+    border-color: #ff4444;
+    animation: insufficientMoneyShake 0.5s ease-in-out;
+  }
+
+  @keyframes insufficientMoneyShake {
+    0%, 100% { transform: scale(1) translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: scale(1) translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: scale(1) translateX(5px); }
+  }
+
+  /* Специфичные стили для поп-апа достатка денег */
+  .sufficient-money-content {
+    border-color: #44ff44;
+    animation: sufficientMoneyGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes sufficientMoneyGlow {
+    0%, 100% { 
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(68, 255, 68, 0.3);
+    }
+    50% { 
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(68, 255, 68, 0.6);
+    }
+  }
+
+  /* Стили для кнопки в поп-апе достатка денег */
+  #btn-continue-to-judgement {
+    background: linear-gradient(45deg, #44ff44, #22cc22);
+    color: #000;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1.1em;
+    cursor: pointer;
+    margin: 15px 10px 0 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(68, 255, 68, 0.4);
+  }
+
+  #btn-continue-to-judgement:hover {
+    background: linear-gradient(45deg, #55ff55, #33dd33);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(68, 255, 68, 0.6);
+  }
+
+  #btn-continue-to-judgement:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(68, 255, 68, 0.4);
+  }
+
+  /* Адаптивность для поп-апов */
+  @media (max-width: 600px) {
+    .insufficient-money-content,
+    .sufficient-money-content {
+      max-width: 90vw;
+      padding: 20px;
+      margin: 20px;
+    }
+
+    .insufficient-money-content h2,
+    .sufficient-money-content h2 {
+      font-size: 1.3em;
+      margin-bottom: 15px;
+    }
+
+    .insufficient-money-content p,
+    .sufficient-money-content p {
+      font-size: 1em;
+      margin-bottom: 10px;
+    }
+
+    #btn-continue-to-judgement {
+      padding: 10px 20px;
+      font-size: 1em;
+    }
+  }
+
+  /* --- СТИЛИ ДЛЯ СПЕЦИАЛЬНОГО ТЕКСТА В КОНЦЕ 3-ГО РАУНДА --- */
+  #end-of-round-modal p {
+    line-height: 1.6;
+    margin-bottom: 25px;
+  }
+
+  #end-of-round-modal p span {
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  #end-of-round-modal p span:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Анимация для текста 3-го раунда */
+  #end-of-round-modal p span:first-child {
+    animation: round3WarningPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes round3WarningPulse {
+    0%, 100% { 
+      text-shadow: 0 0 5px rgba(255, 102, 102, 0.5);
+    }
+    50% { 
+      text-shadow: 0 0 15px rgba(255, 102, 102, 0.8), 0 0 25px rgba(255, 102, 102, 0.4);
+    }
+  }
+
+  /* Адаптивность для текста 3-го раунда */
+  @media (max-width: 600px) {
+    #end-of-round-modal p {
+      font-size: 0.95em;
+      line-height: 1.5;
+    }
+    
+    #end-of-round-modal p span {
+      margin-bottom: 6px;
+    }
+  }

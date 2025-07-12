@@ -2482,6 +2482,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Обновляем данные для статистики
         updateWeightedSymbols();
+        
+        // [NEW] Настраиваем обработчики событий для dropdown кнопок
+        setupDepositDropdownHandlers();
     }
 
     // Функция для перехода на СЛЕДУЮЩИЙ ЦИКЛ
@@ -2584,6 +2587,9 @@ document.addEventListener('DOMContentLoaded', () => {
             state.flags.sawPirateWarning = true;
         }
         console.log(`[DEBUG][startNewCycle] После переноса: bankBalance=${state.bankBalance}, coins=${state.coins}, tickets=${state.tickets}`);
+        
+        // [NEW] Настраиваем обработчики событий для dropdown кнопок
+        setupDepositDropdownHandlers();
     }
 
 
@@ -2730,6 +2736,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateMimicTarget();
         setupSpinCostTooltip(); // Добавляем настройку тултипов после открытия модального окна
+        
+        // [NEW] Настраиваем обработчики событий для dropdown кнопок
+        setupDepositDropdownHandlers();
     }
     
     function buySpins(pkg) {
@@ -2776,7 +2785,65 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.eorTitle.textContent = `Конец Раунда ${state.turn}`;
         ui.eorCoins.textContent = `${formatNumberWithComma(state.coins)}💰`;
         ui.eorBank.textContent = `${formatNumberWithComma(state.bankBalance)}💰`;
+        
+        // [NEW] Специальный текст для 3-го раунда
+        const eorDescription = document.querySelector('#end-of-round-modal p');
+        if (state.turn === 3) {
+            eorDescription.innerHTML = `
+                <span style="color: #ff6666; font-weight: bold;">💀 ПОСЛЕДНИЙ ШАНС 💀</span><br>
+                <span style="color: #ff8888;">День подходит к концу, и это ваш последний шанс внести деньги в банк, чтобы не проиграть.</span><br>
+                <span style="color: #ffaa88; font-style: italic;">Посмотрим, справитесь ли вы с этой простой задачей! 😈</span>
+            `;
+        } else {
+            eorDescription.textContent = 'День подходит к концу. Внесите сбережения в банк, чтобы получить проценты в следующем раунде.';
+        }
+        
         ui.endOfRoundModal.classList.remove('hidden');
+        
+        // [NEW] Настраиваем обработчики событий для dropdown кнопок при открытии модального окна
+        setupDepositDropdownHandlers();
+    }
+
+    // [NEW] Функция для настройки обработчиков событий dropdown кнопок
+    function setupDepositDropdownHandlers() {
+        const depositBtn = document.getElementById('btn-deposit');
+        const depositDropdown = document.getElementById('deposit-dropdown');
+        const eorDepositBtn = document.getElementById('btn-eor-deposit');
+        const eorDepositDropdown = document.getElementById('eor-deposit-dropdown');
+
+        function handleDepositDropdownClick(type, isFromEOR) {
+            let amount = 0;
+            if (type === 'all') amount = state.coins;
+            else if (type === 'except-7') amount = getDepositAmountExcept7();
+            else if (type === 'except-3') amount = getDepositAmountExcept3();
+            else if (type === 'half') amount = getDepositAmountHalf();
+            deposit(amount, isFromEOR);
+            if (depositDropdown) depositDropdown.classList.add('hidden');
+            if (eorDepositDropdown) eorDepositDropdown.classList.add('hidden');
+        }
+
+        if (depositBtn && depositDropdown) {
+            depositBtn.onclick = (e) => {
+                e.stopPropagation();
+                depositDropdown.classList.toggle('hidden');
+            };
+            depositDropdown.querySelectorAll('.deposit-option').forEach(opt => {
+                opt.onclick = (e) => {
+                    handleDepositDropdownClick(opt.dataset.type, false);
+                };
+            });
+        }
+        if (eorDepositBtn && eorDepositDropdown) {
+            eorDepositBtn.onclick = (e) => {
+                e.stopPropagation();
+                eorDepositDropdown.classList.toggle('hidden');
+            };
+            eorDepositDropdown.querySelectorAll('.deposit-option').forEach(opt => {
+                opt.onclick = (e) => {
+                    handleDepositDropdownClick(opt.dataset.type, true);
+                };
+            });
+        }
     }
 
     function confirmEndTurn() {
@@ -2810,6 +2877,12 @@ document.addEventListener('DOMContentLoaded', () => {
         addLog(`--- Раунд ${state.turn} окончен ---`);
         state.turn++;
         
+        // [NEW] Проверка денег в конце 3-го раунда
+        if (state.turn === 4) { // После завершения 3-го раунда
+            checkMoneyForRound3();
+            return; // Не продолжаем дальше, пока не проверим деньги
+        }
+        
         // [FIX] Добавляем задержку, чтобы анимация копилки (и других эффектов конца раунда) успела проиграться
         // перед тем, как startTurn() вызовет updateUI() и перерисует инвентарь.
         setTimeout(() => {
@@ -2819,6 +2892,101 @@ document.addEventListener('DOMContentLoaded', () => {
                 startTurn();
             }
         }, 900); // Анимация длится 800ms
+    }
+
+    // [NEW] Функция проверки денег в конце 3-го раунда
+    function checkMoneyForRound3() {
+        const totalMoney = state.coins + state.bankBalance;
+        const requiredAmount = state.targetDebt;
+        
+        if (totalMoney < requiredAmount) {
+            // Недостаточно денег - показываем трагичный поп-ап
+            showInsufficientMoneyPopup(totalMoney, requiredAmount);
+        } else {
+            // Есть деньги - показываем поп-ап с требованием внести нужную сумму
+            showSufficientMoneyPopup(totalMoney, requiredAmount);
+        }
+    }
+
+    // [NEW] Поп-ап при недостатке денег
+    function showInsufficientMoneyPopup(currentMoney, requiredAmount) {
+        const popup = document.createElement('div');
+        popup.className = 'insufficient-money-popup';
+        popup.innerHTML = `
+            <div class="insufficient-money-content">
+                <h2 style="color: #ff4444; text-align: center; margin-bottom: 20px; font-size: 1.5em;"> НЕДОСТАТОЧНО ДЕНЕГ! 💀</h2>
+                <p style="text-align: center; font-size: 1.2em; margin-bottom: 15px; color: #ff6666;">
+                    Ха-ха-ха! Посмотрите на этого беднягу! 
+                </p>
+                <p style="text-align: center; font-size: 1.1em; margin-bottom: 10px;">
+                    У вас всего: <span style="color: #ff4444; font-weight: bold;">${formatNumberWithComma(currentMoney)}💰</span>
+                </p>
+                <p style="text-align: center; font-size: 1.1em; margin-bottom: 20px;">
+                    А нужно: <span style="color: #ff4444; font-weight: bold;">${formatNumberWithComma(requiredAmount)}💰</span>
+                </p>
+                <p style="text-align: center; font-size: 1.1em; color: #ff8888; font-style: italic;">
+                    Готовьтесь к смерти, неудачник! 😈
+                </p>
+            </div>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        // Показываем поп-ап
+        setTimeout(() => popup.classList.add('show'), 100);
+        
+        // Через 5 секунд показываем убийство
+        setTimeout(() => {
+            popup.classList.remove('show');
+            popup.classList.add('fade-out');
+            setTimeout(() => {
+                popup.remove();
+                gameOver();
+            }, 1000);
+        }, 5000);
+    }
+
+    // [NEW] Поп-ап при достатке денег
+    function showSufficientMoneyPopup(currentMoney, requiredAmount) {
+        const popup = document.createElement('div');
+        popup.className = 'sufficient-money-popup';
+        popup.innerHTML = `
+            <div class="sufficient-money-content">
+                <h2 style="color: #44ff44; text-align: center; margin-bottom: 20px; font-size: 1.5em;"> Я ВИЖУ, ЧТО У ВАС ДОСТАТОЧНО ДЕНЕГ! 💰</h2>
+                <p style="text-align: center; font-size: 1.2em; margin-bottom: 15px; color: #44ff44;">
+                    Немедленно внесите нужное количество!
+                </p>
+                <p style="text-align: center; font-size: 1.1em; margin-bottom: 10px;">
+                    У вас: <span style="color: #44ff44; font-weight: bold;">${formatNumberWithComma(currentMoney)}💰</span>
+                </p>
+                <p style="text-align: center; font-size: 1.1em; margin-bottom: 20px;">
+                    Нужно внести: <span style="color: #44ff44; font-weight: bold;">${formatNumberWithComma(requiredAmount)}💰</span>
+                </p>
+                <div style="text-align: center;">
+                    <button id="btn-continue-to-judgement" style="background: #44ff44; color: #000; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 10px;">
+                        Внести и продолжить
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        // Показываем поп-ап
+        setTimeout(() => popup.classList.add('show'), 100);
+        
+        // Обработчик кнопки
+        document.getElementById('btn-continue-to-judgement').onclick = () => {
+            popup.classList.remove('show');
+            popup.classList.add('fade-out');
+            setTimeout(() => {
+                popup.remove();
+                // Продолжаем к судному дню
+                setTimeout(() => {
+                    judgementDay();
+                }, 900);
+            }, 1000);
+        };
     }
 
     function advanceToNextCycle(bonusCoins = 0, bonusTickets = 0, paidToBank = 0) {
@@ -3467,12 +3635,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Позиционируем tooltip
                 if (tooltip) {
-                    positionTooltip(tooltip, e);
-                }
-            });
-            
-            itemDiv.addEventListener('mousemove', (e) => {
-                if (tooltip && tooltip.parentNode) {
                     positionTooltip(tooltip, e);
                 }
             });
@@ -4849,6 +5011,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function positionTooltip(tooltip, event) {
         if (!tooltip || !tooltip.parentNode) return;
         
+        // Получаем координаты с учетом скролла страницы
+        const mouseX = event.clientX + window.scrollX;
+        const mouseY = event.clientY + window.scrollY;
+        
         // Проверяем, что тултип видим и имеет размеры
         const rect = tooltip.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) {
@@ -4864,12 +5030,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const vw = window.innerWidth;
                 const vh = window.innerHeight;
                 
-                let tooltipLeft = event.clientX + 15;
-                let tooltipTop = event.clientY - 10;
+                let tooltipLeft = mouseX + 15;
+                let tooltipTop = mouseY - 10;
                 
                 // Проверяем, не выходит ли tooltip за правый край экрана
                 if (tooltipLeft + 320 > vw - 20) {
-                    tooltipLeft = event.clientX - 320 - 15;
+                    tooltipLeft = mouseX - 320 - 15;
                 }
                 
                 // Проверяем, не выходит ли tooltip за левый край экрана
@@ -4879,7 +5045,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Проверяем, не выходит ли tooltip за нижний край экрана
                 if (tooltipTop + 200 > vh - 20) {
-                    tooltipTop = event.clientY - 200 - 10;
+                    tooltipTop = mouseY - 200 - 10;
                 }
                 
                 // Проверяем, не выходит ли tooltip за верхний край экрана
@@ -4896,12 +5062,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         
-        let left = event.clientX + 15;
-        let top = event.clientY - 10;
+        let left = mouseX + 15;
+        let top = mouseY - 10;
         
         // Проверяем, не выходит ли tooltip за правый край экрана
         if (left + rect.width > viewportWidth - 20) {
-            left = event.clientX - rect.width - 15;
+            left = mouseX - rect.width - 15;
         }
         
         // Проверяем, не выходит ли tooltip за левый край экрана
@@ -4911,7 +5077,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Проверяем, не выходит ли tooltip за нижний край экрана
         if (top + rect.height > viewportHeight - 20) {
-            top = event.clientY - rect.height - 10;
+            top = mouseY - rect.height - 10;
         }
         
         // Проверяем, не выходит ли tooltip за верхний край экрана
@@ -4953,5 +5119,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Escape') {
             hideAllTooltips();
         }
+    });
+
+    // --- [NEW] Глобальный обработчик движения мыши для обновления позиции тултипов ---
+    document.addEventListener('mousemove', (e) => {
+        const tooltips = document.querySelectorAll('.item-tooltip.show');
+        tooltips.forEach(tooltip => {
+            if (tooltip.parentNode) {
+                positionTooltip(tooltip, e);
+            }
+        });
     });
 });
