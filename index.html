@@ -5,6 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Цикл Долга</title>
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Yandex Games SDK -->
+    <script>
+        // Инициализация Yandex Games SDK
+        (function() {
+            var script = document.createElement('script');
+            script.src = 'https://yandex.ru/games/sdk/v2';
+            script.async = true;
+            
+            script.onload = function() {
+                console.log('[Yandex SDK] SDK загружен');
+                YaGames.init()
+                    .then(function(ysdk) {
+                        console.log('[Yandex SDK] SDK инициализирован:', ysdk);
+                        window.ysdk = ysdk;
+                        
+                        // Уведомляем о готовности SDK
+                        window.dispatchEvent(new CustomEvent('ysdk-ready', { detail: ysdk }));
+                    })
+                    .catch(function(error) {
+                        console.error('[Yandex SDK] Ошибка инициализации:', error);
+                        
+                        // Попробуем альтернативный способ инициализации
+                        console.log('[Yandex SDK] Пробуем альтернативную инициализацию...');
+                        if (window.YaGames && typeof window.YaGames.init === 'function') {
+                            window.YaGames.init()
+                                .then(function(ysdk) {
+                                    console.log('[Yandex SDK] Альтернативная инициализация успешна:', ysdk);
+                                    window.ysdk = ysdk;
+                                    window.dispatchEvent(new CustomEvent('ysdk-ready', { detail: ysdk }));
+                                })
+                                .catch(function(altError) {
+                                    console.error('[Yandex SDK] Альтернативная инициализация тоже не удалась:', altError);
+                                });
+                        }
+                    });
+            };
+            
+            script.onerror = function() {
+                console.error('[Yandex SDK] Ошибка загрузки SDK');
+                
+                // Попробуем загрузить SDK из URL параметра
+                const urlParams = new URLSearchParams(window.location.search);
+                const sdkUrl = urlParams.get('sdk');
+                if (sdkUrl) {
+                    console.log('[Yandex SDK] Пробуем загрузить SDK из URL параметра:', sdkUrl);
+                    var altScript = document.createElement('script');
+                    altScript.src = decodeURIComponent(sdkUrl);
+                    altScript.async = true;
+                    altScript.onload = function() {
+                        console.log('[Yandex SDK] SDK загружен из URL параметра');
+                        if (window.YaGames && typeof window.YaGames.init === 'function') {
+                            window.YaGames.init()
+                                .then(function(ysdk) {
+                                    console.log('[Yandex SDK] Инициализация из URL параметра успешна:', ysdk);
+                                    window.ysdk = ysdk;
+                                    window.dispatchEvent(new CustomEvent('ysdk-ready', { detail: ysdk }));
+                                })
+                                .catch(function(error) {
+                                    console.error('[Yandex SDK] Ошибка инициализации из URL параметра:', error);
+                                });
+                        }
+                    };
+                    altScript.onerror = function() {
+                        console.error('[Yandex SDK] Не удалось загрузить SDK из URL параметра');
+                    };
+                    document.head.appendChild(altScript);
+                }
+            };
+            
+            document.head.appendChild(script);
+        })();
+    </script>
 </head>
 <body>
 
@@ -88,6 +161,7 @@
                 <button id="btn-end-turn">Закончить раунд</button>
                 <button id="btn-show-run-stats" style="margin-left: 8px;">Статистика</button>
                 <button id="btn-toggle-log" style="margin-left: 8px;">Лог</button>
+                <button id="btn-leaderboard" class="btn-leaderboard" style="margin-left: 8px;">🏆 Лидеры</button>
             </div>
              <!-- АМУЛЕТЫ ПЕРЕМЕЩЕНЫ СЮДА -->
             <div class="ui-box">
@@ -159,6 +233,7 @@
             <h2 class="shake">ВЫ ПРОВАЛИЛИСЬ В ЯМУ</h2>
             <p>Судный день настал, а денег нет. Тьма поглощает вас.</p>
             <p>Вы продержались: <span id="final-run"></span> цикл(ов).</p>
+            <button id="btn-leaderboard-gameover" class="btn-leaderboard" style="margin-bottom: 10px;">🏆 Таблица лидеров</button>
             <button id="btn-restart-game">Попробовать снова</button>
         </div>
     </div>
@@ -171,6 +246,7 @@
                 <button id="buy-spins-7">7 прокрутов + 1 талон (Стоимость: 10💰)</button>
                 <button id="buy-spins-3">3 прокрута + 2 талона (Стоимость: 7💰)</button>
                 <button id="buy-spin-1">1 прокрут (3💰, без талонов)</button>
+                <button id="watch-ad-for-spins" style="background-color: #ff6b35; border-color: #ff6b35; color: white;">📺 Смотреть рекламу за 3 прокрута</button>
                 <button id="buy-nothing">Ничего. Я справлюсь.</button>
             </div>
             <div id="spin-cost-tooltip" class="spin-cost-tooltip" style="display:none; position:absolute; z-index:2000; font-size:0.98em; background:var(--cell-bg,#232323); border:1px solid var(--border-color,#444); border-radius:6px; padding:10px; color:var(--text-color,#fff); box-shadow:0 2px 12px #0005; pointer-events:none; transition:opacity 0.15s; opacity:0;"></div>
@@ -582,6 +658,199 @@
             const btn = document.getElementById('btn-show-tutorial');
             if (btn) btn.onclick = startTutorial;
         });
+    </script>
+    <script type="module">
+        import leaderboardsManager from './leaderboards.js';
+        
+        // Функция инициализации лидербордов
+        function initializeLeaderboards(ysdk) {
+            console.log('[Leaderboards] Инициализируем лидерборды с SDK:', ysdk);
+            leaderboardsManager.initialize(ysdk).then(success => {
+                if (success) {
+                    console.log('[Leaderboards] Лидерборды успешно инициализированы');
+                } else {
+                    console.warn('[Leaderboards] Не удалось инициализировать лидерборды');
+                }
+            });
+        }
+        
+        // Обработчик события готовности SDK
+        window.addEventListener('ysdk-ready', (event) => {
+            console.log('[Leaderboards] SDK готов, инициализируем лидерборды...');
+            initializeLeaderboards(event.detail);
+        });
+        
+        // Таймаут для инициализации SDK (5 секунд)
+        let sdkTimeout = setTimeout(() => {
+            console.warn('[Leaderboards] Таймаут инициализации SDK (5 секунд)');
+            if (!window.ysdk && !window.YandexGamesSDK) {
+                console.log('[Leaderboards] SDK недоступен, лидерборды будут отключены');
+            }
+        }, 5000);
+        
+        // Очищаем таймаут при успешной инициализации
+        window.addEventListener('ysdk-ready', () => {
+            clearTimeout(sdkTimeout);
+        });
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('[Leaderboards] DOM загружен, проверяем Yandex SDK...');
+            console.log('[Leaderboards] window.ysdk:', window.ysdk);
+            console.log('[Leaderboards] window.YandexGamesSDK:', window.YandexGamesSDK);
+            
+            // Если SDK уже загружен, инициализируем сразу
+            if (window.ysdk) {
+                console.log('[Leaderboards] SDK уже доступен, инициализируем...');
+                clearTimeout(sdkTimeout);
+                initializeLeaderboards(window.ysdk);
+            } else if (window.YandexGamesSDK) {
+                console.log('[Leaderboards] Используем YandexGamesSDK...');
+                clearTimeout(sdkTimeout);
+                initializeLeaderboards(window.YandexGamesSDK);
+            } else {
+                console.log('[Leaderboards] SDK еще не загружен, ждем события ysdk-ready...');
+            }
+            
+            // Обработчики кнопок лидерборда
+            const btnLeaderboard = document.getElementById('btn-leaderboard');
+            const btnLeaderboardGameover = document.getElementById('btn-leaderboard-gameover');
+            
+            if (btnLeaderboard) {
+                btnLeaderboard.addEventListener('click', () => {
+                    console.log('[Leaderboards] Кнопка лидерборда нажата');
+                    leaderboardsManager.showLeaderboardModal();
+                });
+            }
+            
+            if (btnLeaderboardGameover) {
+                btnLeaderboardGameover.addEventListener('click', () => {
+                    console.log('[Leaderboards] Кнопка лидерборда в game over нажата');
+                    leaderboardsManager.showLeaderboardModal();
+                });
+            }
+        });
+    </script>
+    
+    <!-- Модуль управления рекламой -->
+    <script type="module">
+        import adsManager from './ads.js';
+        
+        // Инициализация рекламы
+        function initializeAds(ysdk) {
+            console.log('[Ads] Инициализируем рекламу с SDK:', ysdk);
+            
+            // Настройка callbacks для событий рекламы
+            adsManager.on('onStickyBannerShow', () => {
+                console.log('[Ads] Стики-баннер показан');
+                // Можно добавить логику для адаптации UI
+            });
+            
+            adsManager.on('onStickyBannerHide', () => {
+                console.log('[Ads] Стики-баннер скрыт');
+                // Можно добавить логику для адаптации UI
+            });
+            
+            adsManager.on('onFullscreenAdShow', () => {
+                console.log('[Ads] Полноэкранная реклама показана');
+                // Приостанавливаем игру если нужно
+            });
+            
+            adsManager.on('onFullscreenAdClose', (wasShown) => {
+                console.log('[Ads] Полноэкранная реклама закрыта, была показана:', wasShown);
+                // Возобновляем игру
+            });
+            
+            adsManager.on('onRewardedVideoReward', () => {
+                console.log('[Ads] Видеореклама просмотрена, выдаем награду');
+                // Выдаем награду игроку
+                if (window.state) {
+                    // Например, даем дополнительные монеты или талоны
+                    window.state.coins += 100;
+                    window.state.tickets += 5;
+                    if (window.updateUI) {
+                        window.updateUI();
+                    }
+                }
+            });
+            
+            adsManager.on('onAdError', (adType, error) => {
+                console.error('[Ads] Ошибка рекламы:', adType, error);
+                // Можно показать уведомление пользователю
+            });
+            
+            // Настройки рекламы
+            adsManager.updateSettings({
+                stickyBannerEnabled: true,
+                stickyBannerPosition: 'right',
+                autoShowStickyBanner: true,
+                showAdsOnGameStart: false, // Отключаем на старте игры
+                showAdsOnLevelComplete: true,
+                showAdsOnGameOver: true
+            });
+        }
+        
+        // Обработчик события готовности SDK
+        window.addEventListener('ysdk-ready', (event) => {
+            console.log('[Ads] SDK готов, инициализируем рекламу...');
+            initializeAds(event.detail);
+        });
+        
+        // Если SDK уже загружен
+        if (window.ysdk) {
+            console.log('[Ads] SDK уже доступен, инициализируем рекламу...');
+            initializeAds(window.ysdk);
+        }
+        
+        // Добавляем глобальные функции для управления рекламой
+        window.showRewardedVideo = () => {
+            return adsManager.showRewardedVideo();
+        };
+        
+        window.showFullscreenAd = () => {
+            return adsManager.showFullscreenAd();
+        };
+        
+        window.toggleStickyBanner = () => {
+            if (adsManager.isStickyBannerShown()) {
+                return adsManager.hideStickyBanner();
+            } else {
+                return adsManager.showStickyBanner();
+            }
+        };
+        
+        // Добавляем элементы отладки рекламы (только для разработки)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            document.addEventListener('DOMContentLoaded', () => {
+                // Создаем панель отладки рекламы
+                const debugPanel = document.createElement('div');
+                debugPanel.className = 'ads-debug-info';
+                debugPanel.innerHTML = `
+                    <h4>Реклама</h4>
+                    <p>Статус: <span id="ads-status">Загрузка...</span></p>
+                    <p>Стики-баннер: <span id="sticky-status">-</span></p>
+                    <p>SDK: <span id="sdk-status">-</span></p>
+                `;
+                document.body.appendChild(debugPanel);
+                
+                // Создаем кнопки управления рекламой
+                const controlsPanel = document.createElement('div');
+                controlsPanel.className = 'ads-controls';
+                controlsPanel.innerHTML = `
+                    <button class="ads-control-btn" onclick="toggleStickyBanner()">Стики-баннер</button>
+                    <button class="ads-control-btn" onclick="showFullscreenAd()">Полноэкранная</button>
+                    <button class="ads-control-btn" onclick="showRewardedVideo()">Видео с наградой</button>
+                `;
+                document.body.appendChild(controlsPanel);
+                
+                // Обновляем информацию каждые 2 секунды
+                setInterval(() => {
+                    const debugInfo = adsManager.getDebugInfo();
+                    document.getElementById('ads-status').textContent = debugInfo.isInitialized ? 'Готов' : 'Не готов';
+                    document.getElementById('sticky-status').textContent = debugInfo.stickyBannerShown ? 'Показан' : 'Скрыт';
+                    document.getElementById('sdk-status').textContent = debugInfo.ysdkAvailable ? 'Доступен' : 'Недоступен';
+                }, 2000);
+            });
+        }
     </script>
 </body>
 </html>

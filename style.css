@@ -3207,3 +3207,409 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
       margin-bottom: 6px;
     }
   }
+
+  /* Стили для лидерборда */
+  .leaderboard-content {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .leaderboard-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 80px;
+    gap: 10px;
+    padding: 10px 15px;
+    background: var(--cell-bg);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+  }
+
+  .leaderboard-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .leaderboard-entry {
+    display: grid;
+    grid-template-columns: 60px 40px 1fr 80px;
+    gap: 10px;
+    align-items: center;
+    padding: 12px 15px;
+    background: var(--cell-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+  }
+
+  .leaderboard-entry:hover {
+    background: var(--highlight-bg);
+    transform: translateX(5px);
+  }
+
+  .leaderboard-entry.current-player {
+    background: linear-gradient(135deg, var(--highlight-color), var(--highlight-bg));
+    border-color: var(--highlight-color);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  }
+
+  .entry-rank {
+    font-weight: bold;
+    font-size: 18px;
+    text-align: center;
+    min-width: 40px;
+  }
+
+  .rank-gold {
+    color: #ffd700;
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+  }
+
+  .rank-silver {
+    color: #c0c0c0;
+    text-shadow: 0 0 5px rgba(192, 192, 192, 0.5);
+  }
+
+  .rank-bronze {
+    color: #cd7f32;
+    text-shadow: 0 0 5px rgba(205, 127, 50, 0.5);
+  }
+
+  .rank-normal {
+    color: var(--text-color);
+  }
+
+  .entry-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--border-color);
+  }
+
+  .entry-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .entry-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .entry-name {
+    font-weight: bold;
+    color: var(--text-color);
+    font-size: 14px;
+  }
+
+  .entry-details {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .entry-score {
+    font-weight: bold;
+    font-size: 16px;
+    color: var(--highlight-color);
+    text-align: right;
+  }
+
+  .leaderboard-separator {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 10px;
+    font-style: italic;
+  }
+
+  /* Кнопка лидерборда в интерфейсе */
+  .btn-leaderboard {
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #000;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-leaderboard:hover {
+    background: linear-gradient(135deg, #ffed4e, #ffd700);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+  }
+
+  .btn-leaderboard:active {
+    transform: translateY(0);
+  }
+
+  /* Анимация для новых записей */
+  @keyframes leaderboardEntryAppear {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+  }
+
+  .leaderboard-entry {
+    animation: leaderboardEntryAppear 0.3s ease-out;
+  }
+
+  /* Адаптивность для мобильных устройств */
+  @media (max-width: 768px) {
+    .leaderboard-content {
+        max-width: 95vw;
+        margin: 10px;
+    }
+    
+    .leaderboard-header {
+        grid-template-columns: 50px 1fr 60px;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+    
+    .leaderboard-entry {
+        grid-template-columns: 50px 35px 1fr 60px;
+        gap: 8px;
+        padding: 10px 12px;
+    }
+    
+    .entry-rank {
+        font-size: 16px;
+    }
+    
+    .entry-avatar {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .entry-name {
+        font-size: 13px;
+    }
+    
+    .entry-details {
+        font-size: 11px;
+    }
+    
+    .entry-score {
+        font-size: 14px;
+    }
+  }
+
+  /* === СТИЛИ ДЛЯ АДАПТАЦИИ ПОД СТИКИ-БАННЕР СПРАВА === */
+
+  /* Основные стили для адаптации под рекламу */
+  .game-container {
+      /* Уменьшаем максимальную ширину для учета места под рекламу */
+      max-width: 1200px;
+      /* Добавляем отступ справа для стики-баннера */
+      margin-right: 20px;
+  }
+
+  /* Адаптация для мобильных устройств */
+  @media (max-width: 1200px) {
+      .game-container {
+          max-width: 100%;
+          margin-right: 0;
+          /* На мобильных устройствах реклама может быть снизу или сверху */
+      }
+  }
+
+  /* Стили для десктопной версии с рекламой справа */
+  @media (min-width: 1201px) {
+      body {
+          /* Центрируем контент с учетом рекламы справа */
+          justify-content: center;
+          padding-right: 0; /* Убираем правый отступ, так как реклама сама создаст отступ */
+      }
+      
+      .game-container {
+          /* Убеждаемся, что контейнер не выходит за пределы экрана */
+          max-width: calc(100vw - 40px); /* 40px для отступов */
+      }
+  }
+
+  /* Стили для планшетов */
+  @media (min-width: 768px) and (max-width: 1200px) {
+      .game-container {
+          max-width: 95%;
+          margin-right: 0;
+      }
+  }
+
+  /* Дополнительные стили для лучшей адаптивности */
+  @media (max-width: 900px) {
+      .game-container {
+          grid-template-columns: 1fr; /* Переходим на одну колонку */
+          gap: 15px;
+      }
+      
+      .ui-panel {
+          position: static; /* Убираем sticky позиционирование на мобильных */
+          order: 2; /* Перемещаем UI панель под основной контент */
+      }
+      
+      .main-panel {
+          order: 1;
+      }
+  }
+
+  /* Стили для очень маленьких экранов */
+  @media (max-width: 480px) {
+      .game-container {
+          padding: 10px;
+          gap: 10px;
+      }
+      
+      .slot-machine {
+          gap: 5px;
+          padding: 10px;
+      }
+      
+      .slot-cell .symbol {
+          font-size: 30px;
+      }
+  }
+
+  /* Стили для отладки рекламы (можно убрать в продакшене) */
+  .ads-debug-info {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      z-index: 10000;
+      max-width: 200px;
+  }
+
+  .ads-debug-info h4 {
+      margin: 0 0 5px 0;
+      color: #00ff7f;
+  }
+
+  .ads-debug-info p {
+      margin: 2px 0;
+      font-size: 11px;
+  }
+
+  /* Стили для кнопок управления рекламой (для разработки) */
+  .ads-controls {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 10000;
+  }
+
+  .ads-control-btn {
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      border: 1px solid #444;
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.2s;
+  }
+
+  .ads-control-btn:hover {
+      background: rgba(0, 255, 127, 0.2);
+      border-color: #00ff7f;
+  }
+
+  .ads-control-btn:active {
+      background: rgba(0, 255, 127, 0.4);
+  }
+
+  /* Скрываем элементы управления рекламой в продакшене */
+  @media (min-width: 1201px) {
+      .ads-debug-info,
+      .ads-controls {
+          display: none;
+      }
+  }
+
+  /* Стили для попапа проклятий */
+  .curse-loss-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--cell-bg, #2a2a2a);
+    border: 3px solid var(--danger-color, #ff6b6b);
+    border-radius: 15px;
+    padding: 25px;
+    text-align: center;
+    z-index: 10000;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    min-width: 300px;
+    max-width: 90vw;
+}
+
+.curse-loss-popup.show {
+    opacity: 1;
+}
+
+.curse-loss-popup.fade-out {
+    opacity: 0;
+}
+
+.curse-loss-popup .curse-title {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: var(--danger-color, #ff6b6b);
+    margin-bottom: 15px;
+    text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+    animation: curseShake 0.5s ease-in-out;
+}
+
+.curse-loss-popup .curse-hint {
+    font-size: 1.1em;
+    color: var(--text-color, #ccc);
+    margin-bottom: 10px;
+}
+
+@keyframes curseShake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 600px) {
+    .curse-loss-popup {
+        min-width: 280px;
+        padding: 20px;
+    }
+    
+    .curse-loss-popup .curse-title {
+        font-size: 1.5em;
+    }
+    
+    .curse-loss-popup .curse-hint {
+        font-size: 1em;
+    }
+}

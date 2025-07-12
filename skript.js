@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnEorDepositExcept7: document.getElementById('btn-eor-deposit-except-7'),
         btnEorDepositExcept3: document.getElementById('btn-eor-deposit-except-3'),
         btnEorDepositHalf: document.getElementById('btn-eor-deposit-half'),
+        btnLeaderboard: document.getElementById('btn-leaderboard'),
     };
 
     const CONFIG = {
@@ -398,10 +399,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const perRunLuck = hasItem('growing_debt') ? getItemEffectValue('per_run_bonus.luck', 0, 'sum') * state.run : 0;
         
-        // [FIX] Предмет "Гордость барахольщика" теперь использует getEffectiveEmptySlots
+        // [FIX] Предмет "Гордость барахольщика" теперь использует getHoarderPrideBonus
         let hoarderLuck = 0;
         if (hasItem('hoarders_pride')) {
-            hoarderLuck = getEffectiveEmptySlots();
+            hoarderLuck = getHoarderPrideBonus();
         }
 
         // [NEW] Логика предмета 'ticket_hoarder'
@@ -1185,7 +1186,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         if (hasItem('minimalist') && totalWinnings > 0) {
-            let bonus = getEffectiveEmptySlots();
+            let bonus = getEmptySlotBonus();
              if (bonus > 0) {
                 totalWinnings += applyCoinDoubler(bonus);
                 addLog(`Минималист: +${applyCoinDoubler(bonus)}💰 за пустые слоты.`, 'win');
@@ -2723,7 +2724,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.btnBuySpin1.disabled = state.coins < singleSpinCost || state.coins >= CONFIG.SPIN_PACKAGE_2.cost;
 
 
-        ui.btnBuySpins7.disabled = state.coins < package1Cost;
+        ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
         ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
         
         if (state.coins < CONFIG.SPIN_PACKAGE_2.cost) {
@@ -3004,8 +3005,19 @@ document.addEventListener('DOMContentLoaded', () => {
                                      Стандартная награда: <span style="color:var(--ticket-color)">${formatNumberWithComma(standardTickets)}🎟️</span>.<br>
                                      ${bonusText}`;
 
+        // Обновляем результат в лидерборде при успешном завершении цикла
+        if (window.leaderboardsManager) {
+            window.leaderboardsManager.onGameOver(state);
+        }
+
         ui.judgementContinue.onclick = () => {
             ui.judgementModal.classList.add('hidden');
+            
+            // Показываем рекламу при переходе на следующий уровень
+            if (window.adsManager && window.adsManager.isReady()) {
+                window.adsManager.showAdOnEvent('level_complete');
+            }
+            
             startNewCycle(bonusCoins, bonusTickets, paidToBank);
         };
     }
@@ -3085,6 +3097,18 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.gameOverScreen.classList.remove('hidden');
         ui.finalRun.textContent = state.run;
         addLog("ИГРА ОКОНЧЕНА.", 'loss');
+        
+        // Обновляем результат в лидерборде
+        if (window.leaderboardsManager) {
+            window.leaderboardsManager.onGameOver(state);
+        }
+        
+        // Показываем рекламу при окончании игры
+        if (window.adsManager && window.adsManager.isReady()) {
+            setTimeout(() => {
+                window.adsManager.showAdOnEvent('game_over');
+            }, 1000); // Небольшая задержка перед показом рекламы
+        }
     }
     
     function deposit(amount, isFromEOR = false) {
@@ -3337,10 +3361,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // [FIX] Добавляем расчет бонуса от "Гордость барахольщика"
-        let hoarderLuck = 0;
-        if (hasItem('hoarders_pride')) {
-            hoarderLuck = getEffectiveEmptySlots();
-        }
+        let hoarderLuck = getHoarderPrideBonus();
 
         // --- Универсальный подсчёт временной удачи от всех temporary_luck_on_spin ---
         let tempLuckFromItems = 0;
@@ -4136,11 +4157,49 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.btnBuySpins3.onclick = () => buySpins(CONFIG.SPIN_PACKAGE_2);
     ui.btnBuySpin1.onclick = () => buySpins('single');
     ui.btnBuyNothing.onclick = () => buySpins(null);
+    
+    // Обработчик для кнопки видеорекламы с вознаграждением
+    const watchAdBtn = document.getElementById('watch-ad-for-spins');
+    if (watchAdBtn) {
+        watchAdBtn.onclick = async () => {
+            if (window.adsManager && window.adsManager.isReady()) {
+                watchAdBtn.disabled = true;
+                watchAdBtn.textContent = '📺 Смотрим рекламу...';
+                
+                try {
+                    const wasRewarded = await window.adsManager.showRewardedVideo();
+                    if (wasRewarded) {
+                        // Выдаем награду за просмотр рекламы
+                        state.spinsLeft += 3;
+                        addLog('📺 Реклама просмотрена! Получено 3 прокрута.', 'win');
+                        ui.spinPurchaseModal.classList.add('hidden');
+                        updateUI();
+                    } else {
+                        addLog('📺 Реклама не была просмотрена полностью.', 'loss');
+                    }
+                } catch (error) {
+                    console.error('[Ads] Ошибка при показе видеорекламы:', error);
+                    addLog('📺 Ошибка при показе рекламы.', 'loss');
+                } finally {
+                    watchAdBtn.disabled = false;
+                    watchAdBtn.textContent = '📺 Смотреть рекламу за 3 прокрута';
+                }
+            } else {
+                addLog('📺 Реклама недоступна.', 'loss');
+            }
+        };
+    }
+    
     ui.btnRerollShop.onclick = rerollShop;
     ui.btnPlanning.onclick = openPlanningMode;
     ui.btnPlanningReroll.onclick = rerollPlanningShop;
     ui.btnFinishPlanning.onclick = closePlanningMode;
     ui.btnPayDebtEarly.onclick = payDebtEarly;
+    ui.btnLeaderboard.onclick = () => {
+        if (window.leaderboardsManager) {
+            window.leaderboardsManager.showLeaderboardModal();
+        }
+    };
 
     ui.startScreen.classList.remove('hidden');
 
@@ -4161,62 +4220,65 @@ document.addEventListener('DOMContentLoaded', () => {
     const devLuckInput = document.getElementById('dev-luck-input');
     const dev100LoseMode = document.getElementById('dev-100-lose-mode');
 
-    devBtn.onclick = () => { 
-        devModal.classList.remove('hidden');
-        devItemSelect.innerHTML = '';
-        ALL_ITEMS.forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = item.id;
+    // Проверяем существование кнопки dev-menu-btn перед установкой обработчика
+    if (devBtn) {
+        devBtn.onclick = () => { 
+            devModal.classList.remove('hidden');
+            devItemSelect.innerHTML = '';
+            ALL_ITEMS.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                
+                // Определяем цвет редкости
+                let rarityColor = '#aaa'; // common
+                if (item.rarity === 'rare') rarityColor = '#536dfe';
+                else if (item.rarity === 'legendary') rarityColor = '#ffab40';
+                
+                // Создаем HTML с иконкой и цветовой индикацией
+                opt.innerHTML = `<span style="color: ${rarityColor};">${item.thumbnail}</span> ${item.name} <span style="color: ${rarityColor}; font-size: 0.9em;">(${item.rarity})</span>`;
+                opt.style.color = rarityColor;
+                opt.style.fontWeight = 'bold';
+                
+                devItemSelect.appendChild(opt);
+            });
             
-            // Определяем цвет редкости
-            let rarityColor = '#aaa'; // common
-            if (item.rarity === 'rare') rarityColor = '#536dfe';
-            else if (item.rarity === 'legendary') rarityColor = '#ffab40';
+            // Заполняем список пассивок
+            devPassiveSelect.innerHTML = '';
+            ALL_PASSIVES.forEach(passive => {
+                const opt = document.createElement('option');
+                opt.value = passive.id;
+                
+                // Определяем цвет типа пассивки
+                let typeColor = '#aaa'; // по умолчанию
+                if (passive.type === 'one_time') typeColor = '#ff6b6b';
+                else if (passive.type === 'slot_modifier') typeColor = '#4ecdc4';
+                else if (passive.type === 'item_mod') typeColor = '#45b7d1';
+                
+                // Создаем HTML с эмодзи и цветовой индикацией
+                opt.innerHTML = `<span style="color: ${typeColor};">${passive.emoji}</span> ${passive.name} <span style="color: ${typeColor}; font-size: 0.9em;">(${passive.type})</span>`;
+                opt.style.color = typeColor;
+                opt.style.fontWeight = 'bold';
+                
+                devPassiveSelect.appendChild(opt);
+            });
             
-            // Создаем HTML с иконкой и цветовой индикацией
-            opt.innerHTML = `<span style="color: ${rarityColor};">${item.thumbnail}</span> ${item.name} <span style="color: ${rarityColor}; font-size: 0.9em;">(${item.rarity})</span>`;
-            opt.style.color = rarityColor;
-            opt.style.fontWeight = 'bold';
+            // Показываем активные пассивки
+            updateDevPassivesList();
             
-            devItemSelect.appendChild(opt);
-        });
-        
-        // Заполняем список пассивок
-        devPassiveSelect.innerHTML = '';
-        ALL_PASSIVES.forEach(passive => {
-            const opt = document.createElement('option');
-            opt.value = passive.id;
-            
-            // Определяем цвет типа пассивки
-            let typeColor = '#aaa'; // по умолчанию
-            if (passive.type === 'one_time') typeColor = '#ff6b6b';
-            else if (passive.type === 'slot_modifier') typeColor = '#4ecdc4';
-            else if (passive.type === 'item_mod') typeColor = '#45b7d1';
-            
-            // Создаем HTML с эмодзи и цветовой индикацией
-            opt.innerHTML = `<span style="color: ${typeColor};">${passive.emoji}</span> ${passive.name} <span style="color: ${typeColor}; font-size: 0.9em;">(${passive.type})</span>`;
-            opt.style.color = typeColor;
-            opt.style.fontWeight = 'bold';
-            
-            devPassiveSelect.appendChild(opt);
-        });
-        
-        // Показываем активные пассивки
-        updateDevPassivesList();
-        
-        devSymbolChances.innerHTML = '';
-        SYMBOLS.forEach((sym, idx) => {
-            const row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.alignItems = 'center';
-            row.style.gap = '8px';
-            row.style.marginBottom = '2px';
-            row.innerHTML = `<span style='width:30px;'>${sym.graphic}</span><input type='number' min='1' style='width:60px;' id='dev-sym-${idx}' value='${sym.weight}'>`;
-            devSymbolChances.appendChild(row);
-        });
-        devLuckInput.value = state.tempLuck;
-        dev100LoseMode.checked = state.dev100LoseMode || false;
-    };
+            devSymbolChances.innerHTML = '';
+            SYMBOLS.forEach((sym, idx) => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.alignItems = 'center';
+                row.style.gap = '8px';
+                row.style.marginBottom = '2px';
+                row.innerHTML = `<span style='width:30px;'>${sym.graphic}</span><input type='number' min='1' style='width:60px;' id='dev-sym-${idx}' value='${sym.weight}'>`;
+                devSymbolChances.appendChild(row);
+            });
+            devLuckInput.value = state.tempLuck;
+            dev100LoseMode.checked = state.dev100LoseMode || false;
+        };
+    }
     
     function updateDevPassivesList() {
         if (!devPassivesList) return;
@@ -4445,11 +4507,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.effect?.per_empty_slot_bonus || item.effect?.per_empty_slot_luck || item.effect?.ignore_slot_for_empty_bonus
             );
             // Сам "Иллюзионист слотов" также не занимает место согласно описанию
-            const effectiveUsedSlots = currentSize - itemsWithEmptySlotBonus.length; // Убираем -1, так как "Иллюзионист слотов" уже включен в itemsWithEmptySlotBonus
+            const effectiveUsedSlots = currentSize - itemsWithEmptySlotBonus.length;
             return Math.max(0, maxSize - effectiveUsedSlots);
         }
         
         // Проверяем предметы с модификатором ignore_slot_for_empty_bonus
+        const itemsWithNoSlotUsage = state.inventory.filter(item => 
+            item.effect?.ignore_slot_for_empty_bonus || item.modifier?.effect?.ignore_slot_for_empty_bonus
+        );
+        const effectiveUsedSlots = currentSize - itemsWithNoSlotUsage.length;
+        
+        return Math.max(0, maxSize - effectiveUsedSlots);
+    }
+
+    // Новая функция для расчета бонуса от "Гордость барахольщика"
+    function getHoarderPrideBonus() {
+        if (!hasItem('hoarders_pride')) return 0;
+        
+        const maxSize = getMaxInventorySize();
+        const currentSize = state.inventory.length;
+        
+        // Если есть "Иллюзионист слотов", считаем только реальные пустые слоты
+        // (не те, которые освобождает сам "Иллюзионист")
+        if (hasItem('slot_illusionist')) {
+            // Исключаем все предметы с бонусами за пустые слоты, кроме самого "Иллюзионист слотов"
+            const itemsWithEmptySlotBonus = state.inventory.filter(item => 
+                (item.effect?.per_empty_slot_bonus || item.effect?.per_empty_slot_luck) && item.id !== 'slot_illusionist'
+            );
+            const effectiveUsedSlots = currentSize - itemsWithEmptySlotBonus.length;
+            return Math.max(0, maxSize - effectiveUsedSlots);
+        }
+        
+        // Если "Иллюзионист слотов" нет, используем обычную логику
+        const itemsWithNoSlotUsage = state.inventory.filter(item => 
+            item.effect?.ignore_slot_for_empty_bonus || item.modifier?.effect?.ignore_slot_for_empty_bonus
+        );
+        const effectiveUsedSlots = currentSize - itemsWithNoSlotUsage.length;
+        
+        return Math.max(0, maxSize - effectiveUsedSlots);
+    }
+
+    // Функция для расчета бонуса от предметов с per_empty_slot_bonus (как "Минималист")
+    function getEmptySlotBonus() {
+        const maxSize = getMaxInventorySize();
+        const currentSize = state.inventory.length;
+        
+        // Если есть "Иллюзионист слотов", считаем только реальные пустые слоты
+        if (hasItem('slot_illusionist')) {
+            // Исключаем все предметы с бонусами за пустые слоты, кроме самого "Иллюзионист слотов"
+            const itemsWithEmptySlotBonus = state.inventory.filter(item => 
+                (item.effect?.per_empty_slot_bonus || item.effect?.per_empty_slot_luck) && item.id !== 'slot_illusionist'
+            );
+            const effectiveUsedSlots = currentSize - itemsWithEmptySlotBonus.length;
+            return Math.max(0, maxSize - effectiveUsedSlots);
+        }
+        
+        // Если "Иллюзионист слотов" нет, используем обычную логику
         const itemsWithNoSlotUsage = state.inventory.filter(item => 
             item.effect?.ignore_slot_for_empty_bonus || item.modifier?.effect?.ignore_slot_for_empty_bonus
         );
