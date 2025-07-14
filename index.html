@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Цикл Долга</title>
@@ -81,9 +81,35 @@
     </script>
 </head>
 <body>
+    <!-- ДИСКЛЕЙМЕР: начало -->
+<div id="disclaimer-modal" class="modal-overlay" style="z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.95);">
+    <div class="modal-content" style="max-width: 650px; text-align: left; background: #1f1f1f; color: #e0e0e0; border-radius: 12px; box-shadow: 0 5px 40px rgba(0,0,0,0.7); padding: 32px 35px; border-top: 5px solid #ff6b35;">
+        <h2 style="color: #ff6b35; margin-bottom: 20px; text-align: center; font-size: 1.8em;">Предупреждение и условия использования</h2>
+        <p style="font-size: 1.1em; margin-bottom: 16px;">
+            Данная игра («Продукт») является <strong>строго развлекательным продуктом-симулятором</strong> и <strong>не является азартной игрой</strong>, лотереей или казино.
+        </p>
+        <p style="font-size: 1.05em; margin-bottom: 20px; line-height: 1.6;">
+            Все игровые механики, включая использование внутриигровой валюты, предметов и бонусов, носят исключительно имитационный характер. В игре <strong>не используются и не могут быть использованы реальные деньги</strong> для ставок, отсутствуют реальные денежные выигрыши, призы или иные формы материального вознаграждения.
+        </p>
 
-    <!-- КНОПКА  
-    <button id="dev-menu-btn">Dev</button>-->
+        <div style="background: #2a2a2a; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="margin-bottom: 15px;">
+                <input type="checkbox" id="disclaimer-agree" style="margin-right: 10px; transform: scale(1.2);">
+                <label for="disclaimer-agree">Я подтверждаю, что я старше 18 лет и полностью принимаю условия <a href="#" id="show-license-link" style="color: #ff6b35; text-decoration: underline; font-weight: bold;">Лицензионного соглашения</a>.</label>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <input type="checkbox" id="disclaimer-risks" style="margin-right: 10px; transform: scale(1.2);">
+                <label for="disclaimer-risks">Я понимаю и принимаю на себя все риски, связанные с игровым процессом, включая возможную потерю виртуальных ценностей и потраченное время.</label>
+            </div>
+        </div>
+
+        <button id="disclaimer-continue" style="background: #ff6b35; color: #fff; border: none; border-radius: 6px; padding: 12px 28px; font-size: 1.2em; font-weight: bold; cursor: pointer; opacity: 0.6; width: 100%; transition: opacity 0.3s;" disabled>Продолжить</button>
+    </div>
+</div>
+<!-- ДИСКЛЕЙМЕР: конец -->
+
+    <!-- КНОПКА  -->
+    <button id="dev-menu-btn">Dev</button>
     <!-- <button id="switch-style2-btn" class="style2-switch-btn" style="position:fixed;top:10px;right:70px;z-index:1000;">Style 2</button> -->
     <div id="dev-menu-modal" class="modal-overlay hidden">
         <div class="modal-content" style="max-width:800px;">

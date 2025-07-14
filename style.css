@@ -112,6 +112,13 @@ body {
     z-index: 10;
     animation: winPulseHuge 0.5s ease-in-out;
 }
+.slot-cell.mirror-highlight {
+    box-shadow: 0 0 20px #b388ff;
+    border-color: #b388ff;
+    transform: scale(1.05);
+    z-index: 10;
+    animation: mirrorPulse 0.8s ease-in-out infinite;
+}
 .slot-cell.fade-out {
     opacity: 0 !important;
     transition: opacity 0.5s;
@@ -278,8 +285,16 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     backdrop-filter: blur(5px);
 }
 .modal-content {
-    background-color: var(--panel-bg); padding: 30px; border-radius: 8px;
-    border: 2px solid var(--border-color); max-width: 500px;
+    background-color: var(--panel-bg);
+    padding: 30px;
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-content: space-around;
+    align-items: stretch;
 }
 .modal-content h2 { margin-bottom: 15px; color: var(--highlight-color); }
 .modal-content p { margin-bottom: 25px; }
@@ -296,6 +311,16 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 @keyframes winPulse { 0% {transform: scale(1.05);} 50% {transform: scale(1.1);} 100% {transform: scale(1.05);} }
 @keyframes winPulseBig { 0% {transform: scale(1.08);} 50% {transform: scale(1.15);} 100% {transform: scale(1.08);} }
 @keyframes winPulseHuge { 0% {transform: scale(1.12);} 50% {transform: scale(1.2);} 100% {transform: scale(1.12);} }
+@keyframes mirrorPulse {
+    0%, 100% { 
+        box-shadow: 0 0 15px #b388ff, 0 0 30px rgba(179, 136, 255, 0.3);
+        transform: scale(1.05);
+    }
+    50% { 
+        box-shadow: 0 0 25px #b388ff, 0 0 40px rgba(179, 136, 255, 0.5);
+        transform: scale(1.08);
+    }
+}
 
 .style2-switch-btn {
     background: var(--cell-bg);
@@ -3593,9 +3618,9 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 }
 
 @keyframes curseShake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-    20%, 40%, 60%, 80% { transform: translateX(5px); }
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-8px) rotate(-1deg); }
+    20%, 40%, 60%, 80% { transform: translateX(8px) rotate(1deg); }
 }
 
 /* Адаптивность для мобильных устройств */
@@ -3611,5 +3636,40 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
     
     .curse-loss-popup .curse-hint {
         font-size: 1em;
+    }
+    
+    .curse-loss-popup .curse-flags {
+        font-size: 1.5em;
+        margin-top: 8px;
+    }
+}
+
+.curse-loss-popup .curse-hint {
+    font-size: 1.1em;
+    color: var(--text-color, #ccc);
+    margin-bottom: 10px;
+}
+
+.curse-loss-popup .curse-flags {
+    font-size: 2em;
+    margin-top: 10px;
+    animation: flagWave 1s ease-in-out infinite;
+}
+
+@keyframes flagWave {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-3px) rotate(-2deg); }
+    50% { transform: translateY(-5px) rotate(0deg); }
+    75% { transform: translateY(-3px) rotate(2deg); }
+}
+
+@keyframes mirrorPulse {
+    0%, 100% { 
+        box-shadow: 0 0 15px #b388ff, 0 0 30px rgba(179, 136, 255, 0.3);
+        transform: scale(1.05);
+    }
+    50% { 
+        box-shadow: 0 0 25px #b388ff, 0 0 40px rgba(179, 136, 255, 0.5);
+        transform: scale(1.08);
     }
 }

@@ -592,6 +592,17 @@ document.addEventListener('DOMContentLoaded', () => {
             state.jackpotCellIndex = undefined;
         }
 
+        // --- ЭФФЕКТ: mirror_dimension ---
+        if (hasItem('mirror_dimension')) {
+            // Индексы для зеркалирования: левая часть <- правая часть
+            const mirrorPairs = [
+                [0, 4], [1, 3], [5, 9], [6, 8], [10, 14], [11, 13]
+            ];
+            mirrorPairs.forEach(([left, right]) => {
+                grid[left] = { ...grid[right] };
+            });
+        }
+
         return grid;
     }
 
@@ -761,8 +772,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // --- КРИСТАЛЛ ХАОСА: выбираем линию и модификатор ---
+        if (hasItem('chaos_crystal')) {
+            const chaosItem = state.inventory.find(item => item.id === 'chaos_crystal');
+            const effect = chaosItem.effect.chaos_line_modifier;
+            const min = effect.min ?? -2;
+            const max = effect.max ?? 3;
+            // Выбираем случайную линию из активных
+            const allLines = [...PAYLINES];
+            const randomLine = allLines[Math.floor(Math.random() * allLines.length)];
+            // Случайный модификатор
+            const mod = Math.floor(Math.random() * (max - min + 1)) + min;
+            state.chaosLineMod = { lineName: randomLine.name, mod };
+            addLog(`💎 Кристалл Хаоса: линия "${randomLine.name}" получит модификатор ${mod > 0 ? '+' : ''}${mod} к множителю!`, mod >= 0 ? 'win' : 'loss');
+            animateInventoryItem('chaos_crystal');
+        } else {
+            state.chaosLineMod = undefined;
+        }
+
         activePaylines.forEach(line => {
             const symbolsOnLine = line.positions.map(pos => grid[pos]);
+            
+            // Проверка: линия полностью в левой части зеркала?
+            const mirrorLeft = [0,1,5,6,10,11];
+            const isMirrorLine = line.positions.every(pos => mirrorLeft.includes(pos));
             
             const processWin = (firstSymbol, winLength, lineMultiplier, winningPositionsOnLine) => {
                  let win = 0;
@@ -927,7 +960,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         });
 
+                        // --- применяем модификатор Кристалла Хаоса к lineMultiplier ---
+                        let chaosMod = 0;
+                        if (state.chaosLineMod && state.chaosLineMod.lineName === line.name) {
+                            chaosMod = state.chaosLineMod.mod;
+                        }
+                        lineMultiplier += chaosMod;
+
                         let win = processWin(currentSymbol, comboLength, lineMultiplier, comboPositions);
+                        // --- Зеркальная линия: делим выигрыш на 2 ---
+                        if (isMirrorLine) {
+                            win = Math.floor(win / 2);
+                        }
                         
                         winningLinesInfo.push({ name: `${line.name} (x${comboLength})`, symbol: currentSymbol.id, win, positions: comboPositions });
                         totalWinnings += win;
@@ -993,7 +1037,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
 
+                    // --- применяем модификатор Кристалла Хаоса к lineMultiplier ---
+                    let chaosMod = 0;
+                    if (state.chaosLineMod && state.chaosLineMod.lineName === line.name) {
+                        chaosMod = state.chaosLineMod.mod;
+                    }
+                    lineMultiplier += chaosMod;
+
                     let win = processWin(lineSymbol, line.positions.length, lineMultiplier, line.positions);
+                    // --- Зеркальная линия: делим выигрыш на 2 ---
+                    if (isMirrorLine) {
+                        win = Math.floor(win / 2);
+                    }
                     
                     totalWinnings += win;
                     winningLinesInfo.push({ name: line.name, symbol: lineSymbol.id, win, positions: line.positions });
@@ -1001,6 +1056,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+
+        // После подсчёта выигрыша сбрасываем модификатор
+        state.chaosLineMod = undefined;
 
         // --- 2. ПРОВЕРКА СПЕЦИАЛЬНЫХ ПАТТЕРНОВ ---
         const symbolCounts = grid.reduce((acc, s) => { acc[s.id] = (acc[s.id] || 0) + 1; return acc; }, {});
@@ -1425,6 +1483,29 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         });
+
+        // --- ЛОГИКА: Симбиотический Паразит ---
+        const symbioticParasite = state.inventory.find(item => item.effect?.symbiotic_luck);
+        if (symbioticParasite) {
+            // Инициализируем состояние паразита, если его нет
+            if (state.symbioticParasiteLuck === undefined) {
+                state.symbioticParasiteLuck = 0;
+            }
+            
+            if (totalWinnings > 0) {
+                // Выигрыш: +1 к удаче
+                state.symbioticParasiteLuck++;
+                state.luck++;
+                addLog(`🦠 Симбиотический Паразит: +1 к удаче за выигрыш (накоплено: +${state.symbioticParasiteLuck})`, 'win');
+                animateInventoryItem(symbioticParasite.id);
+            } else {
+                // Проигрыш: -1 к удаче
+                state.symbioticParasiteLuck--;
+                state.luck--;
+                addLog(`🦠 Симбиотический Паразит: -1 к удаче за проигрыш (накоплено: +${state.symbioticParasiteLuck})`, 'loss');
+                animateInventoryItem(symbioticParasite.id);
+            }
+        }
     }
 
     function highlightWinningCells(positions, winAmount, isCombo = false, winningLines = []) {
@@ -1447,6 +1528,27 @@ document.addEventListener('DOMContentLoaded', () => {
             comboLevel = 0;
         }
         
+        // Проверяем, есть ли зеркальные отражения
+        const hasMirrorDimension = hasItem('mirror_dimension');
+        const mirrorPositions = [];
+        if (hasMirrorDimension) {
+            // Находим зеркальные пары в позициях
+            for (let i = 0; i < positions.length; i++) {
+                const pos = positions[i];
+                let mirrorPos;
+                if (pos < 5) {
+                    mirrorPos = 10 + (pos % 5);
+                } else if (pos < 10) {
+                    mirrorPos = 5 + (4 - (pos % 5));
+                } else {
+                    mirrorPos = pos % 5;
+                }
+                if (positions.includes(mirrorPos) && mirrorPos !== pos) {
+                    mirrorPositions.push(pos, mirrorPos);
+                }
+            }
+        }
+        
         if (comboLevel > 0) {
             ui.slotMachine.classList.add('combo-active');
             if (isJackpot) ui.slotMachine.classList.add('jackpot');
@@ -1460,6 +1562,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (cell) {
                         cell.classList.add('sequential-highlight');
                         if (isJackpot) cell.classList.add('jackpot');
+                        
+                        // Добавляем специальную подсветку для зеркальных отражений
+                        if (mirrorPositions.includes(pos)) {
+                            cell.classList.add('mirror-highlight');
+                        }
                         
                         if (comboLevel >= 3) {
                             for (let i = 0; i < 3; i++) {
@@ -1548,7 +1655,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cells.forEach(cell => {
                     cell.classList.remove('highlight', 'highlight-big', 'highlight-huge');
                     cell.classList.remove('combo-1', 'combo-2', 'combo-3', 'combo-4', 'combo-5', 'sequential');
-                    cell.classList.remove('sequential-highlight');
+                    cell.classList.remove('sequential-highlight', 'mirror-highlight');
                     const symbol = cell.querySelector('.symbol');
                     if (symbol) {
                         symbol.classList.remove('winning');
@@ -1558,11 +1665,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }, sequenceTime + holdTime);
 
         } else {
-            positions.forEach(pos => cells[pos]?.classList.add(highlightClass));
+            positions.forEach(pos => {
+                const cell = cells[pos];
+                if (cell) {
+                    cell.classList.add(highlightClass);
+                    // Добавляем специальную подсветку для зеркальных отражений
+                    if (mirrorPositions.includes(pos)) {
+                        cell.classList.add('mirror-highlight');
+                    }
+                }
+            });
             
             setTimeout(() => {
                 cells.forEach(cell => {
-                    cell.classList.remove('highlight', 'highlight-big', 'highlight-huge');
+                    cell.classList.remove('highlight', 'highlight-big', 'highlight-huge', 'mirror-highlight');
                 });
             }, 2000);
         }
@@ -1742,7 +1858,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Попап
             const popup = document.createElement('div');
             popup.className = 'curse-loss-popup';
-            popup.innerHTML = `<div class="curse-title">ПРОКЛЯТЬЕ!</div><div class="curse-hint">Вы потеряли часть монет.</div>`;
+            popup.innerHTML = `
+                <div class="curse-title">ПРОКЛЯТЬЕ!</div>
+                <div class="curse-hint">Три пиратских флага! Вы потеряли ${formatNumberWithComma(lostAmount)} монет.</div>
+                <div class="curse-flags">🏴‍☠️🏴‍☠️🏴‍☠️</div>
+            `;
             document.body.appendChild(popup);
             setTimeout(() => {
                 popup.classList.add('show');
@@ -1750,7 +1870,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     popup.classList.remove('show');
                     popup.classList.add('fade-out');
                     setTimeout(() => popup.remove(), 1000);
-                }, 1800);
+                }, 2500);
             }, 100);
         }
         setTimeout(() => {
@@ -2432,8 +2552,7 @@ document.addEventListener('DOMContentLoaded', () => {
             firstSpinUsed: false,
             activePassives: [],
             cherryLuckBonus: 0,
-            permanentLuckBonus: 0,
-            passiveInterestBonus: 0, 
+            permanentLuckBonus: 0, 
             flags: {
                 sawPirateWarning: false,
                 consecutiveLosses: 0,
@@ -2453,6 +2572,7 @@ document.addEventListener('DOMContentLoaded', () => {
             echoStoneMultiplier: 1,
             purchasesThisRound: 0,
             dev100LoseMode: false,
+            symbioticParasiteLuck: 0, // [NEW] Состояние симбиотического паразита
         };
         window.state = state;
         lastKnownTickets = state.tickets;
@@ -2567,6 +2687,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.roundSpinsMade = 0;
         state.flags.firstDepositThisRound = true;
         state.purchasesThisRound = 0; // <-- СБРОС СВОЙСТВА
+        state.symbioticParasiteLuck = 0; // [NEW] Сброс состояния симбиотического паразита
 
         updateInterestRate();
         addLog(`Начался Цикл Долга #${state.run}. Цель: ${formatNumberWithComma(state.targetDebt)}💰.`);
@@ -2602,6 +2723,8 @@ document.addEventListener('DOMContentLoaded', () => {
         state.firstSpinUsed = false;
         state.roundSpinsMade = 0;
         state.purchasesThisRound = 0; // Сброс счетчика покупок в начале раунда
+        state.symbioticParasiteLuck = 0; // [NEW] Сброс состояния симбиотического паразита в начале раунда
+        
         // --- СБРОС ФЛАГОВ ДЛЯ ПАССИВОК НА 1 РАУНД ---
         if (state.activePassives.length > 0) {
             if (hasPassive('bankers_friend')) state.flags.firstDepositThisRound = true;
@@ -5242,5 +5365,90 @@ document.addEventListener('DOMContentLoaded', () => {
                 positionTooltip(tooltip, e);
             }
         });
+    });
+});
+// === ДИСКЛЕЙМЕР (ОБНОВЛЕННАЯ ВЕРСИЯ) ===
+document.addEventListener('DOMContentLoaded', function () {
+    const disclaimerModal = document.getElementById('disclaimer-modal');
+    const disclaimerAgree = document.getElementById('disclaimer-agree');
+    const disclaimerRisks = document.getElementById('disclaimer-risks');
+    const disclaimerContinue = document.getElementById('disclaimer-continue');
+    const showLicenseLink = document.getElementById('show-license-link');
+
+    // Текст Лицензионного соглашения (EULA)
+    const licenseText = `
+        <h2 style='color:#ff6b35; text-align:center;'>Лицензионное соглашение (EULA)</h2>
+        <p><strong>Дата последнего обновления: 14 июля 2025 г.</strong></p>
+        <p>Настоящее Лицензионное соглашение (далее – «Соглашение») является юридическим документом, заключаемым между вами (далее – «Пользователь») и создателем игры «Цикл Долга» (далее – «Правообладатель»).</p>
+        
+        <h3 style='color:#ff9a3c; margin-top:20px;'>1. Предмет Соглашения</h3>
+        <p>1.1. Правообладатель предоставляет Пользователю неисключительное, непередаваемое право на использование игры (далее – «Продукт») исключительно в личных, некоммерческих, развлекательных целях.</p>
+        <p>1.2. Продукт является симуляцией и не представляет собой азартную игру, казино, лотерею или иную деятельность, основанную на риске и предполагающую получение реального материального выигрыша.</p>
+
+        <h3 style='color:#ff9a3c; margin-top:20px;'>2. Возрастные ограничения и ответственность</h3>
+        <p>2.1. Используя Продукт, вы подтверждаете, что вам исполнилось 18 лет, и вы обладаете полной дееспособностью для заключения данного Соглашения.</p>
+        <p>2.2. Пользователь несет полную и исключительную ответственность за все действия, совершаемые в Продукте, а также за любые возможные последствия, возникшие в результате его использования. Правообладатель не несет ответственности за потраченное Пользователем время.</p>
+        <p>2.3. Правообладатель не дает никаких гарантий, явных или подразумеваемых, относительно точности, надежности или полноты игрового процесса. Продукт предоставляется по принципу "КАК ЕСТЬ" ("AS IS").</p>
+
+        <h3 style='color:#ff9a3c; margin-top:20px;'>3. Игровые ценности</h3>
+        <p>3.1. Вся внутриигровая валюта, предметы, бонусы и прочие элементы (далее – «Виртуальные ценности») не имеют реальной денежной стоимости. Они являются частью игрового процесса и не могут быть обменены на реальные деньги, товары или услуги.</p>
+        <p>3.2. Любые транзакции с Виртуальными ценностями являются окончательными и не подлежат возврату или компенсации.</p>
+        <p>3.3. Пользователь признает, что любые накопленные Виртуальные ценности могут быть изменены, удалены или утеряны в результате сбоев, обновлений или по любой другой причине, и Правообладатель не несет ответственности за такие потери.</p>
+
+        <h3 style='color:#ff9a3c; margin-top:20px;'>4. Интеллектуальная собственность</h3>
+        <p>4.1. Все права на Продукт, включая код, графику, звуковое сопровождение и тексты, принадлежат Правообладателю. Любое несанкционированное копирование, распространение или модификация Продукта запрещены.</p>
+        
+        <h3 style='color:#ff9a3c; margin-top:20px;'>5. Ограничение ответственности</h3>
+        <p>5.1. Ни при каких обстоятельствах Правообладатель не несет ответственности за прямой, косвенный, случайный или последующий ущерб (включая, но не ограничиваясь, упущенную выгоду, потерю данных или моральный вред), возникший в результате использования или невозможности использования Продукта.</p>
+
+        <h3 style='color:#ff9a3c; margin-top:20px;'>6. Заключительные положения</h3>
+        <p>6.1. Продолжая использовать Продукт, вы подтверждаете, что полностью прочитали, поняли и безоговорочно согласны с условиями настоящего Соглашения.</p>
+        <p>6.2. Если вы не согласны с каким-либо из условий, вы должны немедленно прекратить использование Продукта.</p>
+
+        <button id='close-license-modal' style='margin-top:24px;background:#ff6b35;color:#fff;border:none;border-radius:6px;padding:10px 24px;font-size:1.1em;font-weight:bold;cursor:pointer;width:100%;'>Я прочел и согласен</button>
+    `;
+
+    // Создаём модальное окно для лицензионного соглашения
+    let licenseModal = document.createElement('div');
+    licenseModal.id = 'license-modal';
+    licenseModal.style = 'position:fixed;z-index:10000;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.93);display:none;align-items:center;justify-content:center;overflow-y:auto;padding:20px 0;';
+    licenseModal.innerHTML = `
+        <div style='background:#1f1f1f;color:#e0e0e0;max-width:800px;width:95vw;max-height:90vh;padding:32px 35px;border-radius:12px;box-shadow:0 4px 32px #000a; margin: 40px auto; overflow-y:auto; display:flex; flex-direction:column;'>
+            ${licenseText}
+        </div>
+    `;
+    document.body.appendChild(licenseModal);
+
+    // Функция для проверки состояния чекбоксов
+    function checkDisclaimerState() {
+        const isAgreed = disclaimerAgree.checked && disclaimerRisks.checked;
+        disclaimerContinue.disabled = !isAgreed;
+        disclaimerContinue.style.opacity = isAgreed ? '1' : '0.6';
+        disclaimerContinue.style.cursor = isAgreed ? 'pointer' : 'not-allowed';
+    }
+
+    // Обработчики событий
+    showLicenseLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        licenseModal.style.display = 'flex';
+    });
+
+    licenseModal.addEventListener('click', function (e) {
+        if (e.target.id === 'license-modal' || e.target.id === 'close-license-modal') {
+            licenseModal.style.display = 'none';
+        }
+    });
+
+    document.getElementById('close-license-modal').addEventListener('click', function () {
+        licenseModal.style.display = 'none';
+    });
+
+    disclaimerAgree.addEventListener('change', checkDisclaimerState);
+    disclaimerRisks.addEventListener('change', checkDisclaimerState);
+
+    disclaimerContinue.addEventListener('click', function () {
+        if (!disclaimerContinue.disabled) {
+            disclaimerModal.style.display = 'none';
+        }
     });
 });
