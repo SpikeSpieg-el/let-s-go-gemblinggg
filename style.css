@@ -30,6 +30,12 @@ body {
     padding: 20px 0; /* Added padding for better spacing */
     background-image: radial-gradient(circle, #222 1px, transparent 1px);
     background-size: 25px 25px;
+    /* Отключаем выделение текста для всей игры */
+    .game-container, .modal-overlay {
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none; /* IE 10+ */
+    user-select: none; /* Standard syntax */
+}
 }
 
 .game-container {
@@ -125,22 +131,82 @@ body {
 }
 
 .lever-container {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background-color: var(--panel-bg); border: 2px solid var(--border-color);
-    padding: 20px 15px; border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end; /* Выравниваем по низу для стабильности */
+    background-color: var(--panel-bg);
+    border: 2px solid var(--border-color);
+    padding: 10px 15px 0 15px; /* Убираем нижний паддинг */
+    border-radius: 8px;
+    /* Создаем 3D-пространство для дочерних элементов */
+    perspective: 400px; 
 }
-.lever-base { width: 50px; height: 30px; background: #333; border-radius: 5px 5px 0 0; }
+
+.lever-base {
+    width: 60px;
+    height: 25px;
+    background: #282828;
+    border: 2px solid #444;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    position: relative;
+    /* Добавляем тень для глубины */
+    box-shadow: inset 0px 4px 8px rgba(0, 0, 0, 0.4);
+}
+
 .lever {
-    width: 12px; height: 100px; background: #666;
-    position: relative; cursor: pointer; transition: transform 0.2s;
+    width: 14px;
+    height: 90px;
+    background: linear-gradient(90deg, #555, #888, #555);
+    border: 1px solid #444;
+    position: relative;
+    cursor: pointer;
+    /* Плавный переход с кастомной "физикой" */
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Точка вращения - самый низ по центру */
     transform-origin: bottom center;
 }
+
 .lever-handle {
-    width: 30px; height: 30px; background: var(--danger-color);
-    border-radius: 50%; position: absolute; top: -15px; left: -9px;
+    width: 34px;
+    height: 34px;
+    background: var(--danger-color);
+    border-radius: 50%;
+    position: absolute;
+    top: -17px; /* Половина высоты шара */
+    left: -10px; /* (Ширина шара - ширина палки) / 2 */
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    /* Тень, создающая объем */
+    box-shadow: inset 4px -4px 8px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0,0,0,0.2);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.lever.pulled { transform: rotate(45deg); cursor: not-allowed; }
-.lever:not(.pulled):hover { transform: scale(1.1); }
+
+.lever.pulled {
+    /* Наклоняем рычаг "вглубь" на 65 градусов */
+    transform: rotateX(65deg);
+    cursor: not-allowed;
+}
+
+.lever.pulled .lever-handle {
+    /* Смещаем рукоятку вниз, чтобы она оставалась на том же уровне */
+    /* Это создает иллюзию движения по дуге */
+    transform: translateY(15px) scale(0.95);
+}
+
+.lever:not(.pulled):hover {
+    /* Слегка наклоняем на себя для интерактива */
+    transform: rotateX(-10deg) scaleY(1.05);
+}
+
+.lever:not(.pulled):hover .lever-handle {
+    transform: scale(1.05);
+}
+
+.lever:not(.pulled):active {
+    transform: rotateX(20deg); /* Немного наклоняем перед полным рывком */
+    transition-duration: 0.1s;
+}
 
 .controls {
     padding: 15px; border: 2px solid var(--border-color); background-color: var(--panel-bg);
@@ -257,6 +323,21 @@ body {
     font-size: 12px;
     color: #aaa;
     line-height: 1.4;
+}
+.item-thumbnail.multiple-emoji {
+    flex-direction: column;
+    font-size: 1.1em;
+    line-height: 1;
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+    align-items: center;
+}
+
+@media (max-width: 600px) {
+  .item-thumbnail.multiple-emoji {
+    font-size: 0.9em;
+  }
 }
 
 .atm-actions { display: flex; gap: 10px; margin-top: 10px; }
@@ -3272,8 +3353,10 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   }
 
   .leaderboard-entry:hover {
-    background: var(--highlight-bg);
-    transform: translateX(5px);
+    /* Убираем все эффекты при наведении */
+    background: inherit !important;
+    transform: none !important;
+    box-shadow: none !important;
   }
 
   .leaderboard-entry.current-player {

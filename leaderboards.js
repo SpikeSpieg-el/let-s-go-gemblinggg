@@ -235,14 +235,14 @@ class LeaderboardsManager {
         entryElement.style.cssText = `
             display: grid;
             grid-template-columns: 60px 1fr 80px;
-            gap: 10px;
-            padding: 12px 15px;
-            margin-bottom: 8px;
+            gap: 16px;
+            padding: 16px 20px;
+            margin-bottom: 10px;
             background: var(--bg-color);
-            border-radius: 8px;
+            border-radius: 10px;
             border: 1px solid var(--border-color);
-            transition: all 0.2s ease;
             align-items: center;
+            font-size: 1.08em;
         `;
         
         const rank = entry.rank;
@@ -331,15 +331,9 @@ class LeaderboardsManager {
         entryElement.appendChild(playerInfoDiv);
         entryElement.appendChild(scoreDiv);
         
-        // Эффект при наведении
-        entryElement.onmouseenter = () => {
-            entryElement.style.transform = 'translateY(-2px)';
-            entryElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-        };
-        entryElement.onmouseleave = () => {
-            entryElement.style.transform = 'translateY(0)';
-            entryElement.style.boxShadow = 'none';
-        };
+        // Удаляем hover-эффект:
+        // entryElement.onmouseenter = () => { ... }
+        // entryElement.onmouseleave = () => { ... }
         
         return entryElement;
     }
@@ -350,11 +344,7 @@ class LeaderboardsManager {
     async showLeaderboardModal() {
         if (!this.isInitialized) {
             console.warn('[Leaderboards] Попытка показать лидерборд без инициализации');
-            if (!this.ysdk) {
-                this.showNotAvailableMessage('Yandex SDK не загружен. Убедитесь, что вы играете в Yandex Games.');
-            } else {
-                this.showNotAvailableMessage('Лидерборды недоступны. Возможно, вы не авторизованы или функция отключена.');
-            }
+            this.showLocalLeaderboardModal();
             return;
         }
 
@@ -362,7 +352,7 @@ class LeaderboardsManager {
         const entries = await this.getTopEntries(10, true, 3);
         if (!entries) {
             console.error('[Leaderboards] Не удалось загрузить данные лидерборда');
-            this.showErrorMessage('Не удалось загрузить таблицу лидеров. Проверьте подключение к интернету.');
+            this.showLocalLeaderboardModal();
             return;
         }
 
@@ -387,6 +377,8 @@ class LeaderboardsManager {
         
         const content = document.createElement('div');
         content.className = 'modal-content leaderboard-content';
+        content.style.maxWidth = '770px';
+        content.style.width = '96vw';
         
         // Создаем заголовок с кнопкой закрытия по центру
         const titleContainer = document.createElement('div');
@@ -447,7 +439,7 @@ class LeaderboardsManager {
         
         const entriesContainer = document.createElement('div');
         entriesContainer.className = 'leaderboard-entries';
-        entriesContainer.style.cssText = 'max-height: 400px; overflow-y: auto;';
+        entriesContainer.style.cssText = 'max-height: 650px; overflow-y: auto;';
         
         // Добавляем записи
         entries.entries.forEach((entry, index) => {
@@ -488,33 +480,64 @@ class LeaderboardsManager {
     }
 
     /**
-     * Показ сообщения о недоступности
+     * Сохраняет результат игрока в localStorage
+     * @param {Object} gameState - Состояние игры
      */
-    showNotAvailableMessage(message = 'Таблица лидеров недоступна. Убедитесь, что вы авторизованы в Yandex Games.') {
-        console.warn('[Leaderboards] Показываем сообщение о недоступности:', message);
-        
-        // Создаем простое модальное окно с сообщением
+    saveLocalScore(gameState) {
+        if (!gameState || !gameState.run) return;
+        const entry = {
+            run: gameState.run,
+            totalCoins: gameState.totalCoins || 0,
+            totalTickets: gameState.totalTickets || 0,
+            items: gameState.inventory?.length || 0,
+            passives: gameState.activePassives?.length || 0,
+            date: Date.now(),
+            name: (window.ysdk && window.ysdk.player && window.ysdk.player.getName && window.ysdk.player.getName()) || 'Игрок',
+        };
+        let local = [];
+        try {
+            local = JSON.parse(localStorage.getItem('localLeaderboard') || '[]');
+        } catch {}
+        local.push(entry);
+        // Сохраняем только топ-20
+        local = local.sort((a, b) => b.run - a.run).slice(0, 20);
+        localStorage.setItem('localLeaderboard', JSON.stringify(local));
+    }
+
+    /**
+     * Получает топ-10 локальных результатов
+     */
+    getLocalLeaderboard() {
+        let local = [];
+        try {
+            local = JSON.parse(localStorage.getItem('localLeaderboard') || '[]');
+        } catch {}
+        return local.sort((a, b) => b.run - a.run).slice(0, 10);
+    }
+
+    /**
+     * Показывает локальный лидерборд в модальном окне
+     */
+    showLocalLeaderboardModal() {
+        // Удаляем существующее модальное окно
         const existingModal = document.getElementById('leaderboard-modal');
-        if (existingModal) {
-            existingModal.remove();
-        }
+        if (existingModal) existingModal.remove();
 
         const modal = document.createElement('div');
         modal.id = 'leaderboard-modal';
         modal.className = 'modal-overlay';
-        
+
         const content = document.createElement('div');
         content.className = 'modal-content leaderboard-content';
-        
-        // Создаем заголовок с кнопкой закрытия по центру
+
         const titleContainer = document.createElement('div');
         titleContainer.className = 'leaderboard-title-container';
         titleContainer.style.cssText = 'position: relative; text-align: center; margin-bottom: 20px;';
-        
+
         const title = document.createElement('h2');
-        title.textContent = '🏆 Таблица лидеров';
+        title.textContent = 'Лидеры ямы';
         title.style.cssText = 'margin: 0; display: inline-block;';
-        
+
         const closeBtn = document.createElement('button');
         closeBtn.className = 'modal-close';
         closeBtn.innerHTML = '&times;';
@@ -540,109 +563,130 @@ class LeaderboardsManager {
             closeBtn.style.backgroundColor = 'transparent';
         };
         closeBtn.onclick = () => modal.remove();
-        
+
         titleContainer.appendChild(title);
         titleContainer.appendChild(closeBtn);
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.style.cssText = 'text-align: center; padding: 40px 20px; color: var(--text-color-darker);';
-        messageDiv.innerHTML = `
-            <div style="font-size: 3em; margin-bottom: 20px;">⚠️</div>
-            <p style="font-size: 1.1em; margin-bottom: 10px;">${message}</p>
-            <p style="font-size: 0.9em; opacity: 0.8;">Попробуйте обновить страницу или войти в Yandex Games.</p>
+
+        const header = document.createElement('div');
+        header.className = 'leaderboard-header';
+        header.style.cssText = `
+            display: grid;
+            grid-template-columns: 60px 1fr 80px;
+            gap: 10px;
+            padding: 10px 15px;
+            background: var(--bg-color-darker);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: var(--text-color);
         `;
-        
+        header.innerHTML = `
+            <div class="header-rank">Место</div>
+            <div class="header-player">Игрок</div>
+            <div class="header-score">Циклы</div>
+        `;
+
+        const entriesContainer = document.createElement('div');
+        entriesContainer.className = 'leaderboard-entries';
+        entriesContainer.style.cssText = 'max-height: 650px; overflow-y: auto;';
+
+        const local = this.getLocalLeaderboard();
+        if (local.length === 0) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'text-align:center; color:var(--text-color-darker); padding:40px;';
+            empty.textContent = 'Нет локальных результатов. Сыграйте партию!';
+            entriesContainer.appendChild(empty);
+        } else {
+            local.forEach((entry, idx) => {
+                // --- Новый стиль: как у createLeaderboardEntry ---
+                const entryElement = document.createElement('div');
+                entryElement.className = 'leaderboard-entry';
+                entryElement.style.cssText = `
+                    display: grid;
+                    grid-template-columns: 60px 1fr 80px;
+                    gap: 16px;
+                    padding: 16px 20px;
+                    margin-bottom: 10px;
+                    background: var(--bg-color);
+                    border-radius: 10px;
+                    border: 1px solid var(--border-color);
+                    align-items: center;
+                    font-size: 1.08em;
+                `;
+                // Ранг
+                const rankDiv = document.createElement('div');
+                rankDiv.className = 'entry-rank';
+                rankDiv.style.cssText = 'font-weight: bold; color: var(--text-color); text-align:center; font-size:1.1em;';
+                rankDiv.textContent = idx + 1;
+                // Информация об игроке (имя + детали + аватар)
+                const playerInfoDiv = document.createElement('div');
+                playerInfoDiv.className = 'entry-info';
+                playerInfoDiv.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+                // Аватар (заглушка)
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'entry-avatar';
+                avatarDiv.style.cssText = `
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    overflow: hidden;
+                    background: var(--bg-color-darker);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                    color: var(--text-color-darker);
+                `;
+                avatarDiv.textContent = entry.name ? entry.name.charAt(0).toUpperCase() : '?';
+                // Имя и детали
+                const detailsDiv = document.createElement('div');
+                detailsDiv.style.cssText = 'flex: 1; min-width: 0;';
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'entry-name';
+                nameDiv.style.cssText = 'font-weight: bold; color: var(--text-color); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+                nameDiv.textContent = entry.name || 'Игрок';
+                const detailsTextDiv = document.createElement('div');
+                detailsTextDiv.className = 'entry-details';
+                detailsTextDiv.style.cssText = 'font-size: 12px; color: var(--text-color-darker);';
+                detailsTextDiv.textContent = `Цикл ${entry.run} • ${entry.items} амулетов`;
+                detailsDiv.appendChild(nameDiv);
+                detailsDiv.appendChild(detailsTextDiv);
+                playerInfoDiv.appendChild(avatarDiv);
+                playerInfoDiv.appendChild(detailsDiv);
+                // Счет
+                const scoreDiv = document.createElement('div');
+                scoreDiv.className = 'entry-score';
+                scoreDiv.style.cssText = 'font-weight: bold; color: var(--money-color); text-align: right; font-size:1.1em;';
+                scoreDiv.textContent = entry.run;
+                entryElement.appendChild(rankDiv);
+                entryElement.appendChild(playerInfoDiv);
+                entryElement.appendChild(scoreDiv);
+                entriesContainer.appendChild(entryElement);
+            });
+        }
+
         content.appendChild(titleContainer);
-        content.appendChild(messageDiv);
-        
+        content.appendChild(header);
+        content.appendChild(entriesContainer);
         modal.appendChild(content);
         document.body.appendChild(modal);
-        
-        // Закрытие по клику вне модального окна
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
+            if (e.target === modal) modal.remove();
         });
+    }
+
+    /**
+     * Показ сообщения о недоступности
+     */
+    showNotAvailableMessage(message = 'Таблица лидеров недоступна. Убедитесь, что вы авторизованы в Yandex Games.') {
+        this.showLocalLeaderboardModal();
     }
 
     /**
      * Показ сообщения об ошибке
      */
     showErrorMessage(message = 'Ошибка загрузки таблицы лидеров. Попробуйте позже.') {
-        console.error('[Leaderboards] Показываем сообщение об ошибке:', message);
-        
-        // Создаем простое модальное окно с сообщением об ошибке
-        const existingModal = document.getElementById('leaderboard-modal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-
-        const modal = document.createElement('div');
-        modal.id = 'leaderboard-modal';
-        modal.className = 'modal-overlay';
-        
-        const content = document.createElement('div');
-        content.className = 'modal-content leaderboard-content';
-        
-        // Создаем заголовок с кнопкой закрытия по центру
-        const titleContainer = document.createElement('div');
-        titleContainer.className = 'leaderboard-title-container';
-        titleContainer.style.cssText = 'position: relative; text-align: center; margin-bottom: 20px;';
-        
-        const title = document.createElement('h2');
-        title.textContent = '🏆 Таблица лидеров';
-        title.style.cssText = 'margin: 0; display: inline-block;';
-        
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'modal-close';
-        closeBtn.innerHTML = '&times;';
-        closeBtn.style.cssText = `
-            position: absolute;
-            top: 50%;
-            right: 0;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: var(--text-color-darker);
-            padding: 5px 10px;
-            border-radius: 5px;
-            transition: background-color 0.2s;
-            z-index: 10;
-        `;
-        closeBtn.onmouseover = () => {
-            closeBtn.style.backgroundColor = 'rgba(0,0,0,0.1)';
-        };
-        closeBtn.onmouseout = () => {
-            closeBtn.style.backgroundColor = 'transparent';
-        };
-        closeBtn.onclick = () => modal.remove();
-        
-        titleContainer.appendChild(title);
-        titleContainer.appendChild(closeBtn);
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.style.cssText = 'text-align: center; padding: 40px 20px; color: var(--text-color-darker);';
-        messageDiv.innerHTML = `
-            <div style="font-size: 3em; margin-bottom: 20px;">❌</div>
-            <p style="font-size: 1.1em; margin-bottom: 10px;">${message}</p>
-            <p style="font-size: 0.9em; opacity: 0.8;">Попробуйте позже или обратитесь в поддержку.</p>
-        `;
-        
-        content.appendChild(titleContainer);
-        content.appendChild(messageDiv);
-        
-        modal.appendChild(content);
-        document.body.appendChild(modal);
-        
-        // Закрытие по клику вне модального окна
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
+        this.showLocalLeaderboardModal();
     }
 
     /**
@@ -650,10 +694,8 @@ class LeaderboardsManager {
      * @param {Object} gameState - Состояние игры
      */
     async onGameOver(gameState) {
-        if (!this.isInitialized) {
-            return;
-        }
-
+        this.saveLocalScore(gameState);
+        if (!this.isInitialized) return;
         console.log('[Leaderboards] Игра завершена, обновляем результат...');
         await this.updateGameScore(gameState);
     }
@@ -673,3 +715,29 @@ window.leaderboardsManager = new LeaderboardsManager();
 
 // Экспортируем для использования в других модулях
 export default window.leaderboardsManager; 
+
+// === ОТЛАДОЧНАЯ ФУНКЦИЯ: Заполнить локальный лидерборд тестовыми данными ===
+window.fillLocalLeaderboardWithTestData = function() {
+    const names = [
+        'Артём', 'Влад', 'Ирина', 'Сергей', 'Оля', 'Денис', 'Мария', 'Павел', 'Екатерина', 'Алексей',
+        'Даша', 'Кирилл', 'Саша', 'Алина', 'Максим', 'Таня', 'Игорь', 'Юля', 'Виктор', 'Лена',
+        'Глеб', 'Вера', 'Роман', 'Настя', 'Миша', 'Полина', 'Виталий', 'Света', 'Егор', 'Анна',
+        'Валера', 'Женя', 'Ксюша', 'Дима', 'Лиза', 'Вова', 'Соня', 'Гриша', 'Никита', 'Зоя',
+        'Руслан', 'Надя', 'Петя', 'Валя', 'Лёша', 'Рита', 'Яна', 'Тимур', 'Олег', 'Галя'
+    ];
+    const testEntries = [];
+    for (let i = 0; i < 50; i++) {
+        testEntries.push({
+            run: Math.floor(Math.random() * 20) + 1,
+            totalCoins: Math.floor(Math.random() * 10000),
+            totalTickets: Math.floor(Math.random() * 100),
+            items: Math.floor(Math.random() * 10),
+            passives: Math.floor(Math.random() * 5),
+            date: Date.now() - Math.floor(Math.random() * 100000000),
+            name: names[i % names.length] + (i > names.length ? ' #' + (i+1-names.length) : '')
+        });
+    }
+    // Сортируем по run и сохраняем только топ-20 (как в saveLocalScore)
+    const sorted = testEntries.sort((a, b) => b.run - a.run).slice(0, 20);
+    localStorage.setItem('localLeaderboard', JSON.stringify(sorted));
+}; 

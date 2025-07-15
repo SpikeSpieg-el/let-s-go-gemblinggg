@@ -1,4 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Функция для подсчёта количества эмодзи в строке
+    function countEmojis(str) {
+        // Покрывает большинство emoji, в том числе составные
+        const emojiRegex = /(\p{Extended_Pictographic}(?:\uFE0F|\u20E3)?)/gu;
+        return (str.match(emojiRegex) || []).length;
+    }
+
     const ui = {
         slotMachine: document.getElementById('slot-machine'),
         lever: document.getElementById('lever'),
@@ -62,6 +69,8 @@ document.addEventListener('DOMContentLoaded', () => {
         btnEorDepositHalf: document.getElementById('btn-eor-deposit-half'),
         btnLeaderboard: document.getElementById('btn-leaderboard'),
     };
+    // Отключаем контекстное меню по правому клику мыши на всей странице
+    document.addEventListener('contextmenu', event => event.preventDefault());
 
     const CONFIG = {
         ROWS: 3, COLS: 5, REROLL_COST: 2,
@@ -90,6 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.symbols = SYMBOLS;
     window.symbolWeights = {};
     window.gameState = {};
+
+    fillLocalLeaderboardWithTestData(); // для отладки всегда
 
     function updateWeightedSymbols() {
         // Теперь используем текущий массив SYMBOLS, чтобы поддерживать изменения из Dev-меню
@@ -392,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(state.coins >= cost){
                 state.coins -= cost;
                 tempLuck += bonusLuck;
-                addLog(`Кровавый Ритуал: -${cost}💰, +${bonusLuck} к удаче на этот спин.`, 'win');
+                addLog(`Кровавый Ритуал: -${cost}💲, +${bonusLuck} к удаче на этот спин.`, 'win');
                 animateInventoryItem('blood_ritual'); // [NEW] Анимация
             }
         }
@@ -643,7 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
         popup.className = 'total-win-popup';
         popup.innerHTML = `
             <div class="win-title">ОБЩИЙ ВЫИГРЫШ</div>
-            <div class="win-amount">+${formatNumberWithComma(amount)}💰</div>
+            <div class="win-amount">+${formatNumberWithComma(amount)}💲</div>
         `;
         document.body.appendChild(popup);
 
@@ -1072,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const jackpotWin = SYMBOLS.find(s => s.id === topSymbolId).value * 15 * topCount * (state.run || 1);
             totalWinnings += jackpotWin;
-            addLog(`💥 ДЖЕКПОТ!!! 💥 (${topSymbolId} x15 x${state.run || 1}): +${formatNumberWithComma(jackpotWin)}💰`, 'win');
+            addLog(`💥 ДЖЕКПОТ!!! 💥 (${topSymbolId} x15 x${state.run || 1}): +${formatNumberWithComma(jackpotWin)}💲`, 'win');
             for(let i=0; i<15; i++) allWinningPositions.add(i);
             
             setTimeout(() => {
@@ -1081,7 +1092,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 jackpotOverlay.innerHTML = `
                     <div class="jackpot-content">
                         <div class="jackpot-title">ДЖЕКПОТ!!!</div>
-                        <div class="jackpot-amount">+${formatNumberWithComma(jackpotWin)}💰</div>
+                        <div class="jackpot-amount">+${formatNumberWithComma(jackpotWin)}💲</div>
                     </div>
                 `;
                 document.body.appendChild(jackpotOverlay);
@@ -1102,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (topCount >= 12 && topCount < 15) {
             const eyeWin = SYMBOLS.find(s => s.id === topSymbolId).value * 10 * topCount;
             totalWinnings += eyeWin;
-            addLog(`👁️ ГЛАЗ! 👁️ (${topSymbolId} x${topCount}): +${formatNumberWithComma(eyeWin)}💰`, 'win');
+            addLog(`👁️ ГЛАЗ! 👁️ (${topSymbolId} x${topCount}): +${formatNumberWithComma(eyeWin)}💲`, 'win');
             grid.forEach((s, i) => { if(s.id === topSymbolId) allWinningPositions.add(i); });
         }
 
@@ -1110,7 +1121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const loggedLines = new Set();
         winningLinesInfo.forEach(info => {
              if (!loggedLines.has(info.name)) {
-                addLog(`${info.name} (${GRAPHICS[info.symbol]}): +${info.win}💰`, 'win');
+                addLog(`${info.name} (${GRAPHICS[info.symbol]}): +${info.win}💲`, 'win');
                 loggedLines.add(info.name);
              }
         });
@@ -1129,7 +1140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const comboBonus = Math.floor(totalWinnings * ((1 + (winningLinesInfo.length - 1) * baseComboRate - 1) * comboMultiplier));
             totalWinnings += comboBonus;
-            addLog(`🔥 КОМБО x${winningLinesInfo.length}! Бонус: +${formatNumberWithComma(comboBonus)}💰`, 'win');
+            addLog(`🔥 КОМБО x${winningLinesInfo.length}! Бонус: +${formatNumberWithComma(comboBonus)}💲`, 'win');
 
             // --- ПАССИВКА: Цепная реакция ---
             if (hasPassive('chain_reaction')) {
@@ -1153,14 +1164,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (cloverCount > 0) {
                     const bonus = cloverCount;
                     totalWinnings += bonus;
-                    addLog(`Клеверный бонус: +${formatNumberWithComma(bonus)}💰 за клеверы.`, 'win');
+                    addLog(`Клеверный бонус: +${formatNumberWithComma(bonus)}💲 за клеверы.`, 'win');
                 }
             }
             if (hasPassive('wilder_clover') && hasItem('wild_clover')) {
                 const cloverCount = grid.filter(s => s.id === 'clover').length;
                 if (cloverCount > 0) {
                     totalWinnings += cloverCount;
-                    addLog(`Дичайший клевер: +${cloverCount}💰 за каждый клевер на поле.`, 'win');
+                    addLog(`Дичайший клевер: +${cloverCount}💲 за каждый клевер на поле.`, 'win');
                 }
             }
 
@@ -1180,7 +1191,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Монетка шулера заменяет выигрыш
             const result = gamblersCoin.on_spin_bonus(state.grid, totalWinnings, state);
             totalWinnings = result;
-            addLog(`${gamblersCoin.name}: ${result >= 0 ? '+' : ''}${formatNumberWithComma(result)}💰`, result >= 0 ? 'win' : 'loss');
+            addLog(`${gamblersCoin.name}: ${result >= 0 ? '+' : ''}${formatNumberWithComma(result)}💲`, result >= 0 ? 'win' : 'loss');
             if (result > 0) {
                 animateInventoryItem(gamblersCoin.id);
             } else if (result < 0) {
@@ -1203,7 +1214,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const bonus = item.on_spin_bonus(state.grid, totalWinnings, state);
                 if (bonus > 0) {
                     postSpinBonuses += bonus;
-                    addLog(`${item.name}: +${formatNumberWithComma(bonus)}💰`, 'win');
+                    addLog(`${item.name}: +${formatNumberWithComma(bonus)}💲`, 'win');
                     animateInventoryItem(item.id);
                 }
             }
@@ -1215,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let bonus = applyFruitSaladBonus(grid);
             if (bonus > 0) {
                 totalWinnings += applyCoinDoubler(bonus);
-                addLog(`Фруктовый салат: +${applyCoinDoubler(bonus)}💰`, 'win');
+                addLog(`Фруктовый салат: +${applyCoinDoubler(bonus)}💲`, 'win');
                 animateInventoryItem('fruit_salad');
             }
         }
@@ -1223,7 +1234,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let bonus = applySweetSpinBonus(grid);
             if (bonus > 0) {
                 totalWinnings += applyCoinDoubler(bonus);
-                addLog(`Сладкий прокрут: +${applyCoinDoubler(bonus)}💰`, 'win');
+                addLog(`Сладкий прокрут: +${applyCoinDoubler(bonus)}💲`, 'win');
                 animateInventoryItem('sweet_spin');
             }
         }
@@ -1231,7 +1242,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let bonus = applyCloverFieldBonus(grid);
             if (bonus > 0) {
                 totalWinnings += applyCoinDoubler(bonus);
-                addLog(`Клеверное поле: +${applyCoinDoubler(bonus)}💰`, 'win');
+                addLog(`Клеверное поле: +${applyCoinDoubler(bonus)}💲`, 'win');
                 animateInventoryItem('clover_field');
             }
         }
@@ -1239,7 +1250,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let bonus = applyBookendsBonus(grid);
             if (bonus > 0) {
                 totalWinnings += applyCoinDoubler(bonus);
-                addLog(`Книжные подпорки: +${applyCoinDoubler(bonus)}💰`, 'win');
+                addLog(`Книжные подпорки: +${applyCoinDoubler(bonus)}💲`, 'win');
                 animateInventoryItem('bookends');
             }
         }
@@ -1247,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let bonus = getEmptySlotBonus();
              if (bonus > 0) {
                 totalWinnings += applyCoinDoubler(bonus);
-                addLog(`Минималист: +${applyCoinDoubler(bonus)}💰 за пустые слоты.`, 'win');
+                addLog(`Минималист: +${applyCoinDoubler(bonus)}💲 за пустые слоты.`, 'win');
                 animateInventoryItem('minimalist');
             }
         }
@@ -1258,7 +1269,7 @@ document.addEventListener('DOMContentLoaded', () => {
              const multiplier = ALL_ITEMS.find(i => i.id === 'oddly_lucky').effect.odd_round_multiplier;
              const bonus = Math.floor(totalWinnings * (multiplier - 1));
              totalWinnings += bonus;
-             addLog(`Странная удача: +${Math.round((multiplier - 1) * 100)}% бонус! (+${formatNumberWithComma(bonus)}💰)`, 'win');
+             addLog(`Странная удача: +${Math.round((multiplier - 1) * 100)}% бонус! (+${formatNumberWithComma(bonus)}💲)`, 'win');
              animateInventoryItem('oddly_lucky');
         }
 
@@ -1266,7 +1277,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.tempWinMultiplier && state.tempWinMultiplier > 1 && totalWinnings > 0) {
             const bonus = Math.floor(totalWinnings * (state.tempWinMultiplier - 1));
             totalWinnings += bonus;
-            addLog(`Временный множитель x${state.tempWinMultiplier}: +${formatNumberWithComma(bonus)}💰`, 'win');
+            addLog(`Временный множитель x${state.tempWinMultiplier}: +${formatNumberWithComma(bonus)}💲`, 'win');
             state.tempWinMultiplier = 1; // Сбрасываем после использования
         }
 
@@ -1276,7 +1287,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const bonus = Math.floor(totalWinnings * (finalMultiplier - 1));
             totalWinnings += bonus;
             if(finalMultiplierItem.id === 'demon_contract') {
-                addLog(`${finalMultiplierItem.name}: +${formatNumberWithComma(bonus)}💰`, 'win');
+                addLog(`${finalMultiplierItem.name}: +${formatNumberWithComma(bonus)}💲`, 'win');
                 animateInventoryItem(finalMultiplierItem.id);
             }
         }
@@ -1287,7 +1298,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (totalWinnings > 0) {
                 const bonus = totalWinnings * (lastChanceMultiplier - 1);
                 totalWinnings += bonus;
-                addLog(`Последний Шанс: x${lastChanceMultiplier} к выигрышу! (+${formatNumberWithComma(bonus)}💰)`, 'win');
+                addLog(`Последний Шанс: x${lastChanceMultiplier} к выигрышу! (+${formatNumberWithComma(bonus)}💲)`, 'win');
                 animateInventoryItem('last_chance');
             }
         }
@@ -1297,7 +1308,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const multiplier = state.echoStoneMultiplier;
             const bonus = Math.floor(totalWinnings * (multiplier - 1));
             totalWinnings += bonus;
-            addLog(`Эхо-Камень: Множитель x${multiplier}! (+${formatNumberWithComma(bonus)}💰)`, 'win');
+            addLog(`Эхо-Камень: Множитель x${multiplier}! (+${formatNumberWithComma(bonus)}💲)`, 'win');
             animateInventoryItem('echo_stone');
         }
 
@@ -1323,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (totalPenalty > 0) {
                 const penaltyAmount = Math.floor(totalWinnings * totalPenalty);
                 totalWinnings -= penaltyAmount;
-                addLog(`Штраф "Не занимает место": -${penaltyAmount}💰 (${(totalPenalty * 100).toFixed(0)}%)`, 'loss');
+                addLog(`Штраф "Не занимает место": -${penaltyAmount}💲 (${(totalPenalty * 100).toFixed(0)}%)`, 'loss');
             }
         }
 
@@ -1363,7 +1374,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const bonus = ALL_ITEMS.find(i => i.id === 'hot_streak').effect.on_win_streak_bonus;
                 const finalBonus = applyCoinDoubler(bonus);
                 state.coins += finalBonus;
-                addLog(`На волне успеха (x${state.winStreak}): +${finalBonus}💰`, 'win');
+                addLog(`На волне успеха (x${state.winStreak}): +${finalBonus}💲`, 'win');
                 animateInventoryItem('hot_streak');
             }
             
@@ -1383,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasItem('scrap_metal')) {
                 const lossBonus = getItemEffectValue('on_loss_bonus', 0);
                 state.piggyBank += lossBonus;
-                addLog(`Копилка впитала: +${lossBonus}💰. Всего: ${state.piggyBank}💰`);
+                addLog(`Копилка впитала: +${lossBonus}💲. Всего: ${state.piggyBank}💲`);
             }
             state.winStreak = 0; // [NEW] Сброс серии побед
             // --- ПАССИВКА: Обучение на ошибках ---
@@ -1459,7 +1470,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const multiplier = 1 + state.luckBatteryCharge;
                 const bonus = totalWinnings * (multiplier - 1);
                 totalWinnings *= multiplier;
-                addLog(`Батарея удачи: заряд x${multiplier}! (+${formatNumberWithComma(bonus)}💰)`, 'win');
+                addLog(`Батарея удачи: заряд x${multiplier}! (+${formatNumberWithComma(bonus)}💲)`, 'win');
                 animateInventoryItem('luck_battery');
                 state.luckBatteryCharge = 0;
             }
@@ -1478,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const bonus = item.on_win_bonus(state.grid, totalWinnings, state, winningLinesInfo);
             if (bonus > 0) {
               totalWinnings += bonus;
-              addLog(`${item.name}: +${bonus}💰`, 'win');
+              addLog(`${item.name}: +${bonus}💲`, 'win');
               animateInventoryItem(item.id);
             }
           }
@@ -1586,7 +1597,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 setTimeout(() => {
                                     const coin = document.createElement('div');
                                     coin.className = 'flying-coin' + (isJackpot ? ' jackpot' : '');
-                                    coin.textContent = '💰';
+                                    coin.textContent = '💲';
                                     coin.style.position = 'fixed';
                                     coin.style.left = (cellCenterX - 16) + 'px';
                                     coin.style.top = (cellCenterY - 16) + 'px';
@@ -1813,7 +1824,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 linePopup.innerHTML = `
                     <div class="line-popup-content">
                         <div class="line-name">${lineInfo.name}</div>
-                        <div class="line-win">+${formatNumberWithComma(lineInfo.win)}💰</div>
+                        <div class="line-win">+${formatNumberWithComma(lineInfo.win)}💲</div>
                     </div>
                 `;
                 document.body.appendChild(linePopup);
@@ -2127,7 +2138,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (eff.coins) {
                         const bonus = applyCoinDoubler(eff.coins);
                         state.coins += bonus;
-                        addLog(`${item.name}: +${bonus}💰 (шанс ${(eff.chance*100).toFixed(1)}% x${chanceMultiplier.toFixed(1)} = ${(chance*100).toFixed(1)}%)!`, 'win');
+                        addLog(`${item.name}: +${bonus}💲 (шанс ${(eff.chance*100).toFixed(1)}% x${chanceMultiplier.toFixed(1)} = ${(chance*100).toFixed(1)}%)!`, 'win');
                     }
                     if (eff.tickets) {
                         state.tickets += eff.tickets;
@@ -2162,7 +2173,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 state.luck += 5;
                                 const bonus = 10 * (state.run || 1);
                                 state.coins += bonus;
-                                addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💰 за поломку предмета!', 'win');
+                                addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💲 за поломку предмета!', 'win');
                             }
                             itemsToRemove.push(idx);
                         }
@@ -2170,7 +2181,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // --- ПАССИВКА: Предвкушение ---
                         if (hasPassive('anticipation')) {
                             state.coins += 1;
-                            addLog(`Предвкушение: +1💰 за несработавший шанс "${item.name}".`, 'win');
+                            addLog(`Предвкушение: +1💲 за несработавший шанс "${item.name}".`, 'win');
                         }
                     }
                 }
@@ -2286,7 +2297,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     state.luck += 5;
                                     const bonus = 10 * (state.run || 1);
                                     state.coins += bonus;
-                                    addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💰 за поломку предмета!', 'win');
+                                    addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💲 за поломку предмета!', 'win');
                                 }
                                 itemsToRemove.push(idx);
                             }
@@ -2422,7 +2433,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 state.luck += 5;
                                 const bonus = 10 * (state.run || 1);
                                 state.coins += bonus;
-                                addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💰 за поломку предмета!', 'win');
+                                addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💲 за поломку предмета!', 'win');
                             }
                             itemsToRemove.push(idx);
                         }
@@ -2462,7 +2473,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             state.luck += 5;
                             const bonus = 10 * (state.run || 1);
                             state.coins += bonus;
-                            addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💰 за поломку предмета!', 'win');
+                            addLog('🔥 Феникс: +5 к удаче и +' + bonus + '💲 за поломку предмета!', 'win');
                         }
                         itemsToRemove.push(idx);
                     }
@@ -2523,9 +2534,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Обновляем UI модального окна, если оно открыто
         if (!ui.spinPurchaseModal.classList.contains('hidden')) {
-            ui.purchaseModalCoins.textContent = `${formatNumberWithComma(state.coins)}💰`;
-            ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${formatNumberWithComma(CONFIG.SPIN_PACKAGE_1.cost)}💰)`;
-            ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${formatNumberWithComma(CONFIG.SPIN_PACKAGE_2.cost)}💰)`;
+            ui.purchaseModalCoins.textContent = `${formatNumberWithComma(state.coins)}💲`;
+            ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${formatNumberWithComma(CONFIG.SPIN_PACKAGE_1.cost)}💲)`;
+            ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${formatNumberWithComma(CONFIG.SPIN_PACKAGE_2.cost)}💲)`;
             ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
             ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
         }
@@ -2582,7 +2593,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.gameOverScreen.classList.add('hidden');
         ui.logPanel.innerHTML = '';
         
-        addLog(`Начался Цикл Долга #${state.run}. Цель: ${state.targetDebt}💰 за 3 дня.`);
+        addLog(`Начался Цикл Долга #${state.run}. Цель: ${state.targetDebt}💲 за 3 дня.`);
         
         // Применяем разовые пассивки в начале игры
         if (state.activePassives && state.activePassives.length > 0) {
@@ -2690,8 +2701,8 @@ document.addEventListener('DOMContentLoaded', () => {
         state.symbioticParasiteLuck = 0; // [NEW] Сброс состояния симбиотического паразита
 
         updateInterestRate();
-        addLog(`Начался Цикл Долга #${state.run}. Цель: ${formatNumberWithComma(state.targetDebt)}💰.`);
-        if(bonusCoins > 0 || bonusTickets > 0) addLog(`Бонус за быстроту: +${formatNumberWithComma(bonusCoins)}💰 и +${formatNumberWithComma(bonusTickets)}🎟️`, 'win');
+        addLog(`Начался Цикл Долга #${state.run}. Цель: ${formatNumberWithComma(state.targetDebt)}💲.`);
+        if(bonusCoins > 0 || bonusTickets > 0) addLog(`Бонус за быстроту: +${formatNumberWithComma(bonusCoins)}💲 и +${formatNumberWithComma(bonusTickets)}🎟️`, 'win');
         populateShop();
         
         if (state.run >= 2) {
@@ -2751,7 +2762,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (finalAmount > 0) {
                     state.tickets -= finalAmount;
                     state.coins += finalAmount;
-                    addLog(`Ликвидатор талонов: обменяно ${finalAmount}🎟️ на ${finalAmount}💰.`, 'win');
+                    addLog(`Ликвидатор талонов: обменяно ${finalAmount}🎟️ на ${finalAmount}💲.`, 'win');
                 }
             }
         }
@@ -2775,7 +2786,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const bonus = getItemEffectValue('on_round_start_coins', 0);
             if (bonus > 0) {
                 state.coins += bonus;
-                addLog(`Утренний кофе: +${formatNumberWithComma(bonus)}💰.`, 'win');
+                addLog(`Утренний кофе: +${formatNumberWithComma(bonus)}💲.`, 'win');
                 animateInventoryItem('morning_coffee');
             }
         }
@@ -2820,7 +2831,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const interest = Math.floor(state.bankBalance * state.baseInterestRate);
             if (interest > 0) {
                 state.coins += interest;
-                addLog(`Банковский кэшбек: +${formatNumberWithComma(interest)}💰.`, 'win');
+                addLog(`Банковский кэшбек: +${formatNumberWithComma(interest)}💲.`, 'win');
             }
         }
         updateInterestRate();
@@ -2829,21 +2840,21 @@ document.addEventListener('DOMContentLoaded', () => {
         populateShop();
         
         ui.purchaseModalTitle.textContent = `Раунд ${state.turn}. Время закупаться.`;
-        ui.purchaseModalCoins.textContent = `${formatNumberWithComma(state.coins)}💰`;
-        if (ui.purchaseModalDebt) ui.purchaseModalDebt.textContent = `${formatNumberWithComma(state.targetDebt)}💰`;
+        ui.purchaseModalCoins.textContent = `${formatNumberWithComma(state.coins)}💲`;
+        if (ui.purchaseModalDebt) ui.purchaseModalDebt.textContent = `${formatNumberWithComma(state.targetDebt)}💲`;
 
         let package1Cost = CONFIG.SPIN_PACKAGE_1.cost;
         if(hasPassive('bulk_buyer')) {
             package1Cost = Math.max(1, package1Cost - 2);
         }
-        ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${package1Cost}💰)`;
-        ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${CONFIG.SPIN_PACKAGE_2.cost}💰)`;
+        ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${package1Cost}💲)`;
+        ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${CONFIG.SPIN_PACKAGE_2.cost}💲)`;
         
         let singleSpinCost = 3;
         if (hasPassive('frugal_spinner')) {
             singleSpinCost = 2;
         }
-        ui.btnBuySpin1.textContent = `1 прокрут (${singleSpinCost}💰)`;
+        ui.btnBuySpin1.textContent = `1 прокрут (${singleSpinCost}💲)`;
         ui.btnBuySpin1.disabled = state.coins < singleSpinCost || state.coins >= CONFIG.SPIN_PACKAGE_2.cost;
 
 
@@ -2875,7 +2886,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.coins -= cost;
                 state.spinsLeft += 1;
                 state.purchasesThisRound++; // Оставляем, если нужно для других механик
-                addLog(`Куплен 1 прокрут за ${cost}💰 (без талонов).`, 'win');
+                addLog(`Куплен 1 прокрут за ${cost}💲 (без талонов).`, 'win');
             } else {
                 addLog('Недостаточно наличных.', 'loss');
             }
@@ -2893,8 +2904,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.purchasesThisRound++; // Оставляем, если нужно для других механик
                 addLog(`Куплено: ${pkg.spins} прокрутов и ${pkg.tickets} талон(а/ов).`);
                 updateSpinCosts();
-                ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${CONFIG.SPIN_PACKAGE_1.cost}💰)`;
-                ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${CONFIG.SPIN_PACKAGE_2.cost}💰)`;
+                ui.btnBuySpins7.textContent = `7 прокрутов + 1🎟️ (${CONFIG.SPIN_PACKAGE_1.cost}💲)`;
+                ui.btnBuySpins3.textContent = `3 прокрута + 2🎟️ (${CONFIG.SPIN_PACKAGE_2.cost}💲)`;
                 ui.btnBuySpins7.disabled = state.coins < CONFIG.SPIN_PACKAGE_1.cost;
                 ui.btnBuySpins3.disabled = state.coins < CONFIG.SPIN_PACKAGE_2.cost;
                 setupSpinCostTooltip();
@@ -2907,8 +2918,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function endTurn() {
         if (state.isSpinning) return;
         ui.eorTitle.textContent = `Конец Раунда ${state.turn}`;
-        ui.eorCoins.textContent = `${formatNumberWithComma(state.coins)}💰`;
-        ui.eorBank.textContent = `${formatNumberWithComma(state.bankBalance)}💰`;
+        ui.eorCoins.textContent = `${formatNumberWithComma(state.coins)}💲`;
+        ui.eorBank.textContent = `${formatNumberWithComma(state.bankBalance)}💲`;
         
         // [NEW] Специальный текст для 3-го раунда
         const eorDescription = document.querySelector('#end-of-round-modal p');
@@ -2976,7 +2987,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const bonus = state.spinsLeft * ALL_ITEMS.find(i => i.id === 'frugal_mindset').effect.on_round_end_bonus.per_spin_left;
             const finalBonus = applyCoinDoubler(bonus);
             state.coins += finalBonus;
-            addLog(`Экономное мышление: +${finalBonus}💰 за ${state.spinsLeft} оставшихся прокрутов.`, 'win');
+            addLog(`Экономное мышление: +${finalBonus}💲 за ${state.spinsLeft} оставшихся прокрутов.`, 'win');
             animateInventoryItem('frugal_mindset');
         }
 
@@ -2984,11 +2995,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hasPassive('calculated_risk') && state.spinsLeft === 0) {
             const bonus = 5 * (state.cycle || 1);
             state.coins += bonus;
-            addLog(`Просчитанный риск: +${bonus}💰 за окончание раунда с 0 прокрутов.`, 'win');
+            addLog(`Просчитанный риск: +${bonus}💲 за окончание раунда с 0 прокрутов.`, 'win');
         }
         if (hasItem('scrap_metal') && state.piggyBank > 0) {
             const piggyBankBonus = applyCoinDoubler(state.piggyBank);
-            addLog(`💥 Копилка разбита! Вы получили +${formatNumberWithComma(piggyBankBonus)}💰.`, 'win');
+            addLog(`💥 Копилка разбита! Вы получили +${formatNumberWithComma(piggyBankBonus)}💲.`, 'win');
             state.coins += piggyBankBonus;
             state.piggyBank = 0;
             animateInventoryItem('scrap_metal');
@@ -3043,10 +3054,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     Ха-ха-ха! Посмотрите на этого беднягу! 
                 </p>
                 <p style="text-align: center; font-size: 1.1em; margin-bottom: 10px;">
-                    У вас всего: <span style="color: #ff4444; font-weight: bold;">${formatNumberWithComma(currentMoney)}💰</span>
+                    У вас всего: <span style="color: #ff4444; font-weight: bold;">${formatNumberWithComma(currentMoney)}💲</span>
                 </p>
                 <p style="text-align: center; font-size: 1.1em; margin-bottom: 20px;">
-                    А нужно: <span style="color: #ff4444; font-weight: bold;">${formatNumberWithComma(requiredAmount)}💰</span>
+                    А нужно: <span style="color: #ff4444; font-weight: bold;">${formatNumberWithComma(requiredAmount)}💲</span>
                 </p>
                 <p style="text-align: center; font-size: 1.1em; color: #ff8888; font-style: italic;">
                     Готовьтесь к смерти, неудачник! 😈
@@ -3076,15 +3087,15 @@ document.addEventListener('DOMContentLoaded', () => {
         popup.className = 'sufficient-money-popup';
         popup.innerHTML = `
             <div class="sufficient-money-content">
-                <h2 style="color: #44ff44; text-align: center; margin-bottom: 20px; font-size: 1.5em;"> Я ВИЖУ, ЧТО У ВАС ДОСТАТОЧНО ДЕНЕГ! 💰</h2>
+                <h2 style="color: #44ff44; text-align: center; margin-bottom: 20px; font-size: 1.5em;"> Я ВИЖУ, ЧТО У ВАС ДОСТАТОЧНО ДЕНЕГ! 💲</h2>
                 <p style="text-align: center; font-size: 1.2em; margin-bottom: 15px; color: #44ff44;">
                     Немедленно внесите нужное количество!
                 </p>
                 <p style="text-align: center; font-size: 1.1em; margin-bottom: 10px;">
-                    У вас: <span style="color: #44ff44; font-weight: bold;">${formatNumberWithComma(currentMoney)}💰</span>
+                    У вас: <span style="color: #44ff44; font-weight: bold;">${formatNumberWithComma(currentMoney)}💲</span>
                 </p>
                 <p style="text-align: center; font-size: 1.1em; margin-bottom: 20px;">
-                    Нужно внести: <span style="color: #44ff44; font-weight: bold;">${formatNumberWithComma(requiredAmount)}💰</span>
+                    Нужно внести: <span style="color: #44ff44; font-weight: bold;">${formatNumberWithComma(requiredAmount)}💲</span>
                 </p>
                 <div style="text-align: center;">
                     <button id="btn-continue-to-judgement" style="background: #44ff44; color: #000; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 10px;">
@@ -3122,9 +3133,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const standardTickets = 5 + state.run;
         let bonusText = '';
         if(bonusCoins > 0 || bonusTickets > 0) {
-            bonusText = `Бонус за быстроту: <span style="color:var(--money-color)">+${formatNumberWithComma(bonusCoins)}💰</span> и <span style="color:var(--ticket-color)">+${formatNumberWithComma(bonusTickets)}🎟️</span>.<br>`;
+            bonusText = `Бонус за быстроту: <span style="color:var(--money-color)">+${formatNumberWithComma(bonusCoins)}💲</span> и <span style="color:var(--ticket-color)">+${formatNumberWithComma(bonusTickets)}🎟️</span>.<br>`;
         }
-        ui.judgementText.innerHTML = `Вы выжили. Наличные: <span style="color:var(--money-color)">${formatNumberWithComma(totalMoney)}💰</span>.<br>
+        ui.judgementText.innerHTML = `Вы выжили. Наличные: <span style="color:var(--money-color)">${formatNumberWithComma(totalMoney)}💲</span>.<br>
                                      Стандартная награда: <span style="color:var(--ticket-color)">${formatNumberWithComma(standardTickets)}🎟️</span>.<br>
                                      ${bonusText}`;
 
@@ -3134,20 +3145,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         ui.judgementContinue.onclick = () => {
-            ui.judgementModal.classList.add('hidden');
-            
-            // Показываем рекламу при переходе на следующий уровень
-            if (window.adsManager && window.adsManager.isReady()) {
+            const now = Date.now();
+            const adCooldown = 120000; // 2 минуты
+            // Показываем рекламу при переходе на следующий уровень, если не первая сессия и прошло достаточно времени
+            if (!firstSession && window.adsManager && window.adsManager.isReady() && (now - lastAdShownTime > adCooldown)) {
+                lastAdShownTime = now;
                 window.adsManager.showAdOnEvent('level_complete');
             }
-            
+            ui.judgementModal.classList.add('hidden');
             startNewCycle(bonusCoins, bonusTickets, paidToBank);
+            firstSession = false; // После первого перехода считаем, что сессия не первая
         };
     }
 
     function judgementDay() {
         const totalMoney = state.coins + state.bankBalance;
-        addLog(`СУДНЫЙ ДЕНЬ. Ваша сумма: ${formatNumberWithComma(totalMoney)}💰. Требуется: ${formatNumberWithComma(state.targetDebt)}💰.`);
+        addLog(`СУДНЫЙ ДЕНЬ. Ваша сумма: ${formatNumberWithComma(totalMoney)}💲. Требуется: ${formatNumberWithComma(state.targetDebt)}💲.`);
         
         if (totalMoney >= state.targetDebt) {
             // При обычном переходе сохраняем текущий банковский счет
@@ -3181,7 +3194,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const oldTickets = bonusTickets;
             bonusCoins = Math.floor(bonusCoins * 1.5);
             bonusTickets = Math.floor(bonusTickets * 1.5);
-            addLog(`Ранняя пташка: бонусы увеличены! (+${formatNumberWithComma(bonusCoins - oldCoins)}💰, +${formatNumberWithComma(bonusTickets - oldTickets)}🎟️)`, 'win');
+            addLog(`Ранняя пташка: бонусы увеличены! (+${formatNumberWithComma(bonusCoins - oldCoins)}💲, +${formatNumberWithComma(bonusTickets - oldTickets)}🎟️)`, 'win');
         }
         
         // --- Списание долга из наличных, затем из банка при необходимости ---
@@ -3193,19 +3206,19 @@ document.addEventListener('DOMContentLoaded', () => {
             paidFromCoins = Math.min(state.coins, remainingDebt);
             state.coins -= paidFromCoins;
             remainingDebt -= paidFromCoins;
-            addLog(`Списано ${formatNumberWithComma(paidFromCoins)}💰 из наличных для погашения долга.`);
+            addLog(`Списано ${formatNumberWithComma(paidFromCoins)}💲 из наличных для погашения долга.`);
         }
         
         // Если долг не погашен, списываем из банка
         if (remainingDebt > 0) {
             state.bankBalance -= remainingDebt;
-            addLog(`Списано ${formatNumberWithComma(remainingDebt)}💰 из банка для погашения долга.`);
+            addLog(`Списано ${formatNumberWithComma(remainingDebt)}💲 из банка для погашения долга.`);
         }
 
         // Прибавляем бонусы
         state.coins += bonusCoins;
         state.tickets += bonusTickets;
-        addLog(`Получен бонус: +${formatNumberWithComma(bonusCoins)}💰 и +${formatNumberWithComma(bonusTickets)}🎟️!`, 'win');
+        addLog(`Получен бонус: +${formatNumberWithComma(bonusCoins)}💲 и +${formatNumberWithComma(bonusTickets)}🎟️!`, 'win');
 
         // В банк уходит вся сумма долга (из наличных + из банка)
         const totalPaidToBank = paidFromCoins + (remainingDebt > 0 ? remainingDebt : 0);
@@ -3226,12 +3239,16 @@ document.addEventListener('DOMContentLoaded', () => {
             window.leaderboardsManager.onGameOver(state);
         }
         
-        // Показываем рекламу при окончании игры
-        if (window.adsManager && window.adsManager.isReady()) {
+        // Показываем рекламу при окончании игры, если не первая сессия и прошло достаточно времени
+        const now = Date.now();
+        const adCooldown = 120000; // 2 минуты
+        if (!firstSession && window.adsManager && window.adsManager.isReady() && (now - lastAdShownTime > adCooldown)) {
             setTimeout(() => {
+                lastAdShownTime = Date.now();
                 window.adsManager.showAdOnEvent('game_over');
             }, 1000); // Небольшая задержка перед показом рекламы
         }
+        firstSession = false; // После первого gameOver считаем, что сессия не первая
     }
     
     function deposit(amount, isFromEOR = false) {
@@ -3265,14 +3282,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (bonusApplied) {
-            addLog(`Внесено: ${formatNumberWithComma(amount)}💰. Друг Банкира добавил 10%, зачислено: ${formatNumberWithComma(finalAmount)}💰.`, 'win');
+            addLog(`Внесено: ${formatNumberWithComma(amount)}💲. Друг Банкира добавил 10%, зачислено: ${formatNumberWithComma(finalAmount)}💲.`, 'win');
         } else {
-            addLog(`Внесено в банк: ${formatNumberWithComma(amount)}💰.`);
+            addLog(`Внесено в банк: ${formatNumberWithComma(amount)}💲.`);
         }
 
         if (isFromEOR) {
-            ui.eorCoins.textContent = `${formatNumberWithComma(state.coins)}💰`;
-            ui.eorBank.textContent = `${formatNumberWithComma(state.bankBalance)}💰`;
+            ui.eorCoins.textContent = `${formatNumberWithComma(state.coins)}💲`;
+            ui.eorBank.textContent = `${formatNumberWithComma(state.bankBalance)}💲`;
         }
         updateUI();
     }
@@ -3411,7 +3428,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let newCoins = getItemEffectValue('on_round_start_coins', 0);
         if (newCoins > 0) {
             state.coins += newCoins;
-            addLog(`+${newCoins}💰 сразу после покупки!`, 'win');
+            addLog(`+${newCoins}💲 сразу после покупки!`, 'win');
             animateInventoryItem(item.id);
         }
         // +Постоянные спинны (например, бесконечные спинны)
@@ -3441,11 +3458,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state || Object.keys(state).length === 0) return;
         ui.statRun.textContent = state.run;
         ui.statTurn.textContent = `${state.turn} / 3`;
-        ui.statDebt.textContent = `${formatNumberWithComma(state.targetDebt)}💰`;
-        if (ui.statDebtStart) ui.statDebtStart.textContent = `${formatNumberWithComma(state.targetDebt)}💰`;
+        ui.statDebt.textContent = `${formatNumberWithComma(state.targetDebt)}💲`;
+        if (ui.statDebtStart) ui.statDebtStart.textContent = `${formatNumberWithComma(state.targetDebt)}💲`;
         
         // [FIX] Сначала обновляем HTML, чтобы получить правильные координаты для анимации
-        ui.statCoins.innerHTML = `<span>${formatNumberWithComma(state.coins)}💰</span>`;
+        ui.statCoins.innerHTML = `<span>${formatNumberWithComma(state.coins)}💲</span>`;
         
         // Анимация монет
         if (ui.statCoins && typeof lastKnownCoins !== 'undefined' && lastKnownCoins !== state.coins) {
@@ -3455,7 +3472,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         lastKnownCoins = state.coins;
         
-        ui.bankBalance.textContent = `${formatNumberWithComma(state.bankBalance)}💰`;
+        ui.bankBalance.textContent = `${formatNumberWithComma(state.bankBalance)}💲`;
         
         // [FIX] Сначала обновляем HTML, чтобы получить правильные координаты для анимации
         ui.statTickets.innerHTML = `<span>${formatNumberWithComma(state.tickets)}🎟️</span>`;
@@ -3530,7 +3547,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let percent = state.baseInterestRate;
         let bank = state.bankBalance;
         let profit = Math.floor(bank * percent);
-        let profitText = `<div style='font-size:13px; margin-top:4px;'>След. процент: <b style='color:var(--money-color)'>+${formatNumberWithComma(profit)}💰</b> (${(percent*100).toFixed(0)}%${bonusText})</div>`;
+        let profitText = `<div style='font-size:13px; margin-top:4px;'>След. процент: <b style='color:var(--money-color)'>+${formatNumberWithComma(profit)}💲</b> (${(percent*100).toFixed(0)}%${bonusText})</div>`;
         let infoBlock = document.getElementById('interest-info-block');
         if (!infoBlock) {
             infoBlock = document.createElement('div');
@@ -3551,11 +3568,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.turn === 1) {
                 const bCoins = Math.floor(state.targetDebt * 0.40);
                 const bTickets = 7 + state.run;
-                bonusInfo = `Награда за раунд 1: <b style="color:var(--money-color)">+${formatNumberWithComma(bCoins)}💰</b> и <b style="color:var(--ticket-color)">+${formatNumberWithComma(bTickets)}🎟️</b>`;
+                bonusInfo = `Награда за раунд 1: <b style="color:var(--money-color)">+${formatNumberWithComma(bCoins)}💲</b> и <b style="color:var(--ticket-color)">+${formatNumberWithComma(bTickets)}🎟️</b>`;
             } else if (state.turn === 2) {
                 const bCoins = Math.floor(state.targetDebt * 0.20);
                 const bTickets = 4 + state.run;
-                bonusInfo = `Награда за раунд 2: <b style="color:var(--money-color)">+${formatNumberWithComma(bCoins)}💰</b> и <b style="color:var(--ticket-color)">+${formatNumberWithComma(bTickets)}🎟️</b>`;
+                bonusInfo = `Награда за раунд 2: <b style="color:var(--money-color)">+${formatNumberWithComma(bCoins)}💲</b> и <b style="color:var(--ticket-color)">+${formatNumberWithComma(bTickets)}🎟️</b>`;
             }
             ui.earlyPayoffBonusInfo.innerHTML = bonusInfo;
         }
@@ -3826,6 +3843,10 @@ document.addEventListener('DOMContentLoaded', () => {
             thumbnailDiv.innerHTML = `<img src="img/${thumbnailValue}" alt="${item.name}" style="width:100%; height:100%; object-fit:cover;">`;
         } else {
             thumbnailDiv.textContent = thumbnailValue;
+            // Если в эмодзи больше одного, добавляем класс для каскадного отображения
+            if (countEmojis(thumbnailValue.trim()) > 1) {
+                thumbnailDiv.classList.add('multiple-emoji');
+            }
         }
         
         // Добавляем класс modified для модифицированных предметов
@@ -4696,7 +4717,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // === БОНУСЫ ОТ НОВЫХ ПРЕДМЕТОВ ===
     function applyFruitSaladBonus(grid) {
-      // Фруктовый салат: +1💰 за каждую пару соседних (не по диагонали) 🍋 и 🍒
+      // Фруктовый салат: +1💲 за каждую пару соседних (не по диагонали) 🍋 и 🍒
       let bonus = 0;
       const width = 5, height = 3;
       for (let y = 0; y < height; y++) {
@@ -4723,18 +4744,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function applySweetSpinBonus(grid) {
-      // Сладкий прокрут: если на поле нет Лимонов 🍋, +3💰
+      // Сладкий прокрут: если на поле нет Лимонов 🍋, +3💲
       return grid.some(s => s.id === 'lemon') ? 0 : 3;
     }
 
     function applyCloverFieldBonus(grid) {
-      // Клеверное поле: если на поле 5+ Клеверов 🍀, +5💰
+      // Клеверное поле: если на поле 5+ Клеверов 🍀, +5💲
       const cloverCount = grid.filter(s => s.id === 'clover').length;
       return cloverCount >= 5 ? 5 : 0;
     }
 
     function applyBookendsBonus(grid) {
-      // Книжные подпорки: если символы в левом верхнем и правом нижнем углах совпадают, +4💰
+      // Книжные подпорки: если символы в левом верхнем и правом нижнем углах совпадают, +4💲
       return (grid[0]?.id && grid[0]?.id === grid[14]?.id) ? 4 : 0;
     }
 
@@ -4863,11 +4884,11 @@ document.addEventListener('DOMContentLoaded', () => {
             finalCost = baseCost + wealthTax + debtTax;
         }
         let lines = [];
-        lines.push(`<b>Базовая стоимость:</b> ${baseCost}💰`);
-        lines.push(`<b>Множитель цикла (x${cycleMultiplier.toFixed(2)}):</b> ${baseCost !== CONFIG.SPIN_PACKAGE_1.base_cost && baseCost !== CONFIG.SPIN_PACKAGE_2.base_cost ? `+${baseCost - (pkgNum === 1 ? CONFIG.SPIN_PACKAGE_1.base_cost : CONFIG.SPIN_PACKAGE_2.base_cost)}💰` : '+0💰'}`);
-        lines.push(`<b>Налог на богатство:</b> +${wealthTax}💰`);
-        lines.push(`<b>Налог от долга:</b> +${debtTax}💰`);
-        lines.push(`<b>Итого:</b> <span style='color:var(--money-color)'>${finalCost}💰</span>`);
+        lines.push(`<b>Базовая стоимость:</b> ${baseCost}💲`);
+        lines.push(`<b>Множитель цикла (x${cycleMultiplier.toFixed(2)}):</b> ${baseCost !== CONFIG.SPIN_PACKAGE_1.base_cost && baseCost !== CONFIG.SPIN_PACKAGE_2.base_cost ? `+${baseCost - (pkgNum === 1 ? CONFIG.SPIN_PACKAGE_1.base_cost : CONFIG.SPIN_PACKAGE_2.base_cost)}💲` : '+0💲'}`);
+        lines.push(`<b>Налог на богатство:</b> +${wealthTax}💲`);
+        lines.push(`<b>Налог от долга:</b> +${debtTax}💲`);
+        lines.push(`<b>Итого:</b> <span style='color:var(--money-color)'>${finalCost}💲</span>`);
         return lines.join('<br>');
     }
 
@@ -5375,6 +5396,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const disclaimerContinue = document.getElementById('disclaimer-continue');
     const showLicenseLink = document.getElementById('show-license-link');
 
+    // --- НОВОЕ: Проверка, был ли уже принят дисклеймер ---
+    if (localStorage.getItem('disclaimerAccepted') === 'true') {
+        if (disclaimerModal) disclaimerModal.style.display = 'none';
+        return;
+    } else {
+        if (disclaimerModal) disclaimerModal.style.display = 'flex';
+    }
+
     // Текст Лицензионного соглашения (EULA)
     const licenseText = `
         <h2 style='color:#ff6b35; text-align:center;'>Лицензионное соглашение (EULA)</h2>
@@ -5449,6 +5478,8 @@ document.addEventListener('DOMContentLoaded', function () {
     disclaimerContinue.addEventListener('click', function () {
         if (!disclaimerContinue.disabled) {
             disclaimerModal.style.display = 'none';
+            // --- НОВОЕ: Сохраняем флаг принятия дисклеймера ---
+            localStorage.setItem('disclaimerAccepted', 'true');
         }
     });
 });
