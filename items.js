@@ -1,8 +1,8 @@
 const ALL_ITEMS = [
   // --- ОБЫЧНЫЕ (Common) ---
-  { id: 'lucky_clover', name: 'Счастливый клевер', desc: 'Даёт +1 к удаче.', cost: 1, rarity: 'common', thumbnail: '🍀', effect: { luck: 1 } },
-  { id: 'scrap_metal', name: 'Копилка', desc: 'Каждый проигрышный прокрут приносит в копилку +1💲. Бонус от копилки начисляеться в конце раунда.', cost: 3, rarity: 'common', thumbnail: '🐷', effect: { on_loss_bonus: 1 } },
-  { id: 'timepiece', name: 'Карманные часы', desc: 'Даёт +1 прокрут в начале каждого раунда.', cost: 2, rarity: 'common', thumbnail: '🕰️', effect: { on_round_start_spins: 1 } },
+  { id: 'lucky_clover', name: 'Счастливый клевер', desc: 'Даёт +1 к удаче.', cost: 1, rarity: 'common', thumbnail: 'клевер_удачи.png', effect: { luck: 1 } },
+  { id: 'scrap_metal', name: 'Копилка', desc: 'Каждый проигрышный прокрут приносит в копилку +1💲. Бонус от копилки начисляеться в конце раунда.', cost: 3, rarity: 'common', thumbnail: 'свинка_монеты.png', effect: { on_loss_bonus: 1 } },
+  { id: 'timepiece', name: 'Карманные часы', desc: 'Даёт +1 прокрут в начале каждого раунда.', cost: 2, rarity: 'common', thumbnail: 'карманные_часы.png', effect: { on_round_start_spins: 1 } },
   { id: 'resellers_ticket', name: 'Билет перекупщика', desc: 'За каждый реролл магазина возвращает +1🎟️.', cost: 5, rarity: 'common', thumbnail: '🔄', effect: { on_reroll_bonus: { tickets: 1 } } },
   { id: 'growing_debt', name: 'Растущий Долг', desc: 'Даёт +1 к удаче за каждый цикл.', cost: 5, rarity: 'common', thumbnail: '📈', effect: { per_run_bonus: { luck: 1 } } },
   { id: 'lucky_penny', name: 'Счастливая монетка', desc: 'Первый прокрут в каждом раунде бесплатен.', cost: 1, rarity: 'common', thumbnail: '🪙', effect: { first_spin_free: true } },
@@ -94,7 +94,7 @@ const ALL_ITEMS = [
   { id: 'golden_bell_polish', name: 'Позолота колокольчика', desc: 'С шансом 20% каждый прокрут превращает символ 🔔 в золотой (его номинал умножается на 3).', cost: 6, rarity: 'rare', thumbnail: '🔔✨', effect: { golden_symbol_chance: { symbol: 'bell', chance: 0.20, multiplier: 3 } } },
   { id: 'golden_diamond_polish', name: 'Позолота алмаза', desc: 'С шансом 20% каждый прокрут превращает символ 💎 в золотой (его номинал умножается на 3).', cost: 6, rarity: 'rare', thumbnail: '💎✨', effect: { golden_symbol_chance: { symbol: 'diamond', chance: 0.20, multiplier: 3 } } },
   { id: 'golden_coins_polish', name: 'Позолота монет', desc: 'С шансом 20% каждый прокрут превращает символ 💰 в золотой (его номинал умножается на 3).', cost: 6, rarity: 'rare', thumbnail: '💰✨', effect: { golden_symbol_chance: { symbol: 'coins', chance: 0.20, multiplier: 3 } } },
-  { id: 'golden_seven_polish', name: 'Позолота семёрки', desc: 'С шансом 20% каждый прокрут превращает символ 7️⃣ в золотой (его номинал умножается на 3).', cost: 6, rarity: 'rare', thumbnail: '7️⃣✨', effect: { golden_symbol_chance: { symbol: 'seven', chance: 0.20, multiplier: 3 } } },
+  { id: 'golden_seven_polish', name: 'Позолота семёрки', desc: 'С шансом 20% каждый прокрут превращает символ 7️⃣ в золотой (его номинал умножается на 3).', cost: 6, rarity: 'rare', thumbnail: '7️✨', effect: { golden_symbol_chance: { symbol: 'seven', chance: 0.20, multiplier: 3 } } },
 
   
 
@@ -340,19 +340,19 @@ const ALL_ITEMS = [
     thumbnail: '🪞', 
     effect: { mirror_dimension: true }
   },
-  /*{ 
+  { 
     id: 'luck_fertilizer', 
     name: 'Удобрение Удачи', 
-    desc: 'Каждый клевер 🍀 на поле даёт +1 к удаче и +1💲 за каждый цикл.', 
+    desc: 'Каждый клевер 🍀 на поле даёт +1 к удаче (на этот прокрут) и +1💲 за каждый цикл.', 
     cost: 7, 
     rarity: 'rare', 
     thumbnail: '🌱', 
-    on_spin_bonus: (grid, winAmount, state) => {
+    on_spin_bonus: (grid, state) => {
       const cloverCount = grid.filter(s => s && s.id === 'clover').length;
       return cloverCount * (state?.run || 1);
     },
     effect: { temporary_luck_on_spin: 'clover' }
-  }*/
+  }
 ]
 
 // --- СИСТЕМА СЛУЧАЙНЫХ МОДИФИКАТОРОВ ---
@@ -392,6 +392,48 @@ const ITEM_MODIFIERS = [
     name: 'Печать',
     desc: 'Мистическая печать бога процентов. +2% к ставке банка.',
     effect: { interest_rate_bonus: 0.02 }
+  },
+  {
+    id: 'midas_touch',
+    name: 'Дар Мидаса',
+    desc: 'Прикосновение божества превращает удачу в золото. Каждый выигрышный прокрут с шансом, равным вашей удаче, удваивает свой денежный выигрыш.',
+    effect: { luck_to_double_win: true },
+    divine: true
+  },
+  {
+    id: 'divine_recalculation',
+    name: 'Божественный Перерасчет',
+    desc: 'Небеса пересматривают судьбу. В конце раунда, если у вас было больше проигрышных прокрутов, чем выигрышных, вы получаете +1 прокрут на следующий раунд за каждые 2 проигрышных прокрута сверх выигрышных.',
+    effect: { on_round_end_recalculation: { loss_threshold: 2, spins_bonus: 1 } },
+    divine: true
+  },
+  {
+    id: 'sacrificial_altar',
+    name: 'Жертвенный Алтарь',
+    desc: 'Боги требуют жертв. При покупке этого предмета, случайный другой ваш амулет уничтожается. Все выигрыши увеличиваются на 25%.',
+    effect: { on_purchase_sacrifice_item: true, winMultiplier: 1.25 },
+    divine: true
+  },
+  {
+    id: 'chronosphere',
+    name: 'Хроносфера',
+    desc: 'Время течет по-другому. Все ломающиеся предметы (breakable) получают +10 к максимальному числу использований.',
+    effect: { breakable_item_uses_boost: 10 },
+    divine: true
+  },
+  {
+    id: 'cosmic_singularity',
+    name: 'Космическая Сингулярность',
+    desc: 'Звезда, что притягивает всё. В начале каждого прокрута все символы на поле с шансом 10% превращаются в тот символ, который находится в центральной ячейке.',
+    effect: { singularity_chance: 0.10 },
+    divine: true
+  },
+  {
+    id: 'divine_craft_aura',
+    name: 'Аура Божественного Ремесла',
+    desc: 'Божественное присутствие усиливает магию других артефактов. Увеличивает все числовые бонусы от ДРУГИХ предметов на 25% (округление вверх). Не влияет на множители или проценты.',
+    effect: { flat_bonus_enhancer: 1.25 },
+    divine: true
   }
 ];
 
@@ -464,7 +506,15 @@ function addRandomModifier(item) {
       const goodModifierChance = 0.33; // 33% шанс хорошего модификатора
       
       if (Math.random() < goodModifierChance) {
-        modifier = ITEM_MODIFIERS[Math.floor(Math.random() * ITEM_MODIFIERS.length)];
+        // Для divine-модификаторов шанс выпадения 3%, для остальных — как раньше
+        const divineMods = ITEM_MODIFIERS.filter(m => m.divine);
+        const nonDivineMods = ITEM_MODIFIERS.filter(m => !m.divine);
+        let roll = Math.random();
+        if (roll < 0.03 && divineMods.length > 0) {
+          modifier = divineMods[Math.floor(Math.random() * divineMods.length)];
+        } else {
+          modifier = nonDivineMods[Math.floor(Math.random() * nonDivineMods.length)];
+        }
         if (typeof window.addLog === 'function') {
           window.addLog(`🎲 Штрафная система: выпал хороший модификатор для ${item.name}`, 'win');
         }
@@ -477,14 +527,31 @@ function addRandomModifier(item) {
       }
     } else {
       // Обычная логика без штрафов
-      modifier = ITEM_MODIFIERS[Math.floor(Math.random() * ITEM_MODIFIERS.length)];
+      // Для divine-модификаторов шанс выпадения 3%, для остальных — как раньше
+      const divineMods = ITEM_MODIFIERS.filter(m => m.divine);
+      const nonDivineMods = ITEM_MODIFIERS.filter(m => !m.divine);
+      let roll = Math.random();
+      if (roll < 0.5 && divineMods.length > 0) {
+        modifier = divineMods[Math.floor(Math.random() * divineMods.length)];
+      } else {
+        modifier = nonDivineMods[Math.floor(Math.random() * nonDivineMods.length)];
+      }
     }
     
-    // Добавляем модификатор к названию
+    // Корректно добавляем эмодзи к имени
+    let cleanName = modifiedItem.name.replace(/[✨💀🔱]/g, '').trim();
     if (isPenalty) {
-      modifiedItem.name = `${modifiedItem.name} 💀`;
+      modifiedItem.name = `${cleanName} 💀`;
+    } else if (modifier.divine) {
+      
+      if (!/🔱/.test(cleanName)) {
+        modifiedItem.name = `${cleanName} 🔱`;
+      } else {
+        modifiedItem.name = cleanName;
+      }
     } else {
-      modifiedItem.name = `${modifiedItem.name} ✨`;
+      
+      modifiedItem.name = `${cleanName} ✨`;
     }
     
     // Объединяем эффекты

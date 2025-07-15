@@ -440,29 +440,32 @@ class LeaderboardsManager {
         const entriesContainer = document.createElement('div');
         entriesContainer.className = 'leaderboard-entries';
         entriesContainer.style.cssText = 'max-height: 650px; overflow-y: auto;';
-        
-        // Добавляем записи
+
+        // Получаем запись игрока
+        const playerEntry = await this.getPlayerEntry();
+        let playerElement = null;
+        if (playerEntry) {
+            playerElement = this.createLeaderboardEntry(playerEntry, -1);
+            playerElement.classList.add('current-player');
+            playerElement.style.cssText += 'background: rgba(255, 215, 0, 0.1); border: 2px solid gold;';
+            // Добавляем игрока в самый верх
+            entriesContainer.appendChild(playerElement);
+        }
+
+        // Добавляем separator, если игрок не в топе
+        if (playerEntry && !entries.entries.find(e => e.rank === playerEntry.rank)) {
+            const separator = document.createElement('div');
+            separator.className = 'leaderboard-separator';
+            separator.textContent = '...';
+            separator.style.cssText = 'text-align: center; padding: 10px; color: var(--text-color-darker); font-weight: bold;';
+            entriesContainer.appendChild(separator);
+        }
+
+        // Добавляем записи топа
         entries.entries.forEach((entry, index) => {
             const entryElement = this.createLeaderboardEntry(entry, index);
             entriesContainer.appendChild(entryElement);
         });
-        
-        // Показываем позицию пользователя, если он не в топе
-        if (entries.userRank > 0 && !entries.entries.find(e => e.rank === entries.userRank)) {
-            const playerEntry = await this.getPlayerEntry();
-            if (playerEntry) {
-                const separator = document.createElement('div');
-                separator.className = 'leaderboard-separator';
-                separator.textContent = '...';
-                separator.style.cssText = 'text-align: center; padding: 10px; color: var(--text-color-darker); font-weight: bold;';
-                entriesContainer.appendChild(separator);
-                
-                const playerElement = this.createLeaderboardEntry(playerEntry, -1);
-                playerElement.classList.add('current-player');
-                playerElement.style.cssText = 'background: rgba(255, 215, 0, 0.1); border: 2px solid gold;';
-                entriesContainer.appendChild(playerElement);
-            }
-        }
         
         content.appendChild(titleContainer);
         content.appendChild(header);
@@ -498,6 +501,8 @@ class LeaderboardsManager {
         try {
             local = JSON.parse(localStorage.getItem('localLeaderboard') || '[]');
         } catch {}
+        // Удаляем все старые записи с таким же run и name
+        local = local.filter(e => !(e.run === entry.run && e.name === entry.name));
         local.push(entry);
         // Сохраняем только топ-20
         local = local.sort((a, b) => b.run - a.run).slice(0, 20);
@@ -591,6 +596,91 @@ class LeaderboardsManager {
         entriesContainer.style.cssText = 'max-height: 650px; overflow-y: auto;';
 
         const local = this.getLocalLeaderboard();
+        // Получаем текущий игрок (последний сохранённый результат)
+        let currentPlayer = null;
+        try {
+            const allLocal = JSON.parse(localStorage.getItem('localLeaderboard') || '[]');
+            if (allLocal.length > 0) {
+                // Берём самую свежую запись (по дате)
+                currentPlayer = allLocal.reduce((a, b) => (a.date > b.date ? a : b));
+                // Проверяем, что это не тестовый игрок (например, run > 0 и имя не из списка тестовых)
+                const testNames = ['Артём','Влад','Ирина','Сергей','Оля','Денис','Мария','Павел','Екатерина','Алексей','Даша','Кирилл','Саша','Алина','Максим','Таня','Игорь','Юля','Виктор','Лена','Глеб','Вера','Роман','Настя','Миша','Полина','Виталий','Света','Егор','Анна','Валера','Женя','Ксюша','Дима','Лиза','Вова','Соня','Гриша','Никита','Зоя','Руслан','Надя','Петя','Валя','Лёша','Рита','Яна','Тимур','Олег','Галя'];
+                if (!currentPlayer.name || testNames.includes(currentPlayer.name)) {
+                    currentPlayer = null;
+                }
+            }
+        } catch {}
+
+        // Если есть текущий игрок — показываем его в самом верху
+        if (currentPlayer && currentPlayer.run > 0) {
+            // Определяем его место в топе (по run и имени)
+            const sorted = [...local].sort((a, b) => b.run - a.run);
+            const playerRank = sorted.findIndex(e => e.run === currentPlayer.run && e.name === currentPlayer.name) + 1;
+            const entryElement = document.createElement('div');
+            entryElement.className = 'leaderboard-entry current-player';
+            entryElement.style.cssText = `
+                display: grid;
+                grid-template-columns: 60px 1fr 80px;
+                gap: 16px;
+                padding: 16px 20px;
+                margin-bottom: 10px;
+                background: rgba(255, 215, 0, 0.1);
+                border-radius: 10px;
+                border: 2px solid gold;
+                align-items: center;
+                font-size: 1.08em;
+            `;
+            // Ранг
+            const rankDiv = document.createElement('div');
+            rankDiv.className = 'entry-rank';
+            rankDiv.style.cssText = 'font-weight: bold; color: var(--text-color); text-align:center; font-size:1.1em;';
+            rankDiv.textContent = playerRank > 0 ? playerRank : '-';
+            // Информация об игроке (имя + детали + аватар)
+            const playerInfoDiv = document.createElement('div');
+            playerInfoDiv.className = 'entry-info';
+            playerInfoDiv.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+            // Аватар (заглушка)
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'entry-avatar';
+            avatarDiv.style.cssText = `
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                overflow: hidden;
+                background: var(--bg-color-darker);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                color: var(--text-color-darker);
+            `;
+            avatarDiv.textContent = currentPlayer.name ? currentPlayer.name.charAt(0).toUpperCase() : '?';
+            // Имя и детали
+            const detailsDiv = document.createElement('div');
+            detailsDiv.style.cssText = 'flex: 1; min-width: 0;';
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'entry-name';
+            nameDiv.style.cssText = 'font-weight: bold; color: var(--text-color); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+            nameDiv.textContent = currentPlayer.name || 'Игрок';
+            const detailsTextDiv = document.createElement('div');
+            detailsTextDiv.className = 'entry-details';
+            detailsTextDiv.style.cssText = 'font-size: 12px; color: var(--text-color-darker);';
+            detailsTextDiv.textContent = `Цикл ${currentPlayer.run} • ${currentPlayer.items} амулетов`;
+            detailsDiv.appendChild(nameDiv);
+            detailsDiv.appendChild(detailsTextDiv);
+            playerInfoDiv.appendChild(avatarDiv);
+            playerInfoDiv.appendChild(detailsDiv);
+            // Счет
+            const scoreDiv = document.createElement('div');
+            scoreDiv.className = 'entry-score';
+            scoreDiv.style.cssText = 'font-weight: bold; color: var(--money-color); text-align: right; font-size:1.1em;';
+            scoreDiv.textContent = currentPlayer.run;
+            entryElement.appendChild(rankDiv);
+            entryElement.appendChild(playerInfoDiv);
+            entryElement.appendChild(scoreDiv);
+            entriesContainer.appendChild(entryElement);
+        }
+
         if (local.length === 0) {
             const empty = document.createElement('div');
             empty.style.cssText = 'text-align:center; color:var(--text-color-darker); padding:40px;';
@@ -598,6 +688,13 @@ class LeaderboardsManager {
             entriesContainer.appendChild(empty);
         } else {
             local.forEach((entry, idx) => {
+                // Пропускаем только если это именно та запись, что уже показана как current-player
+                if (
+                  currentPlayer &&
+                  entry.name === currentPlayer.name &&
+                  entry.run === currentPlayer.run &&
+                  entry.date === currentPlayer.date
+                ) return;
                 // --- Новый стиль: как у createLeaderboardEntry ---
                 const entryElement = document.createElement('div');
                 entryElement.className = 'leaderboard-entry';

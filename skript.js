@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.symbolWeights = {};
     window.gameState = {};
 
-    fillLocalLeaderboardWithTestData(); // для отладки всегда
+    
 
     function updateWeightedSymbols() {
         // Теперь используем текущий массив SYMBOLS, чтобы поддерживать изменения из Dev-меню
@@ -195,6 +195,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let devDebugLuck = false;
     let lastKnownTickets = 0;
     let lastKnownCoins = 0;
+    let firstSession = true; // Флаг для показа рекламы только не в первую сессию
+    let lastAdShownTime = 0; // Время последнего показа рекламы
 
     function showTicketChangePopup(change) {
         if (change === 0) return;
@@ -1827,7 +1829,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="line-win">+${formatNumberWithComma(lineInfo.win)}💲</div>
                     </div>
                 `;
-                document.body.appendChild(linePopup);
+                // Вставляем поп-ап внутрь слот-машины
+                ui.slotMachine.appendChild(linePopup);
+
+                // Центрируем поп-ап по центру слот-машины
+                linePopup.style.position = 'absolute';
+                linePopup.style.left = '50%';
+                linePopup.style.top = '50%';
+                linePopup.style.transform = 'translate(-50%, -50%)'; // строго по центру
+                linePopup.style.zIndex = 30;
                 
                 setTimeout(() => linePopup.classList.add('show'), 50);
                 
@@ -3005,7 +3015,7 @@ document.addEventListener('DOMContentLoaded', () => {
             animateInventoryItem('scrap_metal');
         }
 
-        // --- Мастерская гнома ---
+        // --- ПАССИВКА: Мастерская гнома ---
         repairDwarfsWorkshop();
 
         ui.endOfRoundModal.classList.add('hidden');
@@ -3249,6 +3259,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1000); // Небольшая задержка перед показом рекламы
         }
         firstSession = false; // После первого gameOver считаем, что сессия не первая
+
+        // --- АНИМАЦИЯ ПАДЕНИЯ ---
+        const modal = ui.gameOverScreen.querySelector('.modal-content');
+        if (modal && !modal.querySelector('#fall-anim-circle')) {
+            const h2 = modal.querySelector('h2');
+            const anim = document.createElement('img');
+            anim.src = 'img/anim_circle.gif';
+            anim.alt = 'Падение в яму';
+            anim.id = 'fall-anim-circle';
+            anim.style.cssText = 'display:block;margin:0 auto 18px auto;max-width:180px;width:60vw;animation:popup-in 0.7s cubic-bezier(.5,1.8,.7,1)';
+            if (h2 && h2.nextSibling) {
+                modal.insertBefore(anim, h2.nextSibling);
+            } else {
+                modal.insertBefore(anim, modal.firstChild);
+            }
+        }
+        // Удаляем анимацию при рестарте
+        ui.btnRestartGame.onclick = function() {
+            const anim = ui.gameOverScreen.querySelector('#fall-anim-circle');
+            if (anim) anim.remove();
+            initGame();
+        };
     }
     
     function deposit(amount, isFromEOR = false) {
@@ -3849,13 +3881,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Добавляем класс modified для модифицированных предметов
-        if (item.modifier) {
-            thumbnailDiv.classList.add('modified');
-            if (item.isPenalty) {
-                thumbnailDiv.classList.add('modifier-bad');
-            }
-        }
+        
 
         const infoDiv = document.createElement('div');
         infoDiv.className = 'item-info';
@@ -3867,11 +3893,23 @@ document.addEventListener('DOMContentLoaded', () => {
         nameSpan.className = 'item-name';
         nameSpan.textContent = item.name;
         
-        // Добавляем класс modified для модифицированных предметов
+        const descP = document.createElement('p');
+        descP.className = 'item-desc';
+        descP.innerHTML = item.desc;
+        
+        // Теперь — добавляем классы!
         if (item.modifier) {
-            nameSpan.classList.add('modified');
-            if (item.isPenalty) {
-                nameSpan.classList.add('modifier-bad');
+            if (item.modifier.divine) {
+                thumbnailDiv.classList.add('divine-modifier');
+                nameSpan.classList.add('divine-modifier');
+                
+            } else {
+                thumbnailDiv.classList.add('modified');
+                nameSpan.classList.add('modified');
+                if (item.isPenalty) {
+                    thumbnailDiv.classList.add('modifier-bad');
+                    nameSpan.classList.add('modifier-bad');
+                }
             }
         }
         
@@ -3886,10 +3924,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             headerDiv.appendChild(costSpan);
         }
-        
-        const descP = document.createElement('p');
-        descP.className = 'item-desc';
-        descP.innerHTML = item.desc;
         
         infoDiv.appendChild(headerDiv);
         infoDiv.appendChild(descP);
@@ -3959,8 +3993,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Отображение модификатора
         if (item.modifier) {
             const modifierDiv = document.createElement('div');
-            modifierDiv.style.cssText = 'color:#4caf50; font-size:11px; margin-top: auto; font-weight: bold; border-top: 1px solid #4caf50; padding-top: 4px;';
-            modifierDiv.innerHTML = `✨ ${item.modifier.name}`;
+            if (item.modifier.divine) {
+                modifierDiv.style.cssText = 'color:#ffd700; font-size:11px; margin-top: auto; font-weight: bold; border-top: 1px solid #ffd700; padding-top: 4px;';
+                modifierDiv.innerHTML = `🔱 ${item.modifier.name}`;
+            } else {
+                modifierDiv.style.cssText = 'color:#4caf50; font-size:11px; margin-top: auto; font-weight: bold; border-top: 1px solid #4caf50; padding-top: 4px;';
+                modifierDiv.innerHTML = `✨ ${item.modifier.name}`;
+            }
             infoDiv.appendChild(modifierDiv);
         }
 
@@ -4003,7 +4042,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let modifierHTML = '';
         if (item.modifier) {
             const isPenalty = item.isPenalty || false;
-            const modifierIcon = isPenalty ? '💀' : '✨';
+            const modifierIcon = isPenalty ? '💀' : (item.modifier.divine ? '🔱' : '✨');
             const modifierColor = isPenalty ? '#e53935' : '#4caf50';
             const modifierBgColor = isPenalty ? 'rgba(229, 57, 53, 0.1)' : 'rgba(76, 175, 80, 0.1)';
             const modifierBorderColor = isPenalty ? '#e53935' : '#4caf50';
@@ -4015,7 +4054,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Добавляем класс для переливающегося названия модифицированного предмета
-        const titleClass = item.modifier ? `amulet-popup-title modified${item.isPenalty ? ' modifier-bad' : ''}` : 'amulet-popup-title';
+        const titleClass = item.modifier
+            ? (item.modifier.divine
+                ? 'amulet-popup-title divine-modifier'
+                : `amulet-popup-title modified${item.isPenalty ? ' modifier-bad' : ''}`)
+            : 'amulet-popup-title';
         amuletPopup.innerHTML = `
             <div class="amulet-popup-card">
                 <div class="amulet-popup-thumbnail">${thumbnailHTML}</div>
@@ -4421,7 +4464,42 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             devLuckInput.value = state.tempLuck;
             dev100LoseMode.checked = state.dev100LoseMode || false;
+            
+            // Добавляем кнопки для отладки лидерборда, если их ещё нет
+            const devMenuContent = devModal.querySelector('.dev-menu-two-columns');
+            if (devMenuContent && !devMenuContent.querySelector('.dev-leaderboard-section')) {
+                const lbSection = document.createElement('div');
+                lbSection.className = 'dev-section dev-leaderboard-section';
+                lbSection.innerHTML = '<h3>Лидерборд (отладка)</h3>';
+                const btnShowOnline = document.createElement('button');
+                btnShowOnline.textContent = 'Показать онлайн лидерборд';
+                btnShowOnline.className = 'dev-button';
+                btnShowOnline.onclick = () => {
+                    if (window.leaderboardsManager) window.leaderboardsManager.showLeaderboardModal();
+                };
+                const btnShowLocal = document.createElement('button');
+                btnShowLocal.textContent = 'Показать локальный лидерборд';
+                btnShowLocal.className = 'dev-button';
+                btnShowLocal.onclick = () => {
+                    if (window.leaderboardsManager) window.leaderboardsManager.showLocalLeaderboardModal();
+                };
+                const btnClearLocal = document.createElement('button');
+                btnClearLocal.textContent = 'Очистить локальный лидерборд';
+                btnClearLocal.className = 'dev-button';
+                btnClearLocal.onclick = () => {
+                    localStorage.removeItem('localLeaderboard');
+                    addLog('Локальный лидерборд очищен.', 'win');
+                };
+                lbSection.appendChild(btnShowOnline);
+                lbSection.appendChild(btnShowLocal);
+                lbSection.appendChild(btnClearLocal);
+                devMenuContent.appendChild(lbSection);
+            }
+            
         };
+        if (devClose) {
+            devClose.onclick = () => { devModal.classList.add('hidden'); };
+        }
     }
     
     function updateDevPassivesList() {
@@ -4451,7 +4529,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    devClose.onclick = () => { devModal.classList.add('hidden'); };
+    if (devClose) {
+        devClose.onclick = () => { devModal.classList.add('hidden'); };
+    }
     devAddCoins.onclick = () => { state.coins += 1000; addLog('Dev: +1000 монет', 'win'); updateUI(); };
     devAddTickets.onclick = () => { state.tickets += 100; addLog('Dev: +100 талонов', 'win'); updateUI(); };
     devSetInterest.onclick = () => { state.baseInterestRate = 0.5; addLog('Dev: Ставка установлена 50%', 'win'); updateUI(); };
@@ -5202,7 +5282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let modifierHTML = '';
         if (item.modifier) {
             const isPenalty = item.isPenalty || false;
-            const modifierIcon = isPenalty ? '💀' : '✨';
+            const modifierIcon = isPenalty ? '💀' : (item.modifier.divine ? '🔱' : '✨');
             const modifierClass = isPenalty ? 'item-tooltip-modifier penalty' : 'item-tooltip-modifier';
             
             modifierHTML = `
@@ -5247,7 +5327,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Определяем класс для названия
-        const titleClass = item.modifier ? 'item-tooltip-title modified' : 'item-tooltip-title';
+        let titleClass = 'item-tooltip-title';
+        if (item.modifier) {
+            if (item.modifier.divine) {
+                titleClass += ' divine-modifier';
+            } else {
+                titleClass += ' modified';
+                if (item.isPenalty) titleClass += ' modifier-bad';
+            }
+        }
         
         tooltip.innerHTML = `
             <div class="item-tooltip-header">
