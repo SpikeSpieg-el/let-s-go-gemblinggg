@@ -5439,7 +5439,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (item.cost) {
             costHTML = `${currentCost}🎟️`;
             if (oldCost && currentCost < oldCost) {
-                costHTML += ` <s style="opacity:0.6">${oldCost}🎟️`;
+                costHTML += ` <s style="opacity:0.6">${oldCost}🎟️</s>`;
             }
         }
         

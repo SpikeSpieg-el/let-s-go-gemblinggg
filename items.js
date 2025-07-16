@@ -556,7 +556,7 @@ function addRandomModifier(item) {
       let divineMods = ITEM_MODIFIERS.filter(m => m.divine && !ownedDivineIds.includes(m.id));
       const nonDivineMods = ITEM_MODIFIERS.filter(m => !m.divine);
       let roll = Math.random();
-      if (roll < 0.5 && divineMods.length > 0) {
+      if (roll < 0.03 && divineMods.length > 0) {
         modifier = divineMods[Math.floor(Math.random() * divineMods.length)];
       } else {
         modifier = nonDivineMods[Math.floor(Math.random() * nonDivineMods.length)];
@@ -607,7 +607,9 @@ function addRandomModifier(item) {
     
     // Увеличиваем стоимость для модифицированных предметов только если пассивка не активна
     if (shouldIncreaseCost) {
-      const costMultiplier = isPenalty ? 0.8 : 1.2; // Штрафные модификаторы дешевле
+      let costMultiplier = 1.2;
+      if (isPenalty) costMultiplier = 0.8;
+      if (modifier.divine) costMultiplier = 3;
       modifiedItem.cost = Math.ceil(modifiedItem.cost * costMultiplier);
     }
     
