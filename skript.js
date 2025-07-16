@@ -2820,10 +2820,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // [NEW] Настраиваем обработчики событий для dropdown кнопок
         setupDepositDropdownHandlers();
+
+        // --- [NEW] Divine Recalculation Effect: начисление бонусных спинов ---
+        if (state._pendingBonusSpins && state._pendingBonusSpins > 0) {
+            state.spinsLeft += state._pendingBonusSpins;
+            addLog(`Перерасчёт: +${state._pendingBonusSpins} бонусных прокрутов за прошлый раунд!`, 'win');
+            state._pendingBonusSpins = 0;
+        }
     }
 
 
     function startTurn() {
+        if (typeof console !== 'undefined') {
+            console.log('[DEBUG][startTurn] Инвентарь перед начислением бонусов:', state.inventory.map(i=>({id:i.id,name:i.name,effect:i.effect})));
+        }
         repairDwarfsWorkshop(); // Мастерская гнома теперь срабатывает в начале раунда
         updateSpinCosts(); // Обновляем стоимость в начале каждого раунда
         state.spinsLeft = 0;
@@ -2900,6 +2910,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if(hasItem('timepiece')) {
             let timepieceBonus = getItemEffectValue('on_round_start_spins', 0);
+            if (typeof console !== 'undefined') {
+                console.log('[DEBUG][startTurn] Карманные часы: начисляется', timepieceBonus, 'прокрутов');
+            }
             if (hasPassive('watchmaker_precision') && Math.random() < 0.5) {
                 timepieceBonus += 1;
                 addLog(`Точность часовщика: +1 дополнительный прокрут!`, 'win');
@@ -2913,6 +2926,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- ОБРАБОТКА PERMANENT_SPINS ---
         let permanentSpinsBonus = getItemEffectValue('permanent_spins', 0);
+        if (typeof console !== 'undefined') {
+            console.log('[DEBUG][startTurn] Бесконечные спинны: начисляется', permanentSpinsBonus, 'прокрутов');
+        }
         if (permanentSpinsBonus > 0) {
             state.spinsLeft += permanentSpinsBonus;
             addLog(`Бесконечные спинны: +${permanentSpinsBonus} прокрут(ов) в начале раунда.`, 'win');
@@ -3579,8 +3595,8 @@ document.addEventListener('DOMContentLoaded', () => {
             animateInventoryItem(item.id);
         }
         // +Спины в раунд (например, часы)
-        let newSpins = getItemEffectValue('on_round_start_spins', 0);
-        if (newSpins > 0) {
+        if (item.effect && item.effect.on_round_start_spins) {
+            let newSpins = item.effect.on_round_start_spins;
             state.spinsLeft += newSpins;
             addLog(`+${newSpins} прокрут(ов) сразу после покупки!`, 'win');
             animateInventoryItem(item.id);
@@ -4248,6 +4264,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             updateUI();
+        } else {
+            if (typeof console !== 'undefined') {
+                console.warn('[DEBUG][removeAmulet] Попытка удалить несуществующий предмет:', itemId, 'Инвентарь:', state.inventory.map(i=>i.id));
+            }
         }
     }
 
