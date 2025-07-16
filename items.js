@@ -395,43 +395,43 @@ const ITEM_MODIFIERS = [
   },
   {
     id: 'midas_touch',
-    name: 'Дар Мидаса',
-    desc: 'Прикосновение божества превращает удачу в золото. Каждый выигрышный прокрут с шансом, равным вашей удаче, удваивает свой денежный выигрыш.',
+    name: 'Дар',
+    desc: 'Каждый выигрышный прокрут с шансом, в зависимости от удачи, выигрыш x 2.',
     effect: { luck_to_double_win: true },
     divine: true
   },
   {
     id: 'divine_recalculation',
-    name: 'Божественный Перерасчет',
-    desc: 'Небеса пересматривают судьбу. В конце раунда, если у вас было больше проигрышных прокрутов, чем выигрышных, вы получаете +1 прокрут на следующий раунд за каждые 2 проигрышных прокрута сверх выигрышных.',
+    name: 'Перерасчет',
+    desc: 'В конце раунда: +1 прокрут за каждые 2 проигрыша сверх числа выигрышей.',
     effect: { on_round_end_recalculation: { loss_threshold: 2, spins_bonus: 1 } },
     divine: true
   },
   {
     id: 'sacrificial_altar',
-    name: 'Жертвенный Алтарь',
-    desc: 'Боги требуют жертв. При покупке этого предмета, случайный другой ваш амулет уничтожается. Все выигрыши увеличиваются на 25%.',
+    name: 'Алтарь',
+    desc: 'При покупке, случайный другой ваш амулет уничтожается (миним 1 амулет должен быть в инвенторе). Все выигрыши увеличиваются на 25%.',
     effect: { on_purchase_sacrifice_item: true, winMultiplier: 1.25 },
     divine: true
   },
   {
     id: 'chronosphere',
     name: 'Хроносфера',
-    desc: 'Время течет по-другому. Все ломающиеся предметы (breakable) получают +10 к максимальному числу использований.',
+    desc: 'Все ломающиеся предметы  в магазине получают +10 к максимальному числу использований.',
     effect: { breakable_item_uses_boost: 10 },
     divine: true
   },
   {
     id: 'cosmic_singularity',
-    name: 'Космическая Сингулярность',
-    desc: 'Звезда, что притягивает всё. В начале каждого прокрута все символы на поле с шансом 10% превращаются в тот символ, который находится в центральной ячейке.',
+    name: 'Сингулярность',
+    desc: 'В начале каждого прокрута все символы на поле с шансом превращаются в тот символ, который находится в центральной ячейке.',
     effect: { singularity_chance: 0.10 },
     divine: true
   },
   {
     id: 'divine_craft_aura',
-    name: 'Аура Божественного Ремесла',
-    desc: 'Божественное присутствие усиливает магию других артефактов. Увеличивает все числовые бонусы от ДРУГИХ предметов на 25% (округление вверх). Не влияет на множители или проценты.',
+    name: 'Аура',
+    desc: 'Увеличивает все числовые бонусы от ДРУГИХ предметов на 25% (округление вверх). Не влияет на множители или проценты.',
     effect: { flat_bonus_enhancer: 1.25 },
     divine: true
   }
@@ -477,6 +477,19 @@ const PENALTY_MODIFIERS = [
   }
 ];
 
+// === Глобальный пул выданных divine-модификаторов ===
+if (typeof window !== 'undefined') {
+  if (!window.givenDivineModifiers) window.givenDivineModifiers = [];
+}
+
+// Функция для освобождения divine-модификатора (возврат в пул)
+function releaseDivineModifier(modifierId) {
+  if (typeof window !== 'undefined' && window.givenDivineModifiers) {
+    const idx = window.givenDivineModifiers.indexOf(modifierId);
+    if (idx !== -1) window.givenDivineModifiers.splice(idx, 1);
+  }
+}
+
 // Функция для подсчета модифицированных предметов у игрока
 function countModifiedItems() {
   if (typeof window === 'undefined' || !window.state || !window.state.inventory) {
@@ -500,6 +513,18 @@ function addRandomModifier(item) {
     let modifier;
     let isPenalty = false;
     
+    // Получаем список уже выданных divine-модификаторов
+    let ownedDivineIds = [];
+    if (typeof window !== 'undefined' && window.state && window.state.inventory) {
+      ownedDivineIds = window.state.inventory
+        .filter(i => i.modifier && i.modifier.divine)
+        .map(i => i.modifier.id);
+    }
+    // Добавляем те, что были выданы, но сейчас не в инвентаре (глобальный пул)
+    if (typeof window !== 'undefined' && window.givenDivineModifiers) {
+      ownedDivineIds = Array.from(new Set([...ownedDivineIds, ...window.givenDivineModifiers]));
+    }
+    
     // Если у игрока 4+ модифицированных предметов, применяем штрафную систему
     if (modifiedItemsCount >= 4) {
       // Уменьшаем шанс хороших модификаторов в 2 раза
@@ -507,7 +532,7 @@ function addRandomModifier(item) {
       
       if (Math.random() < goodModifierChance) {
         // Для divine-модификаторов шанс выпадения 3%, для остальных — как раньше
-        const divineMods = ITEM_MODIFIERS.filter(m => m.divine);
+        let divineMods = ITEM_MODIFIERS.filter(m => m.divine && !ownedDivineIds.includes(m.id));
         const nonDivineMods = ITEM_MODIFIERS.filter(m => !m.divine);
         let roll = Math.random();
         if (roll < 0.03 && divineMods.length > 0) {
@@ -528,7 +553,7 @@ function addRandomModifier(item) {
     } else {
       // Обычная логика без штрафов
       // Для divine-модификаторов шанс выпадения 3%, для остальных — как раньше
-      const divineMods = ITEM_MODIFIERS.filter(m => m.divine);
+      let divineMods = ITEM_MODIFIERS.filter(m => m.divine && !ownedDivineIds.includes(m.id));
       const nonDivineMods = ITEM_MODIFIERS.filter(m => !m.divine);
       let roll = Math.random();
       if (roll < 0.5 && divineMods.length > 0) {
@@ -536,6 +561,11 @@ function addRandomModifier(item) {
       } else {
         modifier = nonDivineMods[Math.floor(Math.random() * nonDivineMods.length)];
       }
+    }
+    
+    // --- Если выдан divine, добавляем в глобальный пул ---
+    if (modifier && modifier.divine && typeof window !== 'undefined' && window.givenDivineModifiers) {
+      window.givenDivineModifiers.push(modifier.id);
     }
     
     // Корректно добавляем эмодзи к имени
@@ -586,6 +616,23 @@ function addRandomModifier(item) {
       window.addLog(`⚠️ Штрафная система модификаторов активна! (${modifiedItemsCount}/4+ предметов)`, 'warning');
     }
     
+    // Добавляем обновление uses у всех breakable-предметов, если модификатор Хроносфера
+    if (modifier && modifier.effect && modifier.effect.breakable_item_uses_boost && typeof window !== 'undefined' && window.state && window.state.inventory) {
+      window.state.inventory.forEach(invItem => {
+        if (invItem.effect?.luck_chance?.breakable) {
+          const maxUses = (invItem.effect.luck_chance.max_uses || 1) + window.getBreakableUsesBoost();
+          if (typeof invItem.uses === 'undefined' || invItem.uses > maxUses) invItem.uses = maxUses;
+        } else if (invItem.effect?.breakable && !invItem.effect?.luck_chance) {
+          const maxUses = (invItem.effect.max_uses || 10) + window.getBreakableUsesBoost();
+          if (typeof invItem.uses === 'undefined' || invItem.uses > maxUses) invItem.uses = maxUses;
+        } else if (invItem.effect?.wild_clover_next_spin?.breakable) {
+          const maxUses = (invItem.effect.wild_clover_next_spin.max_uses || 1) + window.getBreakableUsesBoost();
+          if (typeof invItem.uses === 'undefined' || invItem.uses > maxUses) invItem.uses = maxUses;
+        }
+      });
+      if (typeof window.updateUI === 'function') window.updateUI();
+    }
+    
     return modifiedItem;
   }
   return item;
@@ -598,4 +645,9 @@ if (typeof window !== 'undefined') {
   window.ALL_ITEMS = ALL_ITEMS;
   window.ITEM_MODIFIERS = ITEM_MODIFIERS;
   window.PENALTY_MODIFIERS = PENALTY_MODIFIERS;
+  window.releaseDivineModifier = releaseDivineModifier;
+  // [NEW] Экспортируем getBreakableUsesBoost для использования в addRandomModifier
+  if (typeof getBreakableUsesBoost === 'function') {
+    window.getBreakableUsesBoost = getBreakableUsesBoost;
+  }
 }

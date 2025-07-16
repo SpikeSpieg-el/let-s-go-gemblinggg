@@ -324,13 +324,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getItemEffectValue(effectKey, defaultValue, accumulator = 'sum') {
         let items = [...state.inventory];
-        // mimic: копируем эффект другого предмета
+        // mimic: копирует эффект другого предмета
         const mimicItem = items.find(item => item.effect?.mimic);
         if (mimicItem) {
             const targetId = mimicItem.effect.mimic.target;
             const target = ALL_ITEMS.find(i => i.id === targetId);
             if (target) items.push({...target, id: 'mimic_copy'});
         }
+        // flat_bonus_enhancer: усиливает числовые бонусы от других предметов
+        const enhancer = items.find(item => item.effect?.flat_bonus_enhancer);
+        const enhancerValue = enhancer ? enhancer.effect.flat_bonus_enhancer : null;
         return items.reduce((acc, item) => {
             if (item.effect) {
                 // поддержка вложенных ключей через точку
@@ -344,12 +347,42 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 if (value !== undefined) {
+                    // Усиливаем только если это не множитель/процент и есть flat_bonus_enhancer, и это не сам энхансер
+                    if (
+                        enhancerValue &&
+                        typeof value === 'number' &&
+                        !effectKey.toLowerCase().includes('multiplier') &&
+                        !effectKey.toLowerCase().includes('percent') &&
+                        !effectKey.toLowerCase().includes('interest') &&
+                        (!item.effect.flat_bonus_enhancer)
+                    ) {
+                        const oldValue = value;
+                        value = Math.ceil(value * enhancerValue);
+                        if (typeof console !== 'undefined') {
+                            console.log(
+                                `[AURA] Бонус "${effectKey}" от предмета "${item.name}" усилен с ${oldValue} до ${value} (модификатор: x${enhancerValue})`
+                            );
+                        }
+                    }
                     if (accumulator === 'multiply') return acc * value;
                     return acc + value;
                 }
             }
             return acc;
         }, defaultValue);
+    }
+
+    function getBreakableUsesBoost() {
+        return state.inventory.reduce((acc, item) => {
+            if (item.modifier && item.modifier.effect && item.modifier.effect.breakable_item_uses_boost) {
+                return acc + item.modifier.effect.breakable_item_uses_boost;
+            }
+            return acc;
+        }, 0);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.getBreakableUsesBoost = getBreakableUsesBoost;
     }
 
     function generateGrid() {
@@ -614,6 +647,22 @@ document.addEventListener('DOMContentLoaded', () => {
             mirrorPairs.forEach(([left, right]) => {
                 grid[left] = { ...grid[right] };
             });
+        }
+
+        // --- ЭФФЕКТ: Космическая Сингулярность ---
+        const singularityItem = state.inventory.find(item => item.id === 'cosmic_singularity');
+        if (singularityItem) {
+            const chance = singularityItem.effect?.singularity_chance || 0.01;
+            if (Math.random() < chance) {
+                const centerSymbol = grid[7];
+                if (centerSymbol) {
+                    for (let i = 0; i < grid.length; i++) {
+                        grid[i] = { ...centerSymbol };
+                    }
+                    addLog('Космическая Сингулярность: все символы притянуты к центру!', 'win');
+                    animateInventoryItem('cosmic_singularity');
+                }
+            }
         }
 
         return grid;
@@ -1342,6 +1391,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         totalWinnings = Math.floor(totalWinnings);
         
+        // --- ЭФФЕКТ: Дар Мидаса (luck_to_double_win) ---
+        const midasItem = state.inventory.find(item => item.modifier && item.modifier.effect?.luck_to_double_win);
+        if (midasItem && totalWinnings > 0) {
+            // Удача — целое число
+            let luck = getItemEffectValue('luck', 0, 'sum');
+            // Шанс: min(luck * 2.5, 100)%
+            let chance = Math.min(luck * 2.5, 100);
+            if (Math.random() * 100 < chance) {
+                totalWinnings *= 2;
+                addLog(`✨ Дар Мидаса! Удача: ${luck}, шанс: ${chance}%. Выигрыш удвоен!`, 'win');
+                animateInventoryItem(midasItem.id);
+            }
+        }
+
         // --- Анимация выигрыша ---
         if (winningLinesInfo.length > 0) {
             const jackpotDelay = topCount === 15 ? 5500 : 0;
@@ -1915,14 +1978,14 @@ document.addEventListener('DOMContentLoaded', () => {
             rareItem.cost = Math.max(1, Math.floor(rareItem.cost / 2));
             // Сброс uses для breakable предметов
             if (rareItem.effect && rareItem.effect.luck_chance && rareItem.effect.luck_chance.breakable) {
-                rareItem.uses = rareItem.effect.luck_chance.max_uses || 1;
+                rareItem.uses = (rareItem.effect.luck_chance.max_uses || 1) + getBreakableUsesBoost();
             }
             if (rareItem.effect && rareItem.effect.breakable && !rareItem.effect.luck_chance) {
-                rareItem.uses = rareItem.effect.max_uses || 10;
+                rareItem.uses = (rareItem.effect.max_uses || 10) + getBreakableUsesBoost();
             }
             // [NEW] Сброс uses для wild_clover_next_spin.breakable
             if (rareItem.effect && rareItem.effect.wild_clover_next_spin && rareItem.effect.wild_clover_next_spin.breakable) {
-                rareItem.uses = rareItem.effect.wild_clover_next_spin.max_uses || 1;
+                rareItem.uses = (rareItem.effect.wild_clover_next_spin.max_uses || 1) + getBreakableUsesBoost();
             }
             // Применяем случайный модификатор
             const modifiedRareItem = addRandomModifier(rareItem);
@@ -1941,14 +2004,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const legendaryItem = { ...legendaries[randomIndex] };
             // Сброс uses для breakable предметов
             if (legendaryItem.effect && legendaryItem.effect.luck_chance && legendaryItem.effect.luck_chance.breakable) {
-                legendaryItem.uses = legendaryItem.effect.luck_chance.max_uses || 1;
+                legendaryItem.uses = (legendaryItem.effect.luck_chance.max_uses || 1) + getBreakableUsesBoost();
             }
             if (legendaryItem.effect && legendaryItem.effect.breakable && !legendaryItem.effect.luck_chance) {
-                legendaryItem.uses = legendaryItem.effect.max_uses || 10;
+                legendaryItem.uses = (legendaryItem.effect.max_uses || 10) + getBreakableUsesBoost();
             }
             // [NEW] Сброс uses для wild_clover_next_spin.breakable
             if (legendaryItem.effect && legendaryItem.effect.wild_clover_next_spin && legendaryItem.effect.wild_clover_next_spin.breakable) {
-                legendaryItem.uses = legendaryItem.effect.wild_clover_next_spin.max_uses || 1;
+                legendaryItem.uses = (legendaryItem.effect.wild_clover_next_spin.max_uses || 1) + getBreakableUsesBoost();
             }
             // Применяем случайный модификатор
             const modifiedLegendaryItem = addRandomModifier(legendaryItem);
@@ -1976,14 +2039,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const item = pool[randomIndex];
                 // Сброс uses для breakable предметов
                 if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
-                    item.uses = item.effect.luck_chance.max_uses || 1;
+                    item.uses = (item.effect.luck_chance.max_uses || 1) + getBreakableUsesBoost();
                 }
                 if (item.effect && item.effect.breakable && !item.effect.luck_chance) {
-                    item.uses = item.effect.max_uses || 10;
+                    item.uses = (item.effect.max_uses || 10) + getBreakableUsesBoost();
                 }
                 // [NEW] Сброс uses для wild_clover_next_spin.breakable
                 if (item.effect && item.effect.wild_clover_next_spin && item.effect.wild_clover_next_spin.breakable) {
-                    item.uses = item.effect.wild_clover_next_spin.max_uses || 1;
+                    item.uses = (item.effect.wild_clover_next_spin.max_uses || 1) + getBreakableUsesBoost();
                 }
                 // Применяем случайный модификатор
                 const modifiedItem = addRandomModifier(item);
@@ -2174,7 +2237,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     triggeredItems.push(item); // Все предметы удачи используют универсальный поп-ап
                     if (eff.breakable) {
-                        if (item.uses === undefined) item.uses = eff.max_uses || 1;
+                        if (item.uses === undefined) item.uses = (eff.max_uses || 1) + getBreakableUsesBoost();
                         item.uses--;
                         if (item.uses <= 0) {
                             addLog(`${item.name} сломался!`, 'loss');
@@ -2198,6 +2261,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         for (let i = itemsToRemove.length - 1; i >= 0; i--) {
+            const removed = state.inventory[itemsToRemove[i]];
+            if (removed && removed.modifier && removed.modifier.divine && typeof window.releaseDivineModifier === 'function') {
+                window.releaseDivineModifier(removed.modifier.id);
+            }
             state.inventory.splice(itemsToRemove[i], 1);
         }
         if (luckBonus > 0) {
@@ -2298,7 +2365,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     let itemsToRemove = [];
                     state.inventory.forEach((item, idx) => {
                         if (item.effect?.breakable && !item.effect?.luck_chance) {
-                            if (item.uses === undefined) item.uses = item.effect.max_uses || 10;
+                            if (item.uses === undefined) item.uses = (item.effect.max_uses || 10) + getBreakableUsesBoost();
                             item.uses--;
                             if (item.uses <= 0) {
                                 addLog(`${item.name} сломался!`, 'loss');
@@ -2316,6 +2383,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Удаляем сломанные предметы
                     for (let i = itemsToRemove.length - 1; i >= 0; i--) {
+                        const removed = state.inventory[itemsToRemove[i]];
+                        if (removed && removed.modifier && removed.modifier.divine && typeof window.releaseDivineModifier === 'function') {
+                            window.releaseDivineModifier(removed.modifier.id);
+                        }
                         state.inventory.splice(itemsToRemove[i], 1);
                     }
                     
@@ -2434,7 +2505,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let itemsToRemove = [];
                 state.inventory.forEach((item, idx) => {
                     if (item.effect?.breakable && !item.effect?.luck_chance) {
-                        if (item.uses === undefined) item.uses = item.effect.max_uses || 10;
+                        if (item.uses === undefined) item.uses = (item.effect.max_uses || 10) + getBreakableUsesBoost();
                         item.uses--;
                         if (item.uses <= 0) {
                             addLog(`${item.name} сломался!`, 'loss');
@@ -2452,6 +2523,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Удаляем сломанные предметы
                 for (let i = itemsToRemove.length - 1; i >= 0; i--) {
+                    const removed = state.inventory[itemsToRemove[i]];
+                    if (removed && removed.modifier && removed.modifier.divine && typeof window.releaseDivineModifier === 'function') {
+                        window.releaseDivineModifier(removed.modifier.id);
+                    }
                     state.inventory.splice(itemsToRemove[i], 1);
                 }
                 
@@ -2465,6 +2540,14 @@ document.addEventListener('DOMContentLoaded', () => {
         await runSpinAnimation();
         calculateWinnings();
 
+        // === [FIX] Сохраняем результат спина для divine_recalculation ===
+        if (!state._roundSpinResults) state._roundSpinResults = [];
+        let lastWin = false;
+        if (typeof state.lastWinningLines !== 'undefined') {
+            lastWin = Array.isArray(state.lastWinningLines) && state.lastWinningLines.length > 0;
+        }
+        state._roundSpinResults.push(lastWin);
+
         setTimeout(() => {
             state.tempLuck = 0;
             state.isSpinning = false;
@@ -2474,7 +2557,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let itemsToRemove = [];
             state.inventory.forEach((item, idx) => {
                 if (item.effect?.breakable && !item.effect?.luck_chance) {
-                    if (item.uses === undefined) item.uses = item.effect.max_uses || 10;
+                    if (item.uses === undefined) item.uses = (item.effect.max_uses || 10) + getBreakableUsesBoost();
                     item.uses--;
                     if (item.uses <= 0) {
                         addLog(`${item.name} сломался!`, 'loss');
@@ -2492,6 +2575,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Удаляем сломанные предметы
             for (let i = itemsToRemove.length - 1; i >= 0; i--) {
+                const removed = state.inventory[itemsToRemove[i]];
+                if (removed && removed.modifier && removed.modifier.divine && typeof window.releaseDivineModifier === 'function') {
+                    window.releaseDivineModifier(removed.modifier.id);
+                }
                 state.inventory.splice(itemsToRemove[i], 1);
             }
             
@@ -2884,6 +2971,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // [NEW] Настраиваем обработчики событий для dropdown кнопок
         setupDepositDropdownHandlers();
+
+        // --- [NEW] Divine Recalculation Effect: начисление бонусных спинов ---
+        if (state._pendingBonusSpins && state._pendingBonusSpins > 0) {
+            state.spinsLeft += state._pendingBonusSpins;
+            addLog(`Перерасчёт: +${state._pendingBonusSpins} бонусных прокрутов за прошлый раунд!`, 'win');
+            state._pendingBonusSpins = 0;
+        }
     }
     
     function buySpins(pkg) {
@@ -3017,6 +3111,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- ПАССИВКА: Мастерская гнома ---
         repairDwarfsWorkshop();
+
+        // --- [NEW] Divine Recalculation Effect ---
+        // Подсчёт проигрышных и выигрышных прокрутов за раунд
+        const recalcItem = state.inventory.find(item => item.effect && item.effect.on_round_end_recalculation);
+        if (recalcItem) {
+            const spinResults = state._roundSpinResults || [];
+            const winCount = spinResults.filter(Boolean).length;
+            const lossCount = spinResults.length - winCount;
+            const { loss_threshold, spins_bonus } = recalcItem.effect.on_round_end_recalculation;
+            console.log('[DivineRecalculation]', {
+                spinResults,
+                winCount,
+                lossCount,
+                loss_threshold,
+                spins_bonus,
+                item: recalcItem
+            });
+            if (lossCount > winCount) {
+                const extraLosses = lossCount - winCount;
+                const bonusSpins = Math.floor(extraLosses / loss_threshold) * spins_bonus;
+                if (bonusSpins > 0) {
+                    state._pendingBonusSpins = (state._pendingBonusSpins || 0) + bonusSpins;
+                    addLog(`${recalcItem.name}: +${bonusSpins} прокрут(ов) будут начислены в начале следующего раунда!`, 'win');
+                    animateInventoryItem(recalcItem.id);
+                }
+            }
+            state._roundSpinResults = [];
+        }
 
         ui.endOfRoundModal.classList.add('hidden');
         addLog(`--- Раунд ${state.turn} окончен ---`);
@@ -3373,6 +3495,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const effectiveSlots = getEffectiveEmptySlots();
         const effectiveUsed = maxSize - effectiveSlots;
         const item = state.shop.find(i => i.id === itemId);
+        // --- Блокировка покупки предмета с модификатором Алтаря, если нет других амулетов ---
+        if (item && item.modifier && item.modifier.id === 'sacrificial_altar') {
+            if (!state.inventory || state.inventory.length === 0) {
+                addLog('Для покупки предмета с Алтарём у вас должен быть хотя бы один другой амулет!', 'loss');
+                return;
+            }
+        }
         // --- ИСПРАВЛЕНИЕ: разрешаем покупку "невесомых" амулетов даже при полном инвентаре ---
         if (
             effectiveUsed >= maxSize &&
@@ -3402,14 +3531,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Сброс uses для breakable предметов при покупке
         if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
-            item.uses = item.effect.luck_chance.max_uses || 1;
+            item.uses = (item.effect.luck_chance.max_uses || 1) + getBreakableUsesBoost();
         }
         if (item.effect && item.effect.breakable && !item.effect.luck_chance) {
-            item.uses = item.effect.max_uses || 10;
+            item.uses = (item.effect.max_uses || 10) + getBreakableUsesBoost();
         }
         // [NEW] Сброс uses для wild_clover_next_spin.breakable при покупке
         if (item.effect && item.effect.wild_clover_next_spin && item.effect.wild_clover_next_spin.breakable) {
-            item.uses = item.effect.wild_clover_next_spin.max_uses || 1;
+            item.uses = (item.effect.wild_clover_next_spin.max_uses || 1) + getBreakableUsesBoost();
         }
 
         state.tickets -= cost;
@@ -3470,6 +3599,17 @@ document.addEventListener('DOMContentLoaded', () => {
             animateInventoryItem(item.id);
         }
         // Можно добавить аналогично для других эффектов, если потребуется
+
+        // --- Механика жертвы для модификатора Алтаря ---
+        if (item.modifier && item.modifier.id === 'sacrificial_altar') {
+            const candidates = state.inventory.filter(i => i !== item);
+            if (candidates.length > 0) {
+                const idx = Math.floor(Math.random() * candidates.length);
+                const victim = candidates[idx];
+                removeAmulet(victim.id);
+                addLog(`Алтарь: амулет "${victim.name}" был принесён в жертву!`, 'loss');
+            }
+        }
 
         if (ui.planningModal.classList.contains('hidden')) {
             updateUI();
@@ -4083,6 +4223,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const idx = state.inventory.findIndex(i => i.id === itemId);
         if (idx !== -1) {
             const [removed] = state.inventory.splice(idx, 1);
+            // --- Возврат divine-модификатора в пул ---
+            if (removed.modifier && removed.modifier.divine && typeof window.releaseDivineModifier === 'function') {
+                window.releaseDivineModifier(removed.modifier.id);
+            }
             if (!ALL_ITEMS.some(i => i.id === removed.id)) {
                 ALL_ITEMS.push(removed);
             }
@@ -4865,7 +5009,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el) {
         // Если уже есть анимация проигрыша, не добавляем обычную анимацию
         if (el.classList.contains('item-activated-loss')) return;
-        // Удаляем класс, если он уже есть, чтобы анимация могла быть перезапущена
+        // Удаляем класс, если он уже есть, чтобы анимация заметила удаление
         el.classList.remove('item-activated');
         // Этот трюк (force reflow) гарантирует, что браузер заметит удаление класса
         // перед тем, как мы добавим его снова, что позволяет перезапустить анимацию.
@@ -5060,19 +5204,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Ищем все breakable-предметы, у которых uses < max_uses
         const repairable = state.inventory.filter(item => {
             if (item.effect?.luck_chance?.breakable) {
-                return item.uses < (item.effect.luck_chance.max_uses || 1);
+                return item.uses < ((item.effect.luck_chance.max_uses || 1) + getBreakableUsesBoost());
             }
             if (item.effect?.breakable && !item.effect?.luck_chance) {
-                return item.uses < (item.effect.max_uses || 10);
+                return item.uses < ((item.effect.max_uses || 10) + getBreakableUsesBoost());
             }
             return false;
         });
         if (repairable.length > 0) {
             const toRepair = repairable[Math.floor(Math.random() * repairable.length)];
             if (toRepair.effect?.luck_chance?.breakable) {
-                toRepair.uses = toRepair.effect.luck_chance.max_uses || 1;
+                toRepair.uses = (toRepair.effect.luck_chance.max_uses || 1) + getBreakableUsesBoost();
             } else if (toRepair.effect?.breakable && !toRepair.effect?.luck_chance) {
-                toRepair.uses = toRepair.effect.max_uses || 10;
+                toRepair.uses = (toRepair.effect.max_uses || 10) + getBreakableUsesBoost();
             }
             addLog(`🧰 Набор инструментов мастера: полностью починил '${toRepair.name}'!`, 'win');
             animateInventoryItem('master_toolkit');
@@ -5185,13 +5329,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 let repaired = 0;
                 state.inventory.forEach(item => {
                     if (item.effect?.luck_chance?.breakable) {
-                        if (item.uses < (item.effect.luck_chance.max_uses || 1)) {
-                            item.uses = Math.min((item.uses || 0) + effect.count, item.effect.luck_chance.max_uses || 1);
+                        if (item.uses < ((item.effect.luck_chance.max_uses || 1) + getBreakableUsesBoost())) {
+                            item.uses = Math.min((item.uses || 0) + effect.count, (item.effect.luck_chance.max_uses || 1) + getBreakableUsesBoost());
                             repaired++;
                         }
                     } else if (item.effect?.breakable && !item.effect?.luck_chance) {
-                        if (item.uses < (item.effect.max_uses || 10)) {
-                            item.uses = Math.min((item.uses || 0) + effect.count, item.effect.max_uses || 10);
+                        if (item.uses < ((item.effect.max_uses || 10) + getBreakableUsesBoost())) {
+                            item.uses = Math.min((item.uses || 0) + effect.count, (item.effect.max_uses || 10) + getBreakableUsesBoost());
                             repaired++;
                         }
                     }
