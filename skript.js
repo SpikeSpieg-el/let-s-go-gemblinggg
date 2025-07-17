@@ -129,6 +129,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // --- ДОБАВЛЕНО: Применяем накопленный бонус от усилителей вишни ---
+        if (window.state.cherryBaseValue) {
+            currentSymbols.forEach(s => {
+                if (s.id === 'cherry') {
+                    s.value += window.state.cherryBaseValue;
+                }
+            });
+        }
+
         // Применяем эффект "Фильтр Неудач"
         const removedSymbolId = state.inventory.find(item => item.effect?.remove_symbol)?.effect.remove_symbol;
         if (removedSymbolId) {
@@ -2017,10 +2026,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function populateShop() {
         state.shop = [];
+        
         const availableItems = [...ALL_ITEMS].filter(item => !hasItem(item.id));
         const commons = availableItems.filter(i => i.rarity === 'common');
         const rares = availableItems.filter(i => i.rarity === 'rare');
         const legendaries = availableItems.filter(i => i.rarity === 'legendary');
+
+        if (hasItem('cherry_value_engine') && Math.random() < 0.35) {
+            const alreadyInShop = state.shop.some(item => item.id === 'cherry_value_boost_token');
+            if (!alreadyInShop) {
+                state.shop.push(window.ALL_ITEMS.find(item => item.id === 'cherry_value_boost_token'));
+            }
+        }
 
         // --- Гарантированный редкий амулет в первом магазине 3-го цикла ---
         if (state.run === 3 && state.turn === 1 && rares.length > 0) {
@@ -3583,6 +3600,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const effectiveSlots = getEffectiveEmptySlots();
         const effectiveUsed = maxSize - effectiveSlots;
         const item = state.shop.find(i => i.id === itemId);
+        // --- Особая логика для усилителя вишни ---
+    if (item && item.id === 'cherry_value_boost_token') {
+        let cost = item.cost;
+        let bonusApplied = false;
+        let discountLog = [];
+        if (hasPassive('shopaholic') && state.flags.firstPurchaseThisRound) {
+            cost = Math.max(1, item.cost - 2);
+            state.flags.firstPurchaseThisRound = false;
+            bonusApplied = true;
+            discountLog.push('shopaholic -2');
+        }
+        if (hasPassive('barterer') && item.cost >= 5) {
+            cost = Math.max(1, cost - 1);
+            bonusApplied = true;
+            discountLog.push('barterer -1');
+        }
+        if (state.tickets < cost) return addLog('Недостаточно талонов.', 'loss');
+        state.tickets -= cost;
+        // Применяем эффект
+        if (!window.state.cherryBaseValue) window.state.cherryBaseValue = 0;
+        window.state.cherryBaseValue += 1;
+        if (typeof window.addLog === 'function') {
+            window.addLog('🍒 Усилитель Вишни: базовая ценность вишни увеличена на 1!', 'win');
+        }
+        // Удаляем из магазина
+        state.shop = state.shop.filter(i => i.id !== itemId);
+        updateUI();
+        return;
+    }
         // --- Блокировка покупки предмета с модификатором Алтаря, если нет других амулетов ---
         if (item && item.modifier && item.modifier.id === 'sacrificial_altar') {
             if (!state.inventory || state.inventory.length === 0) {
@@ -3598,7 +3644,8 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog(`В инвентаре максимум ${maxSize} амулетов!`, 'loss');
             return;
         }
-        
+
+
         let cost = item.cost;
         let bonusApplied = false;
         let discountLog = [];
@@ -5481,6 +5528,15 @@ document.addEventListener('DOMContentLoaded', () => {
             currentSymbols.forEach(s => {
                 if (effect.symbols.includes(s.id)) {
                     s.value += effect.amount;
+                }
+            });
+        }
+        
+        // --- ДОБАВЛЕНО: Применяем накопленный бонус от усилителей вишни ---
+        if (window.state.cherryBaseValue) {
+            currentSymbols.forEach(s => {
+                if (s.id === 'cherry') {
+                    s.value += window.state.cherryBaseValue;
                 }
             });
         }

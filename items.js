@@ -1,4 +1,17 @@
 const ALL_ITEMS = [
+  // --- БЛОК ПРЕДМЕТОВ СВЯЗАННЫХ С ВИШНЕЙ ---
+  { id: 'fruit_salad', name: 'Фруктовый салат', desc: 'Каждая пара соседних (не по диагонали) 🍋 и 🍒 на поле даёт +1💲.', cost: 2, rarity: 'common', thumbnail: '🥗', on_spin_bonus: (grid) => { /* Логика в skript.js */ } },
+  { id: 'cherry_bomb', name: 'Вишневая бомба', desc: 'Линии из вишен 🍒 приносят дополнительно +10💲.', cost: 7, rarity: 'rare', thumbnail: '💣', effect: { symbol_win_bonus: { symbol: 'cherry', bonus: 10 } } },
+  { id: 'lucky_cherry', name: 'Везучая Вишня', desc: 'Символы 🍒 приносят в 2 раза больше 💲.', cost: 6, rarity: 'rare', thumbnail: '🍒', effect: { symbol_value_multiplier: { symbol: 'cherry', multiplier: 2 } } },
+  { id: 'cherry_catalyst', name: 'Катализатор Вишни', desc: 'Символы 🍒 приносят в 2 раза больше 💲. Линии из вишен 🍒 дополнительно приносят +15💲.', cost: 8, rarity: 'rare', thumbnail: '🍒', effect: { symbol_value_multiplier: { symbol: 'cherry', multiplier: 2 }, symbol_win_bonus: { symbol: 'cherry', bonus: 15 } } },
+  { id: 'gardening_shears', name: 'Садовые Ножницы', desc: 'Увеличивает базовую ценность Вишен 🍒 на 2.', cost: 6, rarity: 'rare', thumbnail: '✂️', effect: { base_value_increase: { symbols: ['cherry'], amount: 2 } } },
+  { id: 'wild_cherry', name: 'Дикая вишня', desc: 'Символы 🍒 становятся дикими (заменяют любой символ при подсчёте).', cost: 14, rarity: 'legendary', thumbnail: '🃏🍒', effect: { wild_symbol: 'cherry' } },
+  { id: 'royal_cherry_upgrade', name: 'Королевская селекция', desc: 'Улучшает вишни 🍒 до королевского сорта. Увеличивает их базовую ценность на 3, а выигрышные линии из вишен дополнительно приносят +25💲.', cost: 13, rarity: 'legendary', thumbnail: '👑🍒', effect: { base_value_increase: { symbols: ['cherry'], amount: 3 }, symbol_win_bonus: { symbol: 'cherry', bonus: 25 } } },
+  { id: 'magnifying_glass', name: 'Лупа', desc: 'Увеличивает базовую ценность Клеверов 🍀 и Вишен 🍒 на 1.', cost: 5, rarity: 'common', thumbnail: '🔎', effect: { base_value_increase: { symbols: ['clover', 'cherry'], amount: 1 } } },
+  { id: 'cherry_value_engine', name: 'Двигатель Вишни', desc: 'Пока этот предмет в инвентаре, в магазине появляются усилители 🍒. Усилители дают +1 к номиналу 🍒 и не занимают слот.', cost: 8, rarity: 'rare', thumbnail: '🍒⚙️' },
+  { id: 'cherry_value_boost_token', name: 'Усилитель Вишни (+1)', desc: 'При покупке увеличивает базовую ценность 🍒 на 1. Не занимает место в инвентаре. Можно купить несколько раз.', cost: 4, rarity: 'special', thumbnail: '🍒✨', effect: { base_value_increase: { symbols: ['cherry'], amount: 1 }, ignore_slot_for_empty_bonus: true, is_cherry_boost_token: true } },
+  // --- КОНЕЦ БЛОКА ВИШНИ ---
+
   // --- ОБЫЧНЫЕ (Common) ---
   { id: 'lucky_clover', name: 'Счастливый клевер', desc: 'Даёт +1 к удаче.', cost: 1, rarity: 'common', thumbnail: 'клевер_удачи.png', effect: { luck: 1 } },
   { id: 'scrap_metal', name: 'Копилка', desc: 'Каждый проигрышный прокрут приносит в копилку +1💲 x на текущий раунд. Бонус от копилки начисляеться в конце раунда.', cost: 3, rarity: 'common', thumbnail: 'свинка_монеты.png', effect: { on_loss_bonus: 1 } },
@@ -29,7 +42,6 @@ const ALL_ITEMS = [
 
   
   { id: 'central_focus', name: 'Центральный фокус', desc: 'Выигрышные линии, проходящие через центральную колонку, приносят дополнительно +2💲.', cost: 3, rarity: 'common', thumbnail: '🎯', effect: { on_line_win_bonus: { in_column: 2, coins: 2 } } },
-  { id: 'fruit_salad', name: 'Фруктовый салат', desc: 'Каждая пара соседних (не по диагонали) 🍋 и 🍒 на поле даёт +1💲.', cost: 2, rarity: 'common', thumbnail: '🥗', on_spin_bonus: (grid) => { /* Логика в skript.js */ } },
   { id: 'desperate_measures', name: 'Отчаянные меры', desc: 'Даёт +2 к удаче, если у вас меньше 10💲 в начале прокрута.', cost: 2, rarity: 'common', thumbnail: '🙏', effect: { on_spin_luck_bonus: { condition_coin_less: 10, bonus: 2 } } },
   { id: 'straight_path', name: 'Прямой путь', desc: 'Горизонтальные линии получают +1 к множителю.', cost: 3, rarity: 'common', thumbnail: '➖', effect: { line_type_multiplier_bonus: { types: ["Горизонтальная"], bonus: 1 } } },
   { id: 'ringing_luck', name: 'Звонкая удача', desc: 'Каждый символ 🔔 на поле даёт +1 к удаче на этот прокрут.', cost: 4, rarity: 'common', thumbnail: '🛎️', effect: { temporary_luck_on_spin: 'bell' } },
@@ -66,13 +78,11 @@ const ALL_ITEMS = [
 
   { id: 'early_bird_spins', name: 'Ранняя пташка', desc: 'Ваши первые 3 прокрута в каждом раунде получают +1 к множителю на все выигрыши.', cost: 4, rarity: 'common', thumbnail: '🐦', effect: { first_spins_bonus: { count: 3, multiplier_add: 1 } } },
   { id: 'ticket_hoarder', name: 'Коллекционер талонов', desc: 'Дает +1 к удаче за каждые 5🎟️, которые у вас есть.', cost: 2, rarity: 'common', thumbnail: '🧐', effect: { per_ticket_luck: { per: 5, luck: 1 } } },
-  { id: 'magnifying_glass', name: 'Лупа', desc: 'Увеличивает базовую ценность Клеверов 🍀 и Вишен 🍒 на 1.', cost: 5, rarity: 'common', thumbnail: '🔎', effect: { base_value_increase: { symbols: ['clover', 'cherry'], amount: 1 } } },
   { id: 'oddly_lucky', name: 'Странная удача', desc: 'В нечетные раунды (1-й и 3-й) все денежные выигрыши увеличены на 20%.', cost: 4, rarity: 'common', thumbnail: '🌗', effect: { odd_round_multiplier: 1.2 } },
 
   // --- РЕДКИЕ (Rare) ---
   { id: 'golden_ticket', name: 'Золотой билет', desc: 'Даёт +2 к удаче.', cost: 5, rarity: 'rare', thumbnail: '🎟️', effect: { luck: 2 } },
   { id: 'architect_blueprint', name: 'Чертеж архитектора', desc: 'Горизонтальные и вертикальные линии получают +1 к множителю.', cost: 8, rarity: 'rare', thumbnail: '📐', effect: { line_type_multiplier_bonus: { types: ["Горизонтальная", "Вертикальная"], bonus: 1 } } },
-  { id: 'cherry_bomb', name: 'Вишневая бомба', desc: 'Линии из вишен 🍒 приносят дополнительно +10💲.', cost: 7, rarity: 'rare', thumbnail: '💣', effect: { symbol_win_bonus: { symbol: 'cherry', bonus: 10 } } },
   { id: 'combo_counter', name: 'Множитель Комбо', desc: 'Бонус от комбо-выигрышей увеличивается на 50%.', cost: 8, rarity: 'rare', thumbnail: '🔥', effect: { combo_bonus_multiplier: 1.5 } },
   { id: 'last_chance', name: 'Последний Шанс', desc: 'Последний прокрут в раунде получает множитель выигрыша x3.', cost: 6, rarity: 'rare', thumbnail: '🚨', effect: { on_last_spin_bonus: { multiplier: 3 } } },
   { id: 'blood_ritual', name: 'Кровавый Ритуал', desc: 'В начале прокрута, если у вас больше 10💲, тратите 2💲 и получаете +5 к удаче.', cost: 7, rarity: 'rare', thumbnail: '🩸', effect: { on_spin_sacrifice: { cost: 2, condition_coin: 10, bonus: { luck: 5 } } } },
@@ -81,7 +91,6 @@ const ALL_ITEMS = [
   { id: 'shiny_bell', name: 'Блестящий Колокольчик', desc: 'Символы 🔔 приносят в 2 раза больше 💲.', cost: 6, rarity: 'rare', thumbnail: '✨', effect: { symbol_value_multiplier: { symbol: 'bell', multiplier: 2 } } },
   { id: 'telescope', name: 'Телескоп', desc: 'Линии "Небо/Земля" получают +4 к множителю.', cost: 7, rarity: 'rare', thumbnail: '🔭', effect: { line_type_multiplier_bonus: { types: ["Небо/Земля"], bonus: 4 } } },
   { id: 'hourglass', name: 'Песочные Часы', desc: 'За каждые 10 прокрутов даёт +1 дополнительный прокрут.', cost: 9, rarity: 'rare', thumbnail: '⏳', effect: { on_spin_count_bonus: { count: 10, spins: 1 } } },
-  { id: 'lucky_cherry', name: 'Везучая Вишня', desc: 'Символы 🍒 приносят в 2 раза больше 💲.', cost: 6, rarity: 'rare', thumbnail: '🍒', effect: { symbol_value_multiplier: { symbol: 'cherry', multiplier: 2 } } },
   { id: 'zigzag_map', name: 'Карта Зигзага', desc: 'Зиг-Заг линии получают +3 к множителю.', cost: 5, rarity: 'rare', thumbnail: '📍', effect: { line_type_multiplier_bonus: { types: ["Зиг-Заг"], bonus: 3 } } },
   { id: 'ticket_machine', name: 'Машина Талонов', desc: 'Линии из 4 символов приносят дополнительно +1🎟️.', cost: 6, rarity: 'rare', thumbnail: '🎰', effect: { on_line_win_bonus: { length: 4, tickets: 1 } } },
   { id: 'golden_Xdoubler', name: 'Золотой X2', desc: 'X2 все бонусы монет, которые начисляются напрямую предметами.', cost: 4, rarity: 'rare', thumbnail: '💸', effect: { double_flat_coin_bonus: 2 } },
@@ -359,39 +368,7 @@ const ALL_ITEMS = [
   { id: 'coin_pouch', name: 'Мешочек монет', desc: 'В начале каждого раунда даёт +1💲 за каждый амулет в инвентаре.', cost: 4, rarity: 'common', thumbnail: '👝', effect: { on_round_start_per_item_coins: 1 } },
   { id: 'lucky_bell', name: 'Колокольчик удачи', desc: 'Если на поле есть хотя бы один колокольчик, все выигрыши увеличиваются на 10%.', cost: 2, rarity: 'common', thumbnail: '🔔', effect: { winMultiplier: 1.1 } },
   { id: 'lucky_feather', name: 'Пёрышко удачи', desc: 'В начале каждого раунда даёт +1 к удаче, если у вас меньше 5 амулетов.', cost: 2, rarity: 'common', thumbnail: '🪶', effect: { on_round_start_luck_if_few_items: { max_items: 5, luck: 1 } } },
-
-  { id: 'cherry_catalyst', name: 'Катализатор Вишни', desc: 'Символы 🍒 приносят в 2 раза больше 💲. Линии из вишен 🍒 дополнительно приносят +15💲.', cost: 8, rarity: 'rare', thumbnail: '🍒', effect: { symbol_value_multiplier: { symbol: 'cherry', multiplier: 2 }, symbol_win_bonus: { symbol: 'cherry', bonus: 15 } } },
-  { 
-    id: 'gardening_shears', 
-    name: 'Садовые Ножницы', 
-    desc: 'Увеличивает базовую ценность Вишен 🍒 на 2.', 
-    cost: 6, 
-    rarity: 'rare', 
-    thumbnail: '✂️',
-    effect: { base_value_increase: { symbols: ['cherry'], amount: 2 } }
-  },
-  // --- ЛЕГЕНДАРНЫЙ ДЛЯ 🍒 ---
-  { 
-    id: 'wild_cherry', 
-    name: 'Дикая вишня', 
-    desc: 'Символы 🍒 становятся дикими (заменяют любой символ при подсчёте).', 
-    cost: 14, 
-    rarity: 'legendary', 
-    thumbnail: '🃏🍒', 
-    effect: { wild_symbol: 'cherry' } 
-  },
-  { 
-    id: 'royal_cherry_upgrade', 
-    name: 'Королевская селекция', 
-    desc: 'Улучшает вишни 🍒 до королевского сорта. Увеличивает их базовую ценность на 3, а выигрышные линии из вишен дополнительно приносят +25💲.', 
-    cost: 13, 
-    rarity: 'legendary', 
-    thumbnail: '👑🍒', 
-    effect: { 
-      base_value_increase: { symbols: ['cherry'], amount: 3 }, 
-      symbol_win_bonus: { symbol: 'cherry', bonus: 25 } 
-    } 
-  },
+  
 ]
 
 // --- СИСТЕМА СЛУЧАЙНЫХ МОДИФИКАТОРОВ ---
