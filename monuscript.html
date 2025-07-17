@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Монускрипт — Энциклопедия предметов</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Монускрипт: Энциклопедия</h1>
+    <div class="tabs" style="margin-bottom:24px; display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+      <button class="tab active" data-tab="all">Все</button>
+      <button class="tab" data-tab="common">Обычные</button>
+      <button class="tab" data-tab="rare">Редкие</button>
+      <button class="tab" data-tab="legendary">Легендарные</button>
+      <button class="tab" data-tab="modifiers">Модификаторы</button>
+      <button class="tab" data-tab="passives">Пассивки</button>
+    </div>
+    <div id="list" class="inventory-items"></div>
+  </div>
+<style> 
+.inventory-items {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  align-content: start;
+  max-height: 82vh;
+  overflow-y: auto;
+  padding: 5px;
+  justify-items: stretch;
+}
+</style>
+
+<script src="items.js"></script>
+<script src="passives.js"></script>
+<script>
+function getRarityClass(rarity) {
+  if (rarity === 'common') return 'rarity-common';
+  if (rarity === 'rare') return 'rarity-rare';
+  if (rarity === 'legendary') return 'rarity-legendary';
+  if (rarity === 'divine') return 'divine-modifier';
+  if (rarity === 'penalty') return 'modifier-bad';
+  return '';
+}
+
+function renderItemCard(item) {
+  let emoji = item.thumbnail || item.emoji || (item.divine ? '🔱' : item.type === 'modifier' && item.rarity === 'penalty' ? '💀' : '✨');
+  let rarity = item.rarity;
+  let cost = item.cost !== undefined ? `<span class="item-cost">Цена: <b>${item.cost}</b> 🎟️</span>` : '';
+  let thumbHtml = '';
+  if (typeof emoji === 'string' && /\.(png|jpg|jpeg|gif|webp)$/i.test(emoji)) {
+    let src = emoji;
+    if (!/^https?:\/\//.test(emoji) && !emoji.startsWith('/')) {
+      src = 'img/' + emoji;
+    }
+    thumbHtml = `<img src="${src}" alt="icon" style="width:48px;height:48px;object-fit:contain;">`;
+  } else {
+    thumbHtml = emoji;
+  }
+  return `
+    <div class="item ${getRarityClass(rarity)}">
+      <div class="item-thumbnail ${getRarityClass(rarity)}">${thumbHtml}</div>
+      <div class="item-info">
+        <div class="item-header">
+          <span class="item-name ${getRarityClass(rarity)}">${item.name || item.id}</span>
+          ${cost}
+        </div>
+        <div class="item-desc">${item.desc || ''}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderList(tab) {
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  let data = [];
+  if (!window.ALL_ITEMS || !window.ITEM_MODIFIERS || !window.PENALTY_MODIFIERS || !window.ALL_PASSIVES) {
+    list.innerHTML = '<div style="color:#ffb3b3;font-size:1.2em;text-align:center;width:100%">Ошибка: данные не загружены.<br>Проверьте подключение items.js и passives.js</div>';
+    return;
+  }
+  if (tab === 'all') {
+    // Категории и их данные
+    const categories = [
+      { title: 'Обычные предметы', data: window.ALL_ITEMS.filter(i => i.rarity === 'common') },
+      { title: 'Редкие предметы', data: window.ALL_ITEMS.filter(i => i.rarity === 'rare') },
+      { title: 'Легендарные предметы', data: window.ALL_ITEMS.filter(i => i.rarity === 'legendary') },
+      { title: 'Модификаторы', data: [
+        ...window.ITEM_MODIFIERS.map(m => ({...m, rarity: m.divine ? 'divine' : 'rare', type: 'modifier'})),
+        ...window.PENALTY_MODIFIERS.map(m => ({...m, rarity: 'penalty', type: 'modifier'}))
+      ] },
+      { title: 'Пассивки', data: window.ALL_PASSIVES.map(p => ({...p, rarity: 'passive', type: 'passive'})) }
+    ];
+    categories.forEach(cat => {
+      if (cat.data.length > 0) {
+        list.innerHTML += `<h2 style="width:100%;margin:32px 0 12px 0;font-size:1.25em;color:#ffe066;text-align:left;">${cat.title}</h2>`;
+        cat.data.forEach(item => {
+          list.innerHTML += renderItemCard(item);
+        });
+      }
+    });
+    return;
+  }
+  if (tab === 'common') {
+    data = window.ALL_ITEMS.filter(i => i.rarity === 'common');
+  } else if (tab === 'rare') {
+    data = window.ALL_ITEMS.filter(i => i.rarity === 'rare');
+  } else if (tab === 'legendary') {
+    data = window.ALL_ITEMS.filter(i => i.rarity === 'legendary');
+  } else if (tab === 'modifiers') {
+    data = [
+      ...window.ITEM_MODIFIERS.map(m => ({...m, rarity: m.divine ? 'divine' : 'rare', type: 'modifier'})),
+      ...window.PENALTY_MODIFIERS.map(m => ({...m, rarity: 'penalty', type: 'modifier'}))
+    ];
+  } else if (tab === 'passives') {
+    data = window.ALL_PASSIVES.map(p => ({...p, rarity: 'passive', type: 'passive'}));
+  }
+  if (data.length === 0) {
+    list.innerHTML = '<div style="color:#aaa;font-size:1.1em;text-align:center;width:100%">Нет данных для отображения.</div>';
+    return;
+  }
+  data.forEach(item => {
+    list.innerHTML += renderItemCard(item);
+  });
+}
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    renderList(this.dataset.tab);
+  });
+});
+
+window.addEventListener('DOMContentLoaded', function() {
+  // Ждём пока скрипты загрузятся
+  function tryRender() {
+    if (window.ALL_ITEMS && window.ITEM_MODIFIERS && window.PENALTY_MODIFIERS && window.ALL_PASSIVES) {
+      // === Обновляем счетчики во вкладках ===
+      const tabCounts = {
+        all: window.ALL_ITEMS.length + window.ITEM_MODIFIERS.length + window.PENALTY_MODIFIERS.length + window.ALL_PASSIVES.length,
+        common: window.ALL_ITEMS.filter(i => i.rarity === 'common').length,
+        rare: window.ALL_ITEMS.filter(i => i.rarity === 'rare').length,
+        legendary: window.ALL_ITEMS.filter(i => i.rarity === 'legendary').length,
+        modifiers: window.ITEM_MODIFIERS.length + window.PENALTY_MODIFIERS.length,
+        passives: window.ALL_PASSIVES.length
+      };
+      document.querySelectorAll('.tab').forEach(btn => {
+        const tab = btn.dataset.tab;
+        if (tabCounts[tab] !== undefined) {
+          btn.innerHTML = btn.innerHTML.replace(/\s*\(\d+\)$/, '') + ` (${tabCounts[tab]})`;
+        }
+      });
+      renderList('all');
+    } else {
+      setTimeout(tryRender, 100);
+    }
+  }
+  tryRender();
+});
+</script>
+</body>
+</html> 

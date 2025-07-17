@@ -3792,3 +3792,10 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   100% { background-position: 0% 50%; }
 }
 
+.piggybank-amount {
+    color: #ffab40;
+    font-size: 13px;
+    margin-top: 2px;
+    font-weight: bold;
+}
+

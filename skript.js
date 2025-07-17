@@ -405,6 +405,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         tempLuckFromItems += count;
                     }
                 }
+                // [NEW] conditional_luck: если на поле есть хотя бы один указанный символ, даём фиксированный бонус
+                if (item.effect?.conditional_luck) {
+                    const { symbol, bonus } = item.effect.conditional_luck;
+                    const found = state.grid.some(s => s && s.id === symbol);
+                    if (found) {
+                        tempLuckFromItems += bonus;
+                        addLog(`${item.name}: +${bonus} к временной удаче (условие выполнено).`, 'win');
+                        animateInventoryItem(item.id);
+                    }
+                }
             });
         }
         // Влияет только на этот спин
@@ -442,6 +452,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 animateInventoryItem('blood_ritual'); // [NEW] Анимация
             }
         }
+        // [NEW] Логика предмета 'lucky_hat'
+            if (hasItem('lucky_hat')) {
+                const effect = ALL_ITEMS.find(i => i.id === 'lucky_hat').effect.every_n_spin_luck;
+                if ((state.roundSpinsMade + 1) % effect.n === 0) {
+                    tempLuck += effect.luck;
+                    addLog(`Шляпа удачи: +${effect.luck} к удаче (каждый ${effect.n}-й спин).`, 'win');
+                    animateInventoryItem('lucky_hat');
+                }
+            }
+            
         
         const perRunLuck = hasItem('growing_debt') ? getItemEffectValue('per_run_bonus.luck', 0, 'sum') * state.run : 0;
         
@@ -452,11 +472,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // [NEW] Логика предмета 'ticket_hoarder'
-        let ticketLuck = 0;
-        if (hasItem('ticket_hoarder')) {
-            const effect = ALL_ITEMS.find(i => i.id === 'ticket_hoarder').effect.per_ticket_luck;
-            ticketLuck = Math.floor(state.tickets / effect.per) * effect.luck;
-        }
+            let ticketLuck = 0;
+            if (hasItem('ticket_hoarder')) {
+                const effect = ALL_ITEMS.find(i => i.id === 'ticket_hoarder').effect.per_ticket_luck;
+                ticketLuck = Math.floor(state.tickets / effect.per) * effect.luck;
+            }
         
         // ВАЖНО: используем totalTempLuck вместо state.tempLuck
         const totalLuck = (state.permanentLuckBonus || 0) + getItemEffectValue('luck', 0) + totalTempLuck + tempLuck + perRunLuck + hoarderLuck + ticketLuck + (state.cherryLuckBonus || 0);
@@ -761,6 +781,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     animateInventoryItem(item.id); // [NEW] Анимация
                 }
             }
+            // [NEW] conditional_luck: если на поле есть хотя бы один указанный символ, даём фиксированный бонус
+            if (item.effect?.conditional_luck) {
+                const { symbol, bonus } = item.effect.conditional_luck;
+                const found = grid.some(s => s.id === symbol);
+                if (found) {
+                    state.tempLuck += bonus;
+                    addLog(`${item.name}: +${bonus} к временной удаче (условие выполнено).`, 'win');
+                    animateInventoryItem(item.id);
+                }
+            }
         });
 
         const substitutions = state.inventory.filter(item => item.effect?.substitute).map(item => item.effect.substitute);
@@ -800,6 +830,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 symbolMultipliers[eff.symbol] = (symbolMultipliers[eff.symbol] || 1) * eff.multiplier;
             }
         });
+        // --- [NEW] winMultiplier (например, Колокольчик удачи) ---
+        let winMultiplier = 1;
+        state.inventory.forEach(item => {
+            if (item.effect?.winMultiplier) {
+                // Для lucky_bell: если на поле есть bell, применяем множитель
+                if (item.id === 'lucky_bell') {
+                    if (grid.some(s => s.id === 'bell')) {
+                        winMultiplier *= item.effect.winMultiplier;
+                        animateInventoryItem('lucky_bell');
+                    }
+                } else {
+                    // Для других предметов с winMultiplier — всегда применяем
+                    winMultiplier *= item.effect.winMultiplier;
+                }
+            }
+        });
+        winMultiplier = Math.ceil(winMultiplier); // Округление вверх
         
         // Обработка множителя для всех символов
         // Суммируем обычный бонус и бонус за цикл
@@ -945,6 +992,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (hasPassive('lucky_bomb') && firstSymbol.id === 'cherry' && hasItem('cherry_bomb')) {
                     state.tickets += 1;
                     addLog(`Счастливая бомба: +1🎟️ за линию вишен!`, 'win');
+                }
+                // Применяем глобальный множитель выигрыша (например, Колокольчик удачи)
+                if (winMultiplier > 1) {
+                    win = Math.floor(win * winMultiplier);
                 }
                 
                 return win;
@@ -1458,7 +1509,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog('Ничего не выпало.');
             if (hasItem('scrap_metal')) {
                 const lossBonus = getItemEffectValue('on_loss_bonus', 0);
-                state.piggyBank += lossBonus;
+                state.piggyBank += lossBonus * state.turn;
                 addLog(`Копилка впитала: +${lossBonus}💲. Всего: ${state.piggyBank}💲`);
             }
             state.winStreak = 0; // [NEW] Сброс серии побед
@@ -2897,6 +2948,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 animateInventoryItem('morning_coffee');
             }
         }
+        // --- Мешочек монет ---
+        if (hasItem('coin_pouch')) {
+            const perItemBonus = getItemEffectValue('on_round_start_per_item_coins', 0);
+            const itemCount = state.inventory.length;
+            const bonus = perItemBonus * itemCount;
+            if (bonus > 0) {
+                state.coins += bonus;
+                addLog(`Мешочек монет: +${formatNumberWithComma(bonus)}💲 (${itemCount} амулетов).`, 'win');
+                animateInventoryItem('coin_pouch');
+            }
+        }
 
         state.freeRerolls = 0;
         if(hasItem('coupon_book')) {
@@ -3123,6 +3185,16 @@ document.addEventListener('DOMContentLoaded', () => {
             state.coins += piggyBankBonus;
             state.piggyBank = 0;
             animateInventoryItem('scrap_metal');
+        }
+        if (hasItem('piggy_bank')) {
+            const piggyBankItem = ALL_ITEMS.find(i => i.id === 'piggy_bank');
+            const effect = piggyBankItem.effect.end_round_savings_bonus;
+            const savings = Math.floor(state.coins / effect.per) * effect.coins;
+            if (savings > 0) {
+                state.coins += savings;
+                addLog(`Свинка-копилка: +${savings}💲 за сбережения (${Math.floor(state.coins / effect.per) * effect.per}💲).`, 'win');
+                animateInventoryItem('piggy_bank');
+            }
         }
 
         // --- ПАССИВКА: Мастерская гнома ---
@@ -3704,6 +3776,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         tempLuckDetails.push({ name: item.name, count });
                     }
                 }
+                // [NEW] conditional_luck: если на поле есть хотя бы один указанный символ, даём фиксированный бонус
+                if (item.effect?.conditional_luck) {
+                    const { symbol, bonus } = item.effect.conditional_luck;
+                    const found = state.grid.some(s => s && s.id === symbol);
+                    if (found) {
+                        tempLuckFromItems += bonus;
+                        addLog(`${item.name}: +${bonus} к временной удаче (условие выполнено).`, 'win');
+                        animateInventoryItem(item.id);
+                    }
+                }
             });
         }
         // ... существующий код ...
@@ -3722,6 +3804,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Универсальная строка для временной удачи от всех temporary_luck_on_spin ---
         if (tempLuckFromItems > 0) {
             luckText += ` (+${tempLuckFromItems} временных бонусов)`;
+        }
+        // [NEW] Показываем бонус от Шляпы удачи, если он сработал
+        if (hasItem('lucky_hat')) {
+            const effect = ALL_ITEMS.find(i => i.id === 'lucky_hat').effect.every_n_spin_luck;
+            if ((state.roundSpinsMade + 1) % effect.n === 0) {
+                luckText += ` (+${effect.luck} Шляпа удачи)`;
+            }
         }
         ui.statLuck.textContent = luckText;
         
@@ -4159,6 +4248,14 @@ document.addEventListener('DOMContentLoaded', () => {
             infoDiv.appendChild(modifierDiv);
         }
 
+        if(item.id === 'scrap_metal') {
+            const piggyDiv = document.createElement('div');
+            piggyDiv.className = 'piggybank-amount';
+            piggyDiv.style.cssText = 'color:#ffab40; font-size:13px; margin-top:2px; font-weight:bold;';
+            piggyDiv.textContent = `Всего: ${formatNumberWithComma(state.piggyBank)}💲`;
+            infoDiv.appendChild(piggyDiv);
+        }
+
         itemDiv.appendChild(thumbnailDiv);
         itemDiv.appendChild(infoDiv);
 
@@ -4234,6 +4331,11 @@ document.addEventListener('DOMContentLoaded', () => {
             removeAmulet(item.id);
             amuletPopup.remove();
         };
+
+        if(item.id === 'scrap_metal') {
+            const piggyHTML = `<div style='color:#ffab40; font-size:1.1em; margin:8px 0 0 0; font-weight:bold;'>Всего: ${formatNumberWithComma(state.piggyBank)}💲</div>`;
+            amuletPopup.querySelector('.amulet-popup-card').insertAdjacentHTML('beforeend', piggyHTML);
+        }
     }
     function removeAmulet(itemId) {
         const idx = state.inventory.findIndex(i => i.id === itemId);
@@ -5439,7 +5541,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (item.cost) {
             costHTML = `${currentCost}🎟️`;
             if (oldCost && currentCost < oldCost) {
-                costHTML += ` <s style="opacity:0.6">${oldCost}🎟️</s>`;
+                costHTML += ` <s style="opacity:0.6">${oldCost}🎟️`;
             }
         }
         
@@ -5501,6 +5603,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
+        let piggyHTML = '';
+        if(item.id === 'scrap_metal') {
+            piggyHTML = `<div style='color:#ffab40; font-size:13px; margin-top:2px; font-weight:bold;'>Всего: ${formatNumberWithComma(state.piggyBank)}💲</div>`;
+        }
+        
         tooltip.innerHTML = `
             <div class="item-tooltip-header">
                 <div class="item-tooltip-thumbnail">${thumbnailHTML}</div>
@@ -5511,6 +5618,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${modifierHTML}
             ${usesHTML}
             ${mimicHTML}
+            ${piggyHTML}
         `;
         
         return tooltip;
