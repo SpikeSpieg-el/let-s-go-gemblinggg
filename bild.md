@@ -490,3 +490,40 @@ line_extender | Расширитель Линий | Каждая линия на
         else if (state.run === 5) state.targetDebt = 3333;
         else if (state.run === 6) state.targetDebt = 8888;
         else state.targetDebt = Math.min(Math.floor(state.targetDebt * 2.5 + 10000), 88888888);
+
+
+
+
+
+        
+.slot-machine-frame {
+    position: relative;
+    width: 1092px;
+    height: 709px;
+    background-image: url(img/slot_1.png);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.slot-machine {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    position: absolute;
+    top: 80px;
+    left: 203px;
+    width: 672px;
+    height: 424px;
+    background: transparent;
+}
+В index.html
+Обернул блок <div id="slot-machine" class="slot-machine"></div> в новый контейнер <div class="slot-machine-frame">...</div>.
+Теперь структура такая:
+Apply to index.html
+
+     <div class="slot-machine-frame">
+         <div id="slot-machine" class="slot-machine"></div>
+     </div>

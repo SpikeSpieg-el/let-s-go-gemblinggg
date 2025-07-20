@@ -2577,7 +2577,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         item.uses--;
                         if (item.uses <= 0) {
                             addLog(`${item.name} сломался!`, 'loss');
-                            
+                            // --- [NEW] Пассивка Феникс ---
                             if (hasPassive('phoenix_passive')) {
                                 state.luck += 5;
                                 const bonus = 10 * (state.run || 1);
@@ -3116,6 +3116,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function endTurn() {
         if (state.isSpinning) return;
+        // --- Критично: сначала проверяем флаг подтверждения ---
+        if (!endTurn._confirmed && state.spinsLeft > 0) {
+            if (document.getElementById('end-turn-confirm-modal')) return;
+            const modal = document.createElement('div');
+            modal.id = 'end-turn-confirm-modal';
+            modal.className = 'modal-overlay';
+            modal.style.zIndex = 9999;
+            modal.innerHTML = `
+                <div class=\"modal-content warning-modal\" style=\"max-width: 400px; text-align: center;\">
+                    <h3>Завершить раунд сейчас?</h3>
+                    <p>У вас ещё остались <b>${state.spinsLeft}</b> неиспользованных прокрутов.<br>Если вы завершите раунд сейчас, <span style='color:var(--danger-color);font-weight:bold;'>все оставшиеся прокруты сгорят</span> и вы не получите за них бонусы.<br><br>Вы уверены, что хотите завершить раунд?</p>
+                    <div style=\"margin-top: 18px; display: flex; gap: 12px; justify-content: center;\">
+                        <button id=\"btn-end-turn-confirm\" style=\"background: #ff6b35; color: #fff; border: none; border-radius: 6px; padding: 10px 22px; font-size: 1em; font-weight: bold; cursor: pointer;\">Да, завершить</button>
+                        <button id=\"btn-end-turn-cancel\" style=\"background: #444; color: #fff; border: none; border-radius: 6px; padding: 10px 22px; font-size: 1em; font-weight: bold; cursor: pointer;\">Отмена</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            document.getElementById('btn-end-turn-cancel').onclick = () => {
+                modal.remove();
+            };
+            document.getElementById('btn-end-turn-confirm').onclick = () => {
+                modal.remove();
+                endTurn._confirmed = true;
+                endTurn();
+            };
+            return;
+        }
+        if (endTurn._confirmed) {
+            delete endTurn._confirmed;
+        }
         ui.eorTitle.textContent = `Конец Раунда ${state.turn}`;
         ui.eorCoins.textContent = `${formatNumberWithComma(state.coins)}💲`;
         ui.eorBank.textContent = `${formatNumberWithComma(state.bankBalance)}💲`;
@@ -3412,6 +3443,41 @@ document.addEventListener('DOMContentLoaded', () => {
         // Проверяем общую сумму (наличные + банк) для досрочного погашения
         const totalMoney = state.coins + state.bankBalance;
         if (totalMoney < state.targetDebt) return;
+
+        // --- Новый код: если остались прокруты, показываем попап с подтверждением ---
+        if (state.spinsLeft > 0) {
+            // Проверяем, нет ли уже такого попапа
+            if (document.getElementById('early-payoff-confirm-modal')) return;
+            const modal = document.createElement('div');
+            modal.id = 'early-payoff-confirm-modal';
+            modal.className = 'modal-overlay';
+            modal.style.zIndex = 9999;
+            modal.innerHTML = `
+                <div class="modal-content warning-modal" style="max-width: 400px; text-align: center;">
+                    <h3>Досрочная выплата долга</h3>
+                    <p>У вас ещё остались <b>${state.spinsLeft}</b> неиспользованных прокрутов.<br>Если вы выплатите долг сейчас, <span style='color:var(--danger-color);font-weight:bold;'>все оставшиеся прокруты сгорят</span> и раунд завершится досрочно.<br><br>Вы уверены, что хотите продолжить?</p>
+                    <div style="margin-top: 18px; display: flex; gap: 12px; justify-content: center;">
+                        <button id="btn-early-payoff-confirm" style="background: #ff6b35; color: #fff; border: none; border-radius: 6px; padding: 10px 22px; font-size: 1em; font-weight: bold; cursor: pointer;">Да, выплатить</button>
+                        <button id="btn-early-payoff-cancel" style="background: #444; color: #fff; border: none; border-radius: 6px; padding: 10px 22px; font-size: 1em; font-weight: bold; cursor: pointer;">Отмена</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            document.getElementById('btn-early-payoff-cancel').onclick = () => {
+                modal.remove();
+            };
+            document.getElementById('btn-early-payoff-confirm').onclick = () => {
+                modal.remove();
+                // Продолжаем обычную выплату долга
+                payDebtEarly._confirmed = true;
+                payDebtEarly();
+            };
+            return;
+        }
+        // Если был вызван повторно после подтверждения, сбрасываем флаг
+        if (payDebtEarly._confirmed) {
+            delete payDebtEarly._confirmed;
+        }
 
         let bonusCoins = 0;
         let bonusTickets = 0;
@@ -3782,10 +3848,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.bankBalance.textContent = `${formatNumberWithComma(state.bankBalance)}💲`;
         
         // [FIX] Сначала обновляем HTML, чтобы получить правильные координаты для анимации
-        ui.statTickets.innerHTML = `<span>${formatNumberWithComma(state.tickets)}🎟️</span>`;
-        
-        // Анимация талонов
-        if (ui.statTickets && typeof lastKnownTickets !== 'undefined' && lastKnownTickets !== state.tickets) {
+        // ui.statTickets.innerHTML = `<span>${formatNumberWithComma(state.tickets)}🎟️</span>`;
+        const shopTickets = document.querySelector('.shop-tickets-info #stat-tickets');
+        if (shopTickets) {
+            shopTickets.innerHTML = `<span>${formatNumberWithComma(state.tickets)}🎟️</span>`;
+        }
+        // Анимация талонов (теперь только для магазина)
+        if (shopTickets && typeof lastKnownTickets !== 'undefined' && lastKnownTickets !== state.tickets) {
             const change = state.tickets - lastKnownTickets;
             console.log(`[DEBUG] Анимация талонов: ${lastKnownTickets} -> ${state.tickets}, изменение: ${change}`);
             showTicketChangePopup(change);
@@ -3909,9 +3978,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // [FIX] КОРРЕКТНОЕ ОТОБРАЖЕНИЕ БЕСПЛАТНЫХ РЕРОЛЛОВ
         if (state.freeRerolls > 0) {
-            ui.btnRerollShop.textContent = `Reroll (Бесплатно: ${state.freeRerolls})`;
+            ui.btnRerollShop.textContent = `Обновить агазин (Бесплатно: ${state.freeRerolls})`;
         } else {
-            ui.btnRerollShop.textContent = `Reroll (${rerollCost}🎟️)`;
+            ui.btnRerollShop.textContent = `Обновить магазин (${rerollCost}🎟️)`;
         }
         renderInventory(); 
         renderShop();
@@ -4440,18 +4509,57 @@ document.addEventListener('DOMContentLoaded', () => {
         // Подсчитываем модифицированные предметы
         const modifiedCount = state.inventory.filter(item => item.modifier && !item.removed).length;
         
-        counter.textContent = `Амулеты: ${effectiveUsed} / ${maxSize}`;
+        // --- Новый код для тултипа опасности ---
+        // Очищаем счетчик
+        counter.innerHTML = '';
+        let baseText = `Амулеты: ${effectiveUsed} / ${maxSize}`;
         if (modifiedCount > 0) {
-            counter.textContent += ` | Модифицированные: ${modifiedCount}`;
-            if (modifiedCount >= 4) {
-                counter.textContent += ' ⚠️';
-                counter.style.color = 'var(--danger-color)';
-                counter.style.fontWeight = 'bold';
-                counter.style.textShadow = '0 0 6px var(--danger-color)';
-            } else if (modifiedCount >= 3) {
-                counter.style.color = '#ffaa00';
-                counter.style.fontWeight = 'bold';
+            baseText += ' | ';
+        }
+        counter.appendChild(document.createTextNode(baseText));
+        
+        if (modifiedCount >= 4) {
+            // Оборачиваем "Модифицированные: N ⚠️" в отдельный span
+            const dangerSpan = document.createElement('span');
+            dangerSpan.className = 'danger-tooltip-label';
+            dangerSpan.style.cursor = 'pointer';
+            dangerSpan.style.marginLeft = '2px';
+            dangerSpan.innerHTML = `Модифицированные: ${modifiedCount} <span class="danger-tooltip-icon">⚠️</span>`;
+            counter.appendChild(dangerSpan);
+            counter.style.color = 'var(--danger-color)';
+            counter.style.fontWeight = 'bold';
+            counter.style.textShadow = '0 0 6px var(--danger-color)';
+
+            // Тултип как у предметов, но с пояснением
+            dangerSpan.addEventListener('mouseenter', function (e) {
+                hideAllTooltips();
+                const tooltip = document.createElement('div');
+                tooltip.className = 'item-tooltip';
+                tooltip.innerHTML = `
+                    <div class=\"item-tooltip-title modifier-bad\" style=\"font-size:1.1em;\">⚠️ Слишком много модифицированных предметов</div>
+                    <div class=\"item-tooltip-desc\">Если у вас 4 или больше модифицированных амулета, активируется штрафная система: новые модификаторы будут чаще негативными, а стоимость предметов может увеличиваться. Старайтесь не набирать слишком много модифицированных предметов одновременно!</div>
+                `;
+                document.body.appendChild(tooltip);
+                positionTooltip(tooltip, e);
+                setTimeout(() => tooltip.classList.add('show'), 10);
+                dangerSpan._tooltip = tooltip;
+            });
+            dangerSpan.addEventListener('mousemove', function (e) {
+                if (dangerSpan._tooltip) positionTooltip(dangerSpan._tooltip, e);
+            });
+            dangerSpan.addEventListener('mouseleave', function () {
+                hideAllTooltips();
+                dangerSpan._tooltip = null;
+            });
+        } else if (modifiedCount > 0) {
+            // Для 1-3 модифицированных — просто текст
+            const modSpan = document.createElement('span');
+            modSpan.textContent = `Модифицированные: ${modifiedCount}`;
+            if (modifiedCount >= 3) {
+                modSpan.style.color = '#ffaa00';
+                modSpan.style.fontWeight = 'bold';
             }
+            counter.appendChild(modSpan);
         }
         
         if (effectiveUsed >= maxSize) {
