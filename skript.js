@@ -3401,9 +3401,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const standardTickets = 5 + state.run;
         let bonusText = '';
         if(bonusCoins > 0 || bonusTickets > 0) {
-            bonusText = `Бонус за быстроту: <span style="color:var(--money-color)">+${formatNumberWithComma(bonusCoins)}💲</span> и <span style="color:var(--ticket-color)">+${formatNumberWithComma(bonusTickets)}🎟️</span>.<br>`;
+            bonusText = `Бонус за быстроту: <span style="color:var(--money-color)">+${formatNumberWithComma(bonusCoins)}💲</span> и 
+            <span style="color:var(--ticket-color)">+${formatNumberWithComma(bonusTickets)}🎟️</span>.<br>`;
         }
-        ui.judgementText.innerHTML = `Вы выжили. Наличные: <span style="color:var(--money-color)">${formatNumberWithComma(totalMoney)}💲</span>.<br>
+        ui.judgementText.innerHTML = `Вы выжили. Наличные: <span style="color:var(--money-color)">${formatNumberWithComma(state.coins)}💲</span>.<br>
                                      Стандартная награда: <span style="color:var(--ticket-color)">${formatNumberWithComma(standardTickets)}🎟️</span>.<br>
                                      ${bonusText}`;
 
@@ -3431,8 +3432,32 @@ document.addEventListener('DOMContentLoaded', () => {
         addLog(`СУДНЫЙ ДЕНЬ. Ваша сумма: ${formatNumberWithComma(totalMoney)}💲. Требуется: ${formatNumberWithComma(state.targetDebt)}💲.`);
         
         if (totalMoney >= state.targetDebt) {
-            // При обычном переходе сохраняем текущий банковский счет
-            advanceToNextCycle(0, 0, state.bankBalance);
+            // Списываем долг так же, как при обычном погашении: сначала из наличных, затем из банка
+            let remainingDebt = state.targetDebt;
+            let paidFromCoins = 0;
+            let paidFromBank = 0;
+            
+            if (state.coins > 0) {
+                paidFromCoins = Math.min(state.coins, remainingDebt);
+                state.coins -= paidFromCoins;
+                remainingDebt -= paidFromCoins;
+                if (paidFromCoins > 0) {
+                    addLog(`Списано ${formatNumberWithComma(paidFromCoins)}💲 из наличных для погашения долга.`);
+                }
+            }
+            
+            if (remainingDebt > 0) {
+                paidFromBank = Math.min(state.bankBalance, remainingDebt);
+                state.bankBalance -= paidFromBank;
+                remainingDebt -= paidFromBank;
+                if (paidFromBank > 0) {
+                    addLog(`Списано ${formatNumberWithComma(paidFromBank)}💲 из банка для погашения долга.`);
+                }
+            }
+            
+            const totalPaidToBank = paidFromCoins + paidFromBank; // равен размеру долга
+            console.log(`[DEBUG][judgementDay] paidFromCoins=${paidFromCoins}, paidFromBank=${paidFromBank}, totalPaidToBank=${totalPaidToBank}, coins=${state.coins}, bank=${state.bankBalance}`);
+            advanceToNextCycle(0, 0, totalPaidToBank);
         } else {
             gameOver();
         }
@@ -3445,7 +3470,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (totalMoney < state.targetDebt) return;
 
         // --- Новый код: если остались прокруты, показываем попап с подтверждением ---
-        if (state.spinsLeft > 0) {
+        if (state.spinsLeft > 0 && !payDebtEarly._confirmed) {
             // Проверяем, нет ли уже такого попапа
             if (document.getElementById('early-payoff-confirm-modal')) return;
             const modal = document.createElement('div');
@@ -3942,11 +3967,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let profit = Math.floor(bank * percent);
         let profitText = `<div style='font-size:13px; margin-top:4px;'>След. процент: <b style='color:var(--money-color)'>+${formatNumberWithComma(profit)}💲</b> (${(percent*100).toFixed(0)}%${bonusText})</div>`;
         let infoBlock = document.getElementById('interest-info-block');
+        const statsGrid = ui.atmInterestRate.parentElement.parentElement;
         if (!infoBlock) {
             infoBlock = document.createElement('div');
             infoBlock.id = 'interest-info-block';
-            ui.atmInterestRate.parentElement.parentElement.appendChild(infoBlock);
         }
+        statsGrid.insertAdjacentElement('afterend', infoBlock);
         infoBlock.innerHTML = profitText;
         
         if (state.turn >= 3) {

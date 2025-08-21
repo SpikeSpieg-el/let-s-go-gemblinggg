@@ -248,7 +248,7 @@ body {
 }
 
 .stats-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 15px; }
-.stats-grid.compact-stats { gap: 6px 12px; }
+.stats-grid.compact-stats { gap: 6px; }
 .stats-grid span:nth-child(odd) { text-align: left; padding-right: 10px; font-weight: 700; color: #ccc; }
 .stats-grid span:nth-child(even) { font-weight: bold; }
 
