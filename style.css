@@ -148,7 +148,45 @@ body {
     padding: 10px 15px 0 15px; /* Убираем нижний паддинг */
     border-radius: 8px;
     /* Создаем 3D-пространство для дочерних элементов */
-    perspective: 400px; 
+    perspective: 400px;
+    /* Увеличиваем активную область для лучшего управления */
+    min-height: 120px;
+    position: relative;
+}
+
+/* Добавляем невидимую активную область вокруг рычага */
+.lever-container::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -20px;
+    right: -20px;
+    bottom: -10px;
+    background: transparent;
+    cursor: pointer;
+    z-index: 5;
+}
+
+/* Стили для состояния перетаскивания рычага */
+.lever.dragging {
+    transform: rotateX(15deg);
+    transition-duration: 0.1s;
+}
+
+.lever.dragging .lever-handle {
+    transform: scale(0.95);
+    transition-duration: 0.1s;
+}
+
+/* Улучшаем отзывчивость при активном взаимодействии */
+.lever:active {
+    transform: rotateX(25deg);
+    transition-duration: 0.1s;
+}
+
+.lever:active .lever-handle {
+    transform: scale(0.9) translateY(3px);
+    transition-duration: 0.1s;
 }
 
 .lever-base {
@@ -174,20 +212,24 @@ body {
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     /* Точка вращения - самый низ по центру */
     transform-origin: bottom center;
+    /* Увеличиваем активную область для нажатия */
+    z-index: 10;
 }
 
 .lever-handle {
-    width: 34px;
-    height: 34px;
+    width: 40px; /* Увеличиваем размер для лучшего попадания */
+    height: 40px; /* Увеличиваем размер для лучшего попадания */
     background: var(--danger-color);
     border-radius: 50%;
     position: absolute;
-    top: -17px; /* Половина высоты шара */
-    left: -10px; /* (Ширина шара - ширина палки) / 2 */
+    top: -20px; /* Половина высоты шара */
+    left: -13px; /* (Ширина шара - ширина палки) / 2 */
     border: 2px solid rgba(0, 0, 0, 0.2);
     /* Тень, создающая объем */
     box-shadow: inset 4px -4px 8px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0,0,0,0.2);
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Увеличиваем активную область */
+    z-index: 15;
 }
 
 .lever.pulled {
@@ -214,6 +256,23 @@ body {
 .lever:not(.pulled):active {
     transform: rotateX(20deg); /* Немного наклоняем перед полным рывком */
     transition-duration: 0.1s;
+}
+
+/* Добавляем возможность нажатия на рукоятку */
+.lever:not(.pulled):active .lever-handle {
+    transform: scale(0.95) translateY(2px);
+    transition-duration: 0.1s;
+}
+
+/* Улучшаем отзывчивость при наведении на рукоятку */
+.lever-handle:hover {
+    transform: scale(1.1);
+    cursor: grab;
+}
+
+.lever-handle:active {
+    cursor: grabbing;
+    transform: scale(0.95);
 }
 
 .controls {

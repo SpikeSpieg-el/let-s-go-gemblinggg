@@ -4758,7 +4758,84 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ui.btnStartGame.onclick = initGame;
     ui.btnRestartGame.onclick = initGame;
+    // Обработчик клика по рычагу
     ui.lever.onclick = spin;
+    
+    // Добавляем обработчики для drag & drop рычага
+    let isDragging = false;
+    let startY = 0;
+    let dragThreshold = 30; // Минимальное расстояние для активации спина
+    
+    // Обработчик начала перетаскивания
+    ui.lever.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startY = e.clientY;
+        ui.lever.style.cursor = 'grabbing';
+        ui.lever.classList.add('dragging');
+        e.preventDefault();
+    });
+    
+    // Обработчик движения мыши при перетаскивании
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        const currentY = e.clientY;
+        const deltaY = currentY - startY;
+        
+        // Если тянем вниз достаточно далеко, активируем спин
+        if (deltaY > dragThreshold && !state.isSpinning && state.spinsLeft > 0 && !state.gameover) {
+            isDragging = false;
+            ui.lever.style.cursor = 'pointer';
+            spin();
+        }
+    });
+    
+    // Обработчик окончания перетаскивания
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            ui.lever.style.cursor = 'pointer';
+            ui.lever.classList.remove('dragging');
+        }
+    });
+    
+    // Обработчик выхода мыши за пределы окна
+    document.addEventListener('mouseleave', () => {
+        if (isDragging) {
+            isDragging = false;
+            ui.lever.style.cursor = 'pointer';
+            ui.lever.classList.remove('dragging');
+        }
+    });
+    
+    // Добавляем поддержку touch событий для мобильных устройств
+    let touchStartY = 0;
+    let isTouchDragging = false;
+    
+    ui.lever.addEventListener('touchstart', (e) => {
+        isTouchDragging = true;
+        touchStartY = e.touches[0].clientY;
+        ui.lever.classList.add('dragging');
+        e.preventDefault();
+    });
+    
+    document.addEventListener('touchmove', (e) => {
+        if (!isTouchDragging) return;
+        
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - touchStartY;
+        
+        // Если тянем вниз достаточно далеко, активируем спин
+        if (deltaY > dragThreshold && !state.isSpinning && state.spinsLeft > 0 && !state.gameover) {
+            isTouchDragging = false;
+            spin();
+        }
+    });
+    
+    document.addEventListener('touchend', () => {
+        isTouchDragging = false;
+        ui.lever.classList.remove('dragging');
+    });
     ui.btnEndTurn.onclick = endTurn;
     ui.btnConfirmEndTurn.onclick = confirmEndTurn;
     ui.btnBuySpins7.onclick = () => buySpins(CONFIG.SPIN_PACKAGE_1);
