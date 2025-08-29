@@ -225,7 +225,7 @@ body {
 .log-panel {
     height: 150px; padding: 15px; border: 2px solid var(--border-color);
     background-color: var(--panel-bg); border-radius: 8px; overflow-y: auto;
-    font-size: 14px; display: flex; flex-direction: column-reverse;
+    font-size: 14px; display: flex; flex-direction: column;
 }
 .log-panel p { margin-bottom: 5px; }
 
@@ -2245,11 +2245,16 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
       display: flex;
       flex-direction: column;
       transform: translateX(-100%);
-      transition: transform 0.3s ease-in-out;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 4px 0 15px rgba(0,0,0,0.2);
+      opacity: 0;
+      visibility: hidden;
   }
+
   .log-panel-wrapper.visible {
       transform: translateX(0);
+      opacity: 1;
+      visibility: visible;
   }
   .log-panel-header {
       display: flex;
@@ -2258,7 +2263,27 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
       padding: 10px 15px;
       border-bottom: 1px solid var(--border-color, #444);
       background-color: var(--cell-bg, #232323);
+      flex-shrink: 0;
   }
+
+  .log-panel-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+  }
+
+  .log-panel-btn {
+      background: none;
+      border: none;
+      color: var(--text-color, #fff);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+      opacity: 0.7;
+  }
+
   .log-panel-header h3 {
       margin: 0;
       font-size: 1.1em;
@@ -2272,15 +2297,156 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
       cursor: pointer;
       padding: 0 8px;
       line-height: 1;
+      transition: color 0.2s ease;
   }
-  .log-panel-close:hover {
-      color: var(--danger-color);
+  .log-search-container {
+      display: flex;
+      padding: 10px 15px;
+      border-bottom: 1px solid var(--border-color, #444);
+      background-color: var(--cell-bg, #232323);
+      flex-shrink: 0;
   }
-  #log-panel p:first-child {
+
+  .log-search-input {
+      flex-grow: 1;
+      background-color: var(--bg-color, #1a1a1a);
+      border: 1px solid var(--border-color, #444);
+      border-radius: 4px;
+      padding: 8px 12px;
+      color: var(--text-color, #fff);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease;
+  }
+
+  .log-search-input:focus {
+      border-color: var(--highlight-color, #ffd700);
+      box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
+  }
+
+  .log-search-input::placeholder {
+      color: var(--text-color-darker, #aaa);
+      opacity: 0.7;
+  }
+
+  .log-search-btn {
+      background-color: var(--highlight-color, #ffd700);
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-left: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 16px;
+  }
+
+  .log-reset-btn {
+      background-color: var(--text-color-darker, #aaa);
+      font-size: 14px;
+      padding: 8px 10px;
+  }
+
+  .log-panel {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 15px;
+      background-color: var(--panel-bg, #1a1a1a);
+      font-size: 14px;
+      line-height: 1.4;
+      color: var(--text-color, #fff);
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-color, #444) transparent;
+  }
+
+  /* Стили для скроллбара в WebKit браузерах */
+  .log-panel::-webkit-scrollbar {
+      width: 8px;
+  }
+
+  .log-panel::-webkit-scrollbar-track {
+      background: transparent;
+  }
+
+  .log-panel::-webkit-scrollbar-thumb {
+      background-color: var(--border-color, #444);
+      border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+  }
+
+  .log-panel::-webkit-scrollbar-thumb:hover {
+      background-color: var(--highlight-color, #ffd700);
+  }
+  .log-panel p {
+      margin: 0 0 8px 0;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      word-wrap: break-word;
+      padding-left: 10px;
+  }
+  .log-panel p:first-child {
       margin-top: 0;
   }
-  #log-panel p:last-child {
+  .log-panel p:last-child {
       margin-bottom: 0;
+  }
+  /* Стили для записей лога */
+  .log-entry {
+      position: relative;
+      padding: 8px 12px;
+      margin: 4px 0;
+      border-radius: 6px;
+      background-color: rgba(255, 255, 255, 0.02);
+      border-left: 3px solid transparent;
+      padding-left: 10px;
+  }
+
+  .log-entry.log-win {
+      border-left-color: var(--highlight-color);
+      background-color: rgba(255, 215, 0, 0.1);
+  }
+
+  .log-entry.log-loss {
+      border-left-color: var(--danger-color);
+      background-color: rgba(220, 53, 69, 0.1);
+  }
+
+  .log-entry.log-money {
+      border-left-color: var(--money-color);
+      background-color: rgba(40, 167, 69, 0.1);
+  }
+
+  .log-entry.log-luck {
+      border-left-color: var(--luck-color);
+      background-color: rgba(102, 16, 242, 0.1);
+  }
+
+  .log-entry.log-info {
+      border-left-color: var(--text-color);
+      background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .log-entry.log-spin {
+      border-left-color: var(--text-color);
+      background-color: rgba(255, 255, 255, 0.03);
+  }
+
+  .log-entry.log-item {
+      border-left-color: var(--highlight-color);
+      background-color: rgba(255, 215, 0, 0.08);
+  }
+
+  .log-entry.log-passive {
+      border-left-color: var(--luck-color);
+      background-color: rgba(102, 16, 242, 0.08);
+  }
+
+  .log-time {
+      color: var(--text-color-darker);
+      font-size: 0.8em;
+      margin-right: 8px;
+      opacity: 0.7;
+      font-family: monospace;
   }
 
   /* --- Стили для модального окна статистики --- */

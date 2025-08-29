@@ -5121,18 +5121,224 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function addLog(message, type = 'normal') {
+        // Фильтруем отладочные сообщения
         if (typeof message === 'string' && (message.startsWith('[DEBUG]') || message.startsWith('[Квантовая Запутанность]') || message.startsWith('Dev:'))) return;
+        
+        // Форматируем числа с разделителями
         if (typeof message === 'string') {
             message = message.replace(/\b(\d+)(?=(\d{3})+(?!\d)\b)/g, (match) => match.replace(/,/g, ''));
             message = message.replace(/\b(\d{1,3})(?=(\d{3})+(?!\d)\b)/g, '$1,');
         }
+        
+        // Создаем элемент лога
         const logEntry = document.createElement('p');
-        logEntry.innerHTML = `> ${message}`;
-        if (type === 'win') logEntry.style.color = 'var(--highlight-color)';
-        if (type === 'loss') logEntry.style.color = 'var(--danger-color)';
+        logEntry.className = `log-entry log-${type}`;
+        
+        // Добавляем временную метку
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        // Форматируем сообщение в зависимости от типа
+        let formattedMessage = message;
+        let icon = '';
+        
+        if (type === 'win') {
+            icon = '🎉';
+            logEntry.style.color = 'var(--highlight-color)';
+        } else if (type === 'loss') {
+            icon = '💀';
+            logEntry.style.color = 'var(--danger-color)';
+        } else if (type === 'info') {
+            icon = 'ℹ️';
+            logEntry.style.color = 'var(--text-color)';
+        } else if (type === 'money') {
+            icon = '💰';
+            logEntry.style.color = 'var(--money-color)';
+        } else if (type === 'luck') {
+            icon = '🍀';
+            logEntry.style.color = 'var(--luck-color)';
+        } else if (type === 'spin') {
+            icon = '🎰';
+            logEntry.style.color = 'var(--text-color)';
+        } else if (type === 'item') {
+            icon = '🎁';
+            logEntry.style.color = 'var(--highlight-color)';
+        } else if (type === 'passive') {
+            icon = '⚡';
+            logEntry.style.color = 'var(--luck-color)';
+        } else {
+            icon = '>';
+            logEntry.style.color = 'var(--text-color)';
+        }
+        
+        formattedMessage = icon ? `${icon} ${message}` : message;
+        
+        logEntry.innerHTML = `<span class="log-time">${timeString}</span> ${formattedMessage}`;
+        
+        // Добавляем в начало панели
         ui.logPanel.insertBefore(logEntry, ui.logPanel.firstChild);
-        if (ui.logPanel.children.length > 50) ui.logPanel.removeChild(ui.logPanel.lastChild);
+        
+        // Ограничиваем количество записей
+        if (ui.logPanel.children.length > 100) {
+            ui.logPanel.removeChild(ui.logPanel.lastChild);
+        }
+        
+        // Автоматически прокручиваем к новому сообщению
+        ui.logPanel.scrollTop = 0;
+        
+        // Добавляем анимацию появления
+        logEntry.style.opacity = '0';
+        logEntry.style.transform = 'translateY(-10px)';
+        setTimeout(() => {
+            logEntry.style.transition = 'all 0.3s ease';
+            logEntry.style.opacity = '1';
+            logEntry.style.transform = 'translateY(0)';
+        }, 10);
     }
+
+    // Функция для очистки лога
+    function clearLog() {
+        if (ui.logPanel) {
+            ui.logPanel.innerHTML = '';
+            addLog('Лог очищен', 'info');
+        }
+    }
+
+    // Делаем функцию доступной глобально
+    window.clearLog = clearLog;
+
+    /*
+    // Функция для экспорта лога в файл
+    function exportLog() {
+        if (!ui.logPanel) return;
+        
+        const logEntries = Array.from(ui.logPanel.children).map(entry => {
+            const time = entry.querySelector('.log-time')?.textContent || '';
+            const message = entry.textContent.replace(time, '').trim();
+            return `[${time}] ${message}`;
+        }).reverse(); // Разворачиваем в хронологическом порядке
+        
+        const logText = logEntries.join('\n');
+        const blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `game-log-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        addLog('Лог экспортирован в файл', 'info');
+    }
+    */
+
+    // Делаем функцию экспорта доступной глобально
+    //window.exportLog = exportLog;
+
+    // Функция для поиска по логу
+    function searchLog(query) {
+        if (!ui.logPanel || !query) return;
+        
+        const entries = Array.from(ui.logPanel.children);
+        let foundCount = 0;
+        
+        entries.forEach(entry => {
+            const text = entry.textContent.toLowerCase();
+            const matches = text.includes(query.toLowerCase());
+            
+            if (matches) {
+                entry.style.backgroundColor = 'rgba(255, 215, 0, 0.2)';
+                entry.style.borderLeftColor = 'var(--highlight-color)';
+                foundCount++;
+            } else {
+                // Восстанавливаем оригинальные стили
+                const type = entry.className.match(/log-(\w+)/)?.[1] || 'normal';
+                if (type === 'win') {
+                    entry.style.backgroundColor = 'rgba(255, 215, 0, 0.1)';
+                    entry.style.borderLeftColor = 'var(--highlight-color)';
+                } else if (type === 'loss') {
+                    entry.style.backgroundColor = 'rgba(220, 53, 69, 0.1)';
+                    entry.style.borderLeftColor = 'var(--danger-color)';
+                } else if (type === 'money') {
+                    entry.style.backgroundColor = 'rgba(40, 167, 69, 0.1)';
+                    entry.style.borderLeftColor = 'var(--money-color)';
+                } else if (type === 'luck') {
+                    entry.style.backgroundColor = 'rgba(102, 16, 242, 0.1)';
+                    entry.style.borderLeftColor = 'var(--luck-color)';
+                } else if (type === 'info') {
+                    entry.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                    entry.style.borderLeftColor = 'var(--text-color)';
+                } else if (type === 'spin') {
+                    entry.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                    entry.style.borderLeftColor = 'var(--text-color)';
+                } else if (type === 'item') {
+                    entry.style.backgroundColor = 'rgba(255, 215, 0, 0.08)';
+                    entry.style.borderLeftColor = 'var(--highlight-color)';
+                } else if (type === 'passive') {
+                    entry.style.backgroundColor = 'rgba(102, 16, 242, 0.08)';
+                    entry.style.borderLeftColor = 'var(--luck-color)';
+                } else {
+                    entry.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+                    entry.style.borderLeftColor = 'transparent';
+                }
+            }
+        });
+        
+        if (foundCount > 0) {
+            addLog(`Найдено ${foundCount} записей по запросу "${query}"`, 'info');
+        } else {
+            addLog(`По запросу "${query}" ничего не найдено`, 'info');
+        }
+    }
+
+    // Делаем функцию поиска доступной глобально
+    window.searchLog = searchLog;
+
+    // Функция для сброса поиска
+    function resetLogSearch() {
+        if (!ui.logPanel) return;
+        
+        const entries = Array.from(ui.logPanel.children);
+        
+        entries.forEach(entry => {
+            const type = entry.className.match(/log-(\w+)/)?.[1] || 'normal';
+            if (type === 'win') {
+                entry.style.backgroundColor = 'rgba(255, 215, 0, 0.1)';
+                entry.style.borderLeftColor = 'var(--highlight-color)';
+            } else if (type === 'loss') {
+                entry.style.backgroundColor = 'rgba(220, 53, 69, 0.1)';
+                entry.style.borderLeftColor = 'var(--danger-color)';
+            } else if (type === 'money') {
+                entry.style.backgroundColor = 'rgba(40, 167, 69, 0.1)';
+                entry.style.borderLeftColor = 'var(--money-color)';
+            } else if (type === 'luck') {
+                entry.style.backgroundColor = 'rgba(102, 16, 242, 0.1)';
+                entry.style.borderLeftColor = 'var(--luck-color)';
+            } else if (type === 'info') {
+                entry.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                entry.style.borderLeftColor = 'var(--text-color)';
+            } else if (type === 'spin') {
+                entry.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                entry.style.borderLeftColor = 'var(--text-color)';
+            } else if (type === 'item') {
+                entry.style.backgroundColor = 'rgba(255, 215, 0, 0.08)';
+                entry.style.borderLeftColor = 'var(--highlight-color)';
+            } else if (type === 'passive') {
+                entry.style.backgroundColor = 'rgba(102, 16, 242, 0.08)';
+                entry.style.borderLeftColor = 'var(--luck-color)';
+            } else {
+                entry.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+                entry.style.borderLeftColor = 'transparent';
+            }
+        });
+        
+        addLog('Поиск сброшен', 'info');
+    }
+
+    // Делаем функцию сброса поиска доступной глобально
+    window.resetLogSearch = resetLogSearch;
 
     // --- ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Максимальный размер инвентаря ---
     function getMaxInventorySize() {

@@ -262,9 +262,18 @@
     <div id="log-panel-wrapper" class="log-panel-wrapper">
         <div class="log-panel-header">
             <h3>Лог Раунда</h3>
-            <button id="btn-close-log" class="log-panel-close">&times;</button>
+            <div class="log-panel-controls">
+                <!-- <button id="btn-export-log" class="log-panel-btn" title="Экспортировать лог">📤</button> -->
+                <button id="btn-clear-log" class="log-panel-btn" title="Очистить лог">🗑️</button>
+                <button id="btn-close-log" class="log-panel-close">&times;</button>
+            </div>
         </div>
-        <div id="log-panel" class="log-panel" style="flex-grow: 1; overflow-y: auto; padding: 10px;">
+        <div class="log-search-container">
+            <input type="text" id="log-search" class="log-search-input" placeholder="Поиск по логу..." />
+            <button id="btn-search-log" class="log-search-btn">🔍</button>
+            <button id="btn-reset-search" class="log-search-btn log-reset-btn" title="Сбросить поиск">↺</button>
+        </div>
+        <div id="log-panel" class="log-panel">
             <!-- Содержимое лога, генерируемое skript.js -->
         </div>
     </div>
@@ -689,6 +698,11 @@
             const logWrapper = document.getElementById('log-panel-wrapper');
             const toggleBtn = document.getElementById('btn-toggle-log');
             const closeBtn = document.getElementById('btn-close-log');
+            const clearBtn = document.getElementById('btn-clear-log');
+            const exportBtn = document.getElementById('btn-export-log');
+            const searchInput = document.getElementById('log-search');
+            const searchBtn = document.getElementById('btn-search-log');
+            const resetSearchBtn = document.getElementById('btn-reset-search');
             
             if (toggleBtn) {
                 toggleBtn.addEventListener('click', () => {
@@ -699,6 +713,49 @@
             if (closeBtn) {
                 closeBtn.addEventListener('click', () => {
                     logWrapper.classList.remove('visible');
+                });
+            }
+
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    if (window.clearLog) {
+                        window.clearLog();
+                    }
+                });
+            }
+
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => {
+                    if (window.exportLog) {
+                        window.exportLog();
+                    }
+                });
+            }
+
+            if (searchBtn) {
+                searchBtn.addEventListener('click', () => {
+                    if (searchInput && window.searchLog) {
+                        window.searchLog(searchInput.value);
+                    }
+                });
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && window.searchLog) {
+                        window.searchLog(searchInput.value);
+                    }
+                });
+            }
+
+            if (resetSearchBtn) {
+                resetSearchBtn.addEventListener('click', () => {
+                    if (window.resetLogSearch) {
+                        window.resetLogSearch();
+                        if (searchInput) {
+                            searchInput.value = '';
+                        }
+                    }
                 });
             }
         });
