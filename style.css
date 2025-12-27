@@ -4106,3 +4106,109 @@ h1, h2, h3, h4, h5, h6 {
     }
 }
 
+/* --- JUICE: Paylines & Animations --- */
+
+/* Стили для SVG линий */
+.payline-path {
+    fill: none;
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    animation: drawLine 0.4s ease-out forwards, pulseLine 1s infinite alternate 0.4s;
+    filter: drop-shadow(0 0 5px var(--money-color));
+}
+
+@keyframes drawLine {
+    from { stroke-dasharray: 0, 2000; opacity: 1; }
+    to { stroke-dasharray: 2000, 0; opacity: 1; }
+}
+
+@keyframes pulseLine {
+    from { stroke-width: 6; filter: drop-shadow(0 0 5px var(--money-color)); }
+    to { stroke-width: 8; filter: drop-shadow(0 0 15px var(--highlight-color)); }
+}
+
+/* Плавающий текст выигрыша над линией */
+.floating-win-text {
+    position: absolute;
+    color: #fff;
+    font-weight: 900;
+    font-size: 24px;
+    text-shadow: 
+        -2px -2px 0 #000,  
+        2px -2px 0 #000,
+        -2px 2px 0 #000,
+        2px 2px 0 #000,
+        0 0 10px var(--money-color);
+    pointer-events: none;
+    z-index: 100;
+    animation: floatUpAndFade 1.5s ease-out forwards;
+    white-space: nowrap;
+}
+
+@keyframes floatUpAndFade {
+    0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, -20px) scale(1.2); opacity: 1; }
+    80% { transform: translate(-50%, -50px) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -70px) scale(0.8); opacity: 0; }
+}
+
+/* Улучшенный попап ОБЩЕГО выигрыша */
+.total-win-popup {
+    /* Переопределяем старый стиль */
+    background: radial-gradient(circle, rgba(40,40,40,0.95) 0%, rgba(10,10,10,0.98) 100%) !important;
+    border: 4px solid var(--money-color) !important;
+    box-shadow: 0 0 50px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(0,0,0,0.8) !important;
+    padding: 40px 60px !important;
+    min-width: 300px;
+}
+
+.total-win-popup .win-title {
+    font-family: 'Cinzel', serif;
+    font-size: 28px !important;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: linear-gradient(to bottom, #fff, #ccc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 20px !important;
+}
+
+.total-win-popup .win-amount {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 64px !important;
+    background: linear-gradient(to bottom, #ffd700, #ff8c00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 0px rgba(0,0,0,0.5));
+    transform: scale(1);
+    transition: transform 0.1s;
+}
+
+/* Эффект "удара" при наборе цифр */
+.win-amount.bump {
+    transform: scale(1.2);
+}
+
+/* Солнечные лучи на фоне попапа */
+.total-win-popup::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 200%; height: 200%;
+    background: repeating-conic-gradient(
+        from 0deg,
+        rgba(255, 215, 0, 0.05) 0deg 10deg,
+        transparent 10deg 20deg
+    );
+    transform: translate(-50%, -50%);
+    animation: rotateRays 10s linear infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+@keyframes rotateRays {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}

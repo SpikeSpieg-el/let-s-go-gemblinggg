@@ -192,13 +192,17 @@
 
     <div class="game-container">
         <div class="main-panel">
-            <div class="slot-area">
-                <div id="slot-machine" class="slot-machine"></div>
-                <div class="lever-container">
-                    <div id="lever" class="lever"><div class="lever-handle"></div></div>
-                    <div class="lever-base"></div>
-                </div>
-            </div>
+            <div class="slot-area" style="position: relative;"> <!-- Добавили relative -->
+    <!-- Добавляем SVG слой поверх слот-машины -->
+    <svg id="payline-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:50; overflow: visible;"></svg>
+    
+    <div id="slot-machine" class="slot-machine"></div>
+    
+    <div class="lever-container">
+        <div id="lever" class="lever"><div class="lever-handle"></div></div>
+        <div class="lever-base"></div>
+    </div>
+</div>
             <div class="controls">
                 <span>Прокрутов осталось: <span id="spins-left">0</span></span>
                 <button id="btn-end-turn">Закончить раунд</button>
