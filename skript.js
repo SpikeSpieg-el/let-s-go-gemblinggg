@@ -1802,6 +1802,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } else {
             positions.forEach(pos => {
+                setTimeout(() => {
                 const cell = cells[pos];
                 if (cell) {
                     cell.classList.add(highlightClass);
@@ -1809,7 +1810,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (mirrorPositions.includes(pos)) {
                         cell.classList.add('mirror-highlight');
                     }
+                    if (winAmount > 0 && index === 0) {
+                             flyResource(cell, '#stat-coins', 'coin', 1);
+                        }
                 }
+                }, index * 150);
             });
             
             setTimeout(() => {
@@ -3851,62 +3856,177 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof num !== 'number') return num;
         return num.toLocaleString('en-US');
     }
+    // Функция полета визуальных элементов (монет/талонов)
+function flyResource(fromElement, targetElementId, type = 'coin', amount = 1) {
+    if (!fromElement) return;
+    const targetEl = document.getElementById(targetElementId);
+    if (!targetEl) return;
+
+    // Ограничиваем количество частиц для производительности
+    const count = Math.min(amount > 10 ? 5 : 1, 10); 
+    const symbol = type === 'coin' ? '💰' : '🎟️';
+
+    const startRect = fromElement.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
+
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+            const flyer = document.createElement('div');
+            flyer.className = 'resource-flyer';
+            flyer.textContent = symbol;
+            
+            // Начальная позиция (центр исходного элемента)
+            flyer.style.left = (startRect.left + startRect.width / 2 - 12) + 'px';
+            flyer.style.top = (startRect.top + startRect.height / 2 - 12) + 'px';
+            
+            document.body.appendChild(flyer);
+
+            // Небольшой разброс при старте
+            const randomX = (Math.random() - 0.5) * 50;
+            const randomY = (Math.random() - 0.5) * 50;
+
+            // Сначала разлетаются немного в стороны
+            requestAnimationFrame(() => {
+                flyer.style.transform = `translate(${randomX}px, ${randomY}px) scale(1.5)`;
+                
+                // Потом летят к цели
+                setTimeout(() => {
+                    const currentRect = flyer.getBoundingClientRect();
+                    // Вычисляем дельту до цели
+                    const deltaX = (targetRect.left + targetRect.width / 2) - (currentRect.left + currentRect.width / 2);
+                    const deltaY = (targetRect.top + targetRect.height / 2) - (currentRect.top + currentRect.height / 2);
+
+                    flyer.style.transform = `translate(${deltaX + randomX}px, ${deltaY + randomY}px) scale(0.5)`;
+                    flyer.style.opacity = '0.5';
+                }, 100);
+            });
+
+            // Удаление
+            setTimeout(() => {
+                flyer.remove();
+                // Пульсация цели при прилете
+                targetEl.classList.remove('stat-pulse');
+                void targetEl.offsetWidth; // Reflow
+                targetEl.classList.add('stat-pulse');
+            }, 900);
+
+        }, i * 100);
+    }
+}
+
+// Функция плавной прокрутки чисел (Rolling Numbers)
+// Заменяет мгновенное изменение текста на счетчик
+const rollingState = { coins: 0, tickets: 0 }; // Храним текущее отображаемое значение
+
+function animateNumber(element, start, end, duration = 1000, suffix = '') {
+    if (!element) return;
+    if (start === end) {
+        element.textContent = formatNumberWithComma(end) + suffix;
+        return;
+    }
+
+    const startTime = performance.now();
     
-    function updateUI() {
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing easeOutQuart
+        const ease = 1 - Math.pow(1 - progress, 4);
+        
+        const current = Math.floor(start + (end - start) * ease);
+        element.textContent = formatNumberWithComma(current) + suffix;
+
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        } else {
+            element.textContent = formatNumberWithComma(end) + suffix;
+        }
+    }
+    requestAnimationFrame(update);
+}
+function updateUI() {
         if (!state || Object.keys(state).length === 0) return;
         ui.statRun.textContent = state.run;
         ui.statTurn.textContent = `${state.turn} / 3`;
         ui.statDebt.textContent = `${formatNumberWithComma(state.targetDebt)}💲`;
         if (ui.statDebtStart) ui.statDebtStart.textContent = `${formatNumberWithComma(state.targetDebt)}💲`;
         
-        // [FIX] Сначала обновляем HTML, чтобы получить правильные координаты для анимации
-        ui.statCoins.innerHTML = `<span>${formatNumberWithComma(state.coins)}💲</span>`;
+        // --- АНИМАЦИЯ МОНЕТ (Rolling Numbers) ---
+        // Инициализация (первый запуск)
+        if (!rollingState.initialized) {
+            rollingState.coins = state.coins;
+            rollingState.tickets = state.tickets;
+            rollingState.initialized = true;
+            ui.statCoins.innerHTML = `<span>${formatNumberWithComma(state.coins)}💲</span>`;
+        } 
         
-        // Анимация монет
+        // Если монеты изменились, запускаем прокрутку
+        if (rollingState.coins !== state.coins) {
+            const coinSpan = ui.statCoins.querySelector('span');
+            if (coinSpan) {
+                animateNumber(coinSpan, rollingState.coins, state.coins, 1000, '💲');
+            } else {
+                // Если span пропал, пересоздаем
+                ui.statCoins.innerHTML = `<span>${formatNumberWithComma(state.coins)}💲</span>`;
+            }
+            rollingState.coins = state.coins;
+        }
+
+        // Попап изменения (+100) оставляем как дополнительный фидбек
         if (ui.statCoins && typeof lastKnownCoins !== 'undefined' && lastKnownCoins !== state.coins) {
             const change = state.coins - lastKnownCoins;
-            console.log(`[DEBUG] Анимация монет: ${lastKnownCoins} -> ${state.coins}, изменение: ${change}`);
+            // console.log(`[DEBUG] Анимация монет: ${lastKnownCoins} -> ${state.coins}`);
             showCoinChangePopup(change);
         }
         lastKnownCoins = state.coins;
         
         ui.bankBalance.textContent = `${formatNumberWithComma(state.bankBalance)}💲`;
         
-        // [FIX] Сначала обновляем HTML, чтобы получить правильные координаты для анимации
-        // ui.statTickets.innerHTML = `<span>${formatNumberWithComma(state.tickets)}🎟️</span>`;
+        // --- АНИМАЦИЯ ТАЛОНОВ ---
         const shopTickets = document.querySelector('.shop-tickets-info #stat-tickets');
         if (shopTickets) {
-            shopTickets.innerHTML = `<span>${formatNumberWithComma(state.tickets)}🎟️</span>`;
+            // Если изменились талоны, запускаем прокрутку
+            if (rollingState.tickets !== state.tickets) {
+                // Если внутри нет span, создадим его, иначе ищем
+                let ticketSpan = shopTickets.querySelector('span');
+                if (!ticketSpan) {
+                    shopTickets.innerHTML = `<span>${formatNumberWithComma(rollingState.tickets)}🎟️</span>`;
+                    ticketSpan = shopTickets.querySelector('span');
+                }
+                animateNumber(ticketSpan, rollingState.tickets, state.tickets, 800, '🎟️');
+                rollingState.tickets = state.tickets;
+            } else if (shopTickets.innerHTML.trim() === '') {
+                 // Защита от пустого отображения
+                 shopTickets.innerHTML = `<span>${formatNumberWithComma(state.tickets)}🎟️</span>`;
+            }
         }
-        // Анимация талонов (теперь только для магазина)
+
+        // Попап изменения талонов
         if (shopTickets && typeof lastKnownTickets !== 'undefined' && lastKnownTickets !== state.tickets) {
             const change = state.tickets - lastKnownTickets;
-            console.log(`[DEBUG] Анимация талонов: ${lastKnownTickets} -> ${state.tickets}, изменение: ${change}`);
             showTicketChangePopup(change);
         }
         lastKnownTickets = state.tickets;
         
-        // Обновляем счетчик прокрутов, только если не идет анимация
+        // Обновляем счетчик прокрутов, только если не идет анимация падения
         if (!ui.spinsLeft.querySelector('.spins-counter')) {
             ui.spinsLeft.textContent = state.spinsLeft;
         }
         
+        // --- РАСЧЕТ УДАЧИ (оставляем без изменений) ---
         const baseLuck = getItemEffectValue('luck', 0) + (state.permanentLuckBonus || 0);
         const debtLuck = getItemEffectValue('per_run_bonus.luck', 0, 'sum') * state.run;
 
-        // [NEW] Расчет бонуса от "Коллекционера талонов"
         let ticketLuck = 0;
         if (hasItem('ticket_hoarder')) {
             const effect = ALL_ITEMS.find(i => i.id === 'ticket_hoarder').effect.per_ticket_luck;
             ticketLuck = Math.floor(state.tickets / effect.per) * effect.luck;
         }
 
-        // [FIX] Добавляем расчет бонуса от "Гордость барахольщика"
         let hoarderLuck = getHoarderPrideBonus();
 
-        // --- Универсальный подсчёт временной удачи от всех temporary_luck_on_spin ---
         let tempLuckFromItems = 0;
-        let tempLuckDetails = [];
         if (Array.isArray(state.grid)) {
             state.inventory.forEach(item => {
                 if (item.effect?.temporary_luck_on_spin) {
@@ -3914,39 +4034,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     const count = state.grid.filter(s => s && s.id === symbolId).length;
                     if (count > 0) {
                         tempLuckFromItems += count;
-                        tempLuckDetails.push({ name: item.name, count });
                     }
                 }
-                // [NEW] conditional_luck: если на поле есть хотя бы один указанный символ, даём фиксированный бонус
                 if (item.effect?.conditional_luck) {
                     const { symbol, bonus } = item.effect.conditional_luck;
-                    const found = state.grid.some(s => s && s.id === symbol);
-                    if (found) {
+                    if (state.grid.some(s => s && s.id === symbol)) {
                         tempLuckFromItems += bonus;
-                        addLog(`${item.name}: +${bonus} к временной удаче (условие выполнено).`, 'win');
-                        animateInventoryItem(item.id);
                     }
                 }
             });
         }
-        // ... существующий код ...
+
         let luckText = `${baseLuck}`;
         if (debtLuck > 0) luckText += ` (+${formatNumberWithComma(debtLuck)} от долга)`;
         if (ticketLuck > 0) luckText += ` (+${ticketLuck} от талонов)`;
         if (state.tempLuck > 0) luckText += ` (+${formatNumberWithComma(state.tempLuck)})`;
         if (state.cherryLuckBonus > 0) luckText += ` (+${state.cherryLuckBonus} Вишнёвая удача)`;
         if (hoarderLuck > 0) luckText += ` (+${hoarderLuck} за слоты)`;
-        if (hasItem('luck_battery')) {
-            state.luckBatteryCharge = state.luckBatteryCharge || 0;
-            if (state.luckBatteryCharge > 0) {
-                luckText += ` (+${state.luckBatteryCharge} батарея удачи)`;
-            }
+        if (hasItem('luck_battery') && state.luckBatteryCharge > 0) {
+            luckText += ` (+${state.luckBatteryCharge} батарея удачи)`;
         }
-        // --- Универсальная строка для временной удачи от всех temporary_luck_on_spin ---
         if (tempLuckFromItems > 0) {
             luckText += ` (+${tempLuckFromItems} временных бонусов)`;
         }
-        // [NEW] Показываем бонус от Шляпы удачи, если он сработал
         if (hasItem('lucky_hat')) {
             const effect = ALL_ITEMS.find(i => i.id === 'lucky_hat').effect.every_n_spin_luck;
             if ((state.roundSpinsMade + 1) % effect.n === 0) {
@@ -3959,22 +4069,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cherryLuckInfo) cherryLuckInfo.remove();
         ui.atmInterestRate.textContent = (state.baseInterestRate * 100).toFixed(0);
         
+        // --- INTEREST INFO ---
         let bonus = state.inventory.reduce((acc, item) => acc + (item.effect?.interest_rate_bonus || 0), 0);
-        let bonusText = '';
-        if (bonus > 0) bonusText = ` <span style="color:var(--highlight-color); font-size:12px;">(+${(bonus*100).toFixed(0)}% от предметов)</span>`;
+        let bonusText = bonus > 0 ? ` <span style="color:var(--highlight-color); font-size:12px;">(+${(bonus*100).toFixed(0)}% от предметов)</span>` : '';
         let percent = state.baseInterestRate;
         let bank = state.bankBalance;
         let profit = Math.floor(bank * percent);
         let profitText = `<div style='font-size:13px; margin-top:4px;'>След. процент: <b style='color:var(--money-color)'>+${formatNumberWithComma(profit)}💲</b> (${(percent*100).toFixed(0)}%${bonusText})</div>`;
+        
         let infoBlock = document.getElementById('interest-info-block');
         const statsGrid = ui.atmInterestRate.parentElement.parentElement;
         if (!infoBlock) {
             infoBlock = document.createElement('div');
             infoBlock.id = 'interest-info-block';
+            statsGrid.insertAdjacentElement('afterend', infoBlock);
         }
-        statsGrid.insertAdjacentElement('afterend', infoBlock);
         infoBlock.innerHTML = profitText;
         
+        // --- EARLY PAYOFF SECTION ---
         if (state.turn >= 3) {
             ui.earlyPayoffSection.style.display = 'none';
         } else {
@@ -3996,25 +4108,21 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.earlyPayoffBonusInfo.innerHTML = bonusInfo;
         }
 
-        //ui.btnEndTurn.disabled = state.isSpinning || state.spinsLeft > 0;
-
+        // --- BUTTONS STATE ---
         let rerollCost = CONFIG.REROLL_COST;
         if (hasPassive('reroll_master') && !state.flags.firstRerollUsed) {
             rerollCost = Math.max(0, rerollCost - 1);
         }
-        // [FIX] КОРРЕКТНОЕ ОТОБРАЖЕНИЕ БЕСПЛАТНЫХ РЕРОЛЛОВ
         if (state.freeRerolls > 0) {
-            ui.btnRerollShop.textContent = `Обновить агазин (Бесплатно: ${state.freeRerolls})`;
+            ui.btnRerollShop.textContent = `Обновить магазин (Бесплатно: ${state.freeRerolls})`;
         } else {
             ui.btnRerollShop.textContent = `Обновить магазин (${rerollCost}🎟️)`;
         }
+        
         renderInventory(); 
         renderShop();
-        
-        // Обновляем данные для статистики
         updateWeightedSymbols();
 
-        // --- ПОДСВЕТКА ДЖЕКПОТ-ЯЧЕЙКИ (СЕРДЦЕ АВТОМАТА) ---
         const cells = ui.slotMachine.querySelectorAll('.slot-cell');
         cells.forEach(cell => cell.classList.remove('jackpot-cell-heart'));
         if (hasItem('slot_machine_heart') && typeof state.jackpotCellIndex === 'number') {
@@ -4048,21 +4156,34 @@ document.addEventListener('DOMContentLoaded', () => {
             reel.innerHTML = '';
             
             const reelSymbols = [];
-            for (let j = 0; j < 19; j++) {
+            // Генерируем "полосу" прокрутки
+            for (let j = 0; j < 20; j++) { // Увеличили длину полосы для надежности
                 reelSymbols.push(weightedSymbols[Math.floor(Math.random() * weightedSymbols.length)]);
             }
+            
+            // Предпоследний - это наш целевой символ (индекс 20)
             reelSymbols.push(finalGrid[i]);
+            
+            // ВАЖНО: Добавляем еще один "буферный" символ после целевого.
+            // Это нужно, чтобы при анимации "отскока" (landing) снизу не было пустоты.
+            reelSymbols.push(weightedSymbols[Math.floor(Math.random() * weightedSymbols.length)]);
+
+            // Теперь у нас 22 символа. 
+            // Индекс целевого символа: 20 (если считать с 0).
+            // Высота одного символа: 100% / 22.
+            
+            // Настраиваем высоту рила под кол-во символов
+            const totalItems = reelSymbols.length;
+            reel.style.height = `${totalItems * 100}%`;
 
             reelSymbols.forEach(symbol => {
-                if (!symbol) { 
-                    console.error("Attempted to render an undefined symbol. Grid:", finalGrid, "Weighted Symbols:", weightedSymbols);
-                    return; 
-                }
+                if (!symbol) return;
                 const symbolDiv = document.createElement('div');
                 symbolDiv.className = 'symbol';
                 symbolDiv.textContent = symbol.graphic;
+                // Явно задаем высоту символа в процентах от рила
+                symbolDiv.style.height = `${100 / totalItems}%`;
                 
-                // Добавляем золотой класс если символ золотой
                 if (symbol.isGolden) {
                     symbolDiv.classList.add('golden');
                 }
@@ -4072,38 +4193,75 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isInitial) {
                 reel.style.transition = 'none';
-                reel.style.transform = `translateY(-95%)`;
+                // Сразу ставим на целевую позицию. 
+                // Цель - 20-й элемент (предпоследний).
+                // Сдвиг = -(20 * (100 / 22))%
+                const targetPercent = -(20 * (100 / totalItems));
+                reel.style.transform = `translate3d(0, ${targetPercent}%, 0)`;
             }
         });
+    
     }
     
-    async function runSpinAnimation() {
-        updateReels(false);
 
-        const reels = ui.slotMachine.querySelectorAll('.reel');
-        const promises = [];
-        
-        reels.forEach((reel, i) => {
-            reel.style.transition = 'none';
-            reel.style.transform = 'translateY(0)';
-            reel.offsetHeight;
+async function runSpinAnimation() {
+    updateReels(false); // Генерируем новые полосы
 
-            const delay = (i % CONFIG.COLS) * 100;
-            promises.push(new Promise(resolve => {
-                setTimeout(() => {
-                    reel.style.transition = `transform ${CONFIG.SPIN_ANIMATION_TIME / 1000}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
-                    reel.style.transform = `translateY(-95%)`;
-                    reel.addEventListener('transitionend', resolve, { once: true });
-                }, delay);
-            }));
-        });
-        
-        await Promise.all(promises);
-        await new Promise(res => setTimeout(res, 200));
-        
-        // Обновляем отображение золотых символов после завершения анимации
-        updateGoldenSymbolsDisplay();
-    }
+    const reels = ui.slotMachine.querySelectorAll('.reel');
+    const promises = [];
+    
+    // Базовое время вращения. Уменьшаем для динамики.
+    // 1-й барабан остановится через 1.2с, последний через ~1.6с
+    const baseDuration = 1.2; 
+    
+    reels.forEach((reel, i) => {
+        // Сброс без анимации
+        reel.style.transition = 'none';
+        reel.style.transform = 'translate3d(0, 0, 0)';
+        reel.classList.remove('landing'); 
+        void reel.offsetHeight; // Force Reflow
+
+        // Старт вращения
+        reel.classList.add('spinning');
+
+        // Задержка остановки для эффекта "волны" (слева направо)
+        // 100ms между барабанами — идеальный баланс
+        const stopDelay = i * 0.1; 
+        const totalDuration = baseDuration + stopDelay;
+
+        promises.push(new Promise(resolve => {
+            // Используем requestAnimationFrame для плавности старта
+            requestAnimationFrame(() => {
+                // cubic-bezier(0.45, 0.05, 0.55, 0.95) — это "sine-in-out" (разгон-торможение)
+                // Но мы хотим резкую остановку для эффекта удара, поэтому меняем на ease-in-out или custom
+                reel.style.transition = `transform ${totalDuration}s cubic-bezier(0.5, 0, 0.1, 1)`;
+                
+                // Целевая позиция (предпоследний символ из 22)
+                const totalItems = 22;
+                const targetPercent = -(20 * (100 / totalItems));
+                
+                reel.style.transform = `translate3d(0, ${targetPercent}%, 0)`;
+
+                // Слушаем окончание CSS перехода
+                reel.addEventListener('transitionend', () => {
+                    reel.classList.remove('spinning');
+                    reel.classList.add('landing'); // Запускает CSS @keyframes reelBounce
+                    
+                    // Звуковой эффект "стук" можно добавить здесь
+                    
+                    resolve();
+                }, { once: true });
+            });
+        }));
+    });
+    
+    await Promise.all(promises);
+    
+    // Пауза перед показом линий, чтобы игрок осознал остановку (250мс)
+    await new Promise(res => setTimeout(res, 250));
+    
+    updateGoldenSymbolsDisplay();
+}
 
     function createItemElement(item, purchaseCallback) {
         const itemDiv = document.createElement('div');
@@ -4787,81 +4945,99 @@ document.addEventListener('DOMContentLoaded', () => {
     // Обработчик клика по рычагу
     ui.lever.onclick = spin;
     
-    // Добавляем обработчики для drag & drop рычага
-    let isDragging = false;
-    let startY = 0;
-    let dragThreshold = 30; // Минимальное расстояние для активации спина
+    // ==========================================
+    // === НОВАЯ СТАБИЛЬНАЯ ЛОГИКА РЫЧАГА ===
+    // ==========================================
+
+    // Убираем старый клик, чтобы не мешал
+    ui.lever.onclick = null; 
     
-    // Обработчик начала перетаскивания
+    let isLeverDragging = false;
+    let leverStartY = 0;
+    const DRAG_THRESHOLD = 15; // Сколько пикселей тянуть, чтобы сработал спин
+    
+    // Единая функция запуска рычага
+    function activateLever() {
+        if (state.isSpinning || state.spinsLeft <= 0 || state.gameover) return;
+        
+        // Визуальный эффект нажатия
+        ui.lever.classList.add('pulled');
+        
+        // Запуск логики игры
+        spin();
+        
+        // Возврат рычага через 600мс
+        setTimeout(() => {
+            ui.lever.classList.remove('pulled');
+        }, 600);
+    }
+
+    // --- 1. Мышь (Desktop) ---
     ui.lever.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        startY = e.clientY;
-        ui.lever.style.cursor = 'grabbing';
-        ui.lever.classList.add('dragging');
-        e.preventDefault();
+        if (state.isSpinning) return;
+        isLeverDragging = true;
+        leverStartY = e.clientY;
+        ui.lever.classList.add('dragging'); // Визуально: схватили
     });
-    
-    // Обработчик движения мыши при перетаскивании
+
     document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
+        if (!isLeverDragging) return;
         
-        const currentY = e.clientY;
-        const deltaY = currentY - startY;
+        const deltaY = e.clientY - leverStartY;
         
-        // Если тянем вниз достаточно далеко, активируем спин
-        if (deltaY > dragThreshold && !state.isSpinning && state.spinsLeft > 0 && !state.gameover) {
-            isDragging = false;
-            ui.lever.style.cursor = 'pointer';
-            spin();
-        }
-    });
-    
-    // Обработчик окончания перетаскивания
-    document.addEventListener('mouseup', () => {
-        if (isDragging) {
-            isDragging = false;
-            ui.lever.style.cursor = 'pointer';
+        // Если потянули вниз достаточно сильно -> ЗАПУСК
+        if (deltaY > DRAG_THRESHOLD) {
+            isLeverDragging = false; 
             ui.lever.classList.remove('dragging');
+            activateLever();
         }
     });
-    
-    // Обработчик выхода мыши за пределы окна
-    document.addEventListener('mouseleave', () => {
-        if (isDragging) {
-            isDragging = false;
-            ui.lever.style.cursor = 'pointer';
-            ui.lever.classList.remove('dragging');
-        }
-    });
-    
-    // Добавляем поддержку touch событий для мобильных устройств
-    let touchStartY = 0;
-    let isTouchDragging = false;
-    
-    ui.lever.addEventListener('touchstart', (e) => {
-        isTouchDragging = true;
-        touchStartY = e.touches[0].clientY;
-        ui.lever.classList.add('dragging');
-        e.preventDefault();
-    });
-    
-    document.addEventListener('touchmove', (e) => {
-        if (!isTouchDragging) return;
+
+    document.addEventListener('mouseup', (e) => {
+        if (!isLeverDragging) return;
         
-        const currentY = e.touches[0].clientY;
-        const deltaY = currentY - touchStartY;
-        
-        // Если тянем вниз достаточно далеко, активируем спин
-        if (deltaY > dragThreshold && !state.isSpinning && state.spinsLeft > 0 && !state.gameover) {
-            isTouchDragging = false;
-            spin();
-        }
-    });
-    
-    document.addEventListener('touchend', () => {
-        isTouchDragging = false;
+        // Если мышь отпустили, но НЕ тянули (дельта < порога) -> ЭТО КЛИК
+        // Срабатывает как обычная кнопка
+        isLeverDragging = false;
         ui.lever.classList.remove('dragging');
+        activateLever();
     });
+
+    // --- 2. Тачскрин (Mobile) ---
+    ui.lever.addEventListener('touchstart', (e) => {
+        if (state.isSpinning) return;
+        // e.preventDefault(); // Можно включить, если скролл мешает игре
+        isLeverDragging = true;
+        leverStartY = e.touches[0].clientY;
+        ui.lever.classList.add('dragging');
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isLeverDragging) return;
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - leverStartY;
+
+        // Если потянули пальцем вниз -> ЗАПУСК
+        if (deltaY > DRAG_THRESHOLD) {
+            isLeverDragging = false;
+            ui.lever.classList.remove('dragging');
+            activateLever();
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchend', (e) => {
+        if (!isLeverDragging) return;
+        
+        // Если палец убрали без сильной протяжки -> ЭТО ТАП
+        isLeverDragging = false;
+        ui.lever.classList.remove('dragging');
+        activateLever();
+    });
+
+    // ==========================================
+
+    // Удаляем старый простой onclick, так как mouseup теперь обрабатывает клик
+    ui.lever.onclick = null;
     ui.btnEndTurn.onclick = endTurn;
     ui.btnConfirmEndTurn.onclick = confirmEndTurn;
     ui.btnBuySpins7.onclick = () => buySpins(CONFIG.SPIN_PACKAGE_1);

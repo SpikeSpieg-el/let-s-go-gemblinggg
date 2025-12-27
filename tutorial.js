@@ -144,6 +144,13 @@ function actuallyShowStep(step) {
   }
 
   // Ожидание действия пользователя
+  // DEBUG: выводим состояние
+  // ошибка v2:1 Uncaught TypeError: Cannot read properties of null (reading 'removeEventListener') 
+  //{columnNumber: 19, fileName: 'http://127.0.0.1:5500/tutorial.js', lineNumber: 149, message: "Uncaught TypeError: Cannot read properties of null (reading 'removeEventListener')", name: 'TypeError', …}
+
+  //tutorial.js:149 Uncaught TypeError: Cannot read properties of null (reading 'removeEventListener')
+   // at HTMLDivElement.handler (tutorial.js:149:19)
+
   if (step.waitFor === 'click' && highlightEl) {
     const handler = () => {
       highlightEl.removeEventListener('click', handler, true);
