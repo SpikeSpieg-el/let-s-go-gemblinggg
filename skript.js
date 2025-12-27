@@ -3945,6 +3945,18 @@ function animateNumber(element, start, end, duration = 1000, suffix = '') {
     }
     requestAnimationFrame(update);
 }
+// Добавить визуальную индикацию нехватки денег/спинов
+function updateLeverState() {
+    const lever = ui.lever;
+    if (state.spinsLeft <= 0) {
+        lever.style.filter = "grayscale(1)";
+        lever.style.cursor = "not-allowed";
+        // Можно добавить тултип "Купите прокруты!"
+    } else {
+        lever.style.filter = "none";
+        lever.style.cursor = "pointer";
+    }
+}
 function updateUI() {
         if (!state || Object.keys(state).length === 0) return;
         ui.statRun.textContent = state.run;
@@ -4122,6 +4134,7 @@ function updateUI() {
         renderInventory(); 
         renderShop();
         updateWeightedSymbols();
+        updateLeverState();
 
         const cells = ui.slotMachine.querySelectorAll('.slot-cell');
         cells.forEach(cell => cell.classList.remove('jackpot-cell-heart'));
