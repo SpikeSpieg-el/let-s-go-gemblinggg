@@ -3,7 +3,7 @@
 <head>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Цикл Долга</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="img/@цикл_долга_icon.png">
@@ -344,6 +344,31 @@
             </div>
         </div>
     </div>
+    <!-- Попап с итогами раунда (монеты и талоны) -->
+    <div id="round-rewards-modal" class="modal-overlay hidden">
+        <div class="modal-content round-rewards-content">
+            <h2 id="round-rewards-title">Выйгрыш</h2>
+            <p id="round-rewards-subtitle">За раунд:</p>
+            <div class="round-rewards-container">
+                <div class="reward-item coins-reward">
+                    <div class="reward-icon">💲</div>
+                    <div class="reward-info">
+                        <div class="reward-label">Монеты</div>
+                        <div class="reward-amount" id="round-rewards-coins">0</div>
+                    </div>
+                </div>
+                <div class="reward-item tickets-reward">
+                    <div class="reward-icon">🎟️</div>
+                    <div class="reward-info">
+                        <div class="reward-label">Талоны</div>
+                        <div class="reward-amount" id="round-rewards-tickets">0</div>
+                    </div>
+                </div>
+            </div>
+            <button id="btn-collect-rewards" class="btn-collect-rewards">Забрать награды</button>
+        </div>
+    </div>
+    
     <div id="end-of-round-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <h2 id="eor-title">Конец Раунда</h2>
@@ -434,6 +459,7 @@
     <script src="items.js"></script>
     <script type="module" src="tutorial.js"></script>
     <script src="passives.js"></script>
+    <script src="background_manager.js"></script>
     <script src="skript.js"></script>
     <script src="npc_guide.js"></script>
     <script>
