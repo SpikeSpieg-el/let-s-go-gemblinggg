@@ -68,10 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnEorDepositExcept3: document.getElementById('btn-eor-deposit-except-3'),
         btnEorDepositHalf: document.getElementById('btn-eor-deposit-half'),
         btnLeaderboard: document.getElementById('btn-leaderboard'),
-        roundRewardsModal: document.getElementById('round-rewards-modal'),
-        roundRewardsCoins: document.getElementById('round-rewards-coins'),
-        roundRewardsTickets: document.getElementById('round-rewards-tickets'),
-        btnCollectRewards: document.getElementById('btn-collect-rewards'),
     };
     // Отключаем контекстное меню по правому клику мыши на всей странице
     document.addEventListener('contextmenu', event => event.preventDefault());
@@ -978,12 +974,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 if (lineWinTickets[winLength]) {
-                    state.roundEarnings.tickets += lineWinTickets[winLength]; // [NEW] Накапливаем вместо начисления
+                    state.tickets += lineWinTickets[winLength];
                     addLog(`Талоны: +${lineWinTickets[winLength]}🎟️ за линию x${winLength}.`, 'win');
                 }
                 // --- ПАССИВКА: Геолог ---
                 if (hasPassive('geologist') && line.type === 'Небо/Земля') {
-                    state.roundEarnings.tickets += 3; // [NEW] Накапливаем вместо начисления
+                    state.tickets += 3;
                     addLog(`Геолог: +3🎟️ за линию "${line.name}"!`, 'win');
                 }
 
@@ -997,14 +993,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const symbolWinTicketItem = state.inventory.find(item => item.effect?.symbol_win_bonus_ticket?.symbol === firstSymbol.id);
                 if(symbolWinTicketItem){
                     let ticketBonus = symbolWinTicketItem.effect.symbol_win_bonus_ticket.tickets;
-                    state.roundEarnings.tickets += ticketBonus; // [NEW] Накапливаем вместо начисления
+                    state.tickets += ticketBonus;
                     addLog(`${symbolWinTicketItem.name}: +${ticketBonus}🎟️ за линию ${GRAPHICS[firstSymbol.id]}.`, 'win');
                     animateInventoryItem(symbolWinTicketItem.id);
                 }
 
 
                 if (hasPassive('lucky_bomb') && firstSymbol.id === 'cherry' && hasItem('cherry_bomb')) {
-                    state.roundEarnings.tickets += 1; // [NEW] Накапливаем вместо начисления
+                    state.tickets += 1;
                     addLog(`Счастливая бомба: +1🎟️ за линию вишен!`, 'win');
                 }
                 // Применяем глобальный множитель выигрыша (например, Колокольчик удачи)
@@ -1267,7 +1263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 if (ticketBonus > 0) {
-                    state.roundEarnings.tickets += ticketBonus; // [NEW] Накапливаем вместо начисления
+                    state.tickets += ticketBonus;
                     addLog(`Цепная реакция: +${ticketBonus}🎟️ за комбо!`, 'win');
                 }
             }
@@ -1489,8 +1485,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         if (totalWinnings > 0) {
-            // [NEW] Накапливаем выигрыш вместо немедленного начисления
-            state.roundEarnings.coins += totalWinnings;
+            state.coins += totalWinnings;
             state.flags.consecutiveLosses = 0; // Сброс счетчика проигрышей
             state.winStreak = (state.winStreak || 0) + 1; // [NEW] Увеличиваем серию побед
 
@@ -1498,7 +1493,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasItem('hot_streak') && state.winStreak > 1) {
                 const bonus = ALL_ITEMS.find(i => i.id === 'hot_streak').effect.on_win_streak_bonus;
                 const finalBonus = applyCoinDoubler(bonus);
-                state.roundEarnings.coins += finalBonus; // [NEW] Накапливаем вместо начисления
+                state.coins += finalBonus;
                 addLog(`На волне успеха (x${state.winStreak}): +${finalBonus}💲`, 'win');
                 animateInventoryItem('hot_streak');
             }
@@ -1915,7 +1910,7 @@ function animateWinningLinesSequentially(winningLinesInfo, onComplete = null) {
             if (svg) svg.innerHTML = ''; 
             
             // Запуск колбэка
-            if (onComplete) setTimeout(onComplete, 150); 
+            if (onComplete) setTimeout(onComplete, 150); // Пауза перед итогом тоже меньше
 
             // Автоматическая очистка через 3 секунды
             setTimeout(() => {
@@ -2200,9 +2195,9 @@ function createConfetti() {
                 state.shop.push(modifiedItem);
                 const idx = availableItems.findIndex(x => x.id === item.id);
                 if (idx !== -1) availableItems.splice(idx, 1);
-                if (pool === commons) commons.splice(commons.indexOf(item), 1);
-                if (pool === rares) rares.splice(rares.indexOf(item), 1);
-                if (pool === legendaries) legendaries.splice(legendaries.indexOf(item), 1);
+                if (pool === commons) commons.splice(randomIndex, 1);
+                if (pool === rares) rares.splice(randomIndex, 1);
+                if (pool === legendaries) legendaries.splice(randomIndex, 1);
             }
         }
         
@@ -2354,11 +2349,11 @@ function createConfetti() {
                     }
                     if (eff.coins) {
                         const bonus = applyCoinDoubler(eff.coins);
-                        state.roundEarnings.coins += bonus; // [NEW] Накапливаем вместо начисления
+                        state.coins += bonus;
                         addLog(`${item.name}: +${bonus}💲 (шанс ${(eff.chance*100).toFixed(1)}% x${chanceMultiplier.toFixed(1)} = ${(chance*100).toFixed(1)}%)!`, 'win');
                     }
                     if (eff.tickets) {
-                        state.roundEarnings.tickets += eff.tickets; // [NEW] Накапливаем вместо начисления
+                        state.tickets += eff.tickets;
                         addLog(`${item.name}: +${eff.tickets}🎟️ (шанс ${(eff.chance*100).toFixed(1)}% x${chanceMultiplier.toFixed(1)} = ${(chance*100).toFixed(1)}%)!`, 'win');
                     }
                     if (eff.free_spins) {
@@ -2758,14 +2753,6 @@ async function spin() {
         }
         
         updateUI(); // Полное обновление UI происходит здесь, после завершения анимаций.
-        
-        // [NEW] Проверяем, закончились ли прокруты, и показываем попап с наградами
-        if (state.spinsLeft === 0 && (state.roundEarnings.coins > 0 || state.roundEarnings.tickets > 0)) {
-            // Небольшая задержка, чтобы анимации успели завершиться
-            setTimeout(() => {
-                showRoundRewardsModal();
-            }, 500);
-        }
         } catch (e) {
             console.error("Critical Spin Error:", e);
             addLog("Ошибка механизма! Попробуйте еще раз.", 'loss');
@@ -2773,17 +2760,7 @@ async function spin() {
             // Гарантированный сброс флага
             state.isSpinning = false; 
             ui.lever.classList.remove('pulled');
-            updateUI();
-            
-            // [NEW] Проверяем в finally тоже, на случай если спин завершился с ошибкой
-            // Но только если попап еще не показан (чтобы не показывать дважды)
-            if (state.spinsLeft === 0 && 
-                (state.roundEarnings.coins > 0 || state.roundEarnings.tickets > 0) &&
-                ui.roundRewardsModal.classList.contains('hidden')) {
-                setTimeout(() => {
-                    showRoundRewardsModal();
-                }, 500);
-            }
+            updateUI(); 
         }
     }
 
@@ -2882,7 +2859,6 @@ async function spin() {
             purchasesThisRound: 0,
             dev100LoseMode: false,
             symbioticParasiteLuck: 0, // [NEW] Состояние симбиотического паразита
-            roundEarnings: { coins: 0, tickets: 0 }, // [NEW] Накопление выигрыша за раунд
         };
         window.state = state;
         lastKnownTickets = state.tickets;
@@ -3054,7 +3030,6 @@ async function spin() {
         state.roundSpinsMade = 0;
         state.purchasesThisRound = 0; // Сброс счетчика покупок в начале раунда
         state.symbioticParasiteLuck = 0; // [NEW] Сброс состояния симбиотического паразита в начале раунда
-        state.roundEarnings = { coins: 0, tickets: 0 }; // [NEW] Сброс накопления выигрыша за раунд
         
         // --- СБРОС ФЛАГОВ ДЛЯ ПАССИВОК НА 1 РАУНД ---
         if (state.activePassives.length > 0) {
@@ -3308,7 +3283,6 @@ async function spin() {
             eorDescription.textContent = 'День подходит к концу. Внесите сбережения в банк, чтобы получить проценты в следующем раунде.';
         }
         
-        // [NEW] Показываем модальное окно конца раунда (попап с наградами уже показан автоматически при spinsLeft === 0)
         ui.endOfRoundModal.classList.remove('hidden');
         
         // [NEW] Настраиваем обработчики событий для dropdown кнопок при открытии модального окна
@@ -3878,28 +3852,16 @@ async function spin() {
             effectiveUsed >= maxSize &&
             !(item && (item.effect?.ignore_slot_for_empty_bonus || item.modifier?.effect?.ignore_slot_for_empty_bonus))
         ) {
+            addLog(`В инвентаре максимум ${maxSize} амулетов!`, 'loss');
             return;
         }
+
 
         let cost = item.cost;
         let bonusApplied = false;
         let discountLog = [];
-        
-        // Скидка от предметов с эффектом shop_discount
-        let shopDiscount = 0;
-        state.inventory.forEach(invItem => {
-            if (invItem.effect?.shop_discount) {
-                shopDiscount += invItem.effect.shop_discount;
-                discountLog.push(`barter_skills -${invItem.effect.shop_discount}`);
-            }
-        });
-        if (shopDiscount > 0) {
-            cost = Math.max(1, cost - shopDiscount);
-            bonusApplied = true;
-        }
-        
         if (hasPassive('shopaholic') && state.flags.firstPurchaseThisRound) {
-            cost = Math.max(1, cost - 2);
+            cost = Math.max(1, item.cost - 2);
             state.flags.firstPurchaseThisRound = false;
             bonusApplied = true;
             discountLog.push('shopaholic -2');
@@ -3912,6 +3874,8 @@ async function spin() {
         }
 
         if (!item || state.tickets < cost) return addLog('Недостаточно талонов.', 'loss');
+        
+        // Сброс uses для breakable предметов при покупке
         if (item.effect && item.effect.luck_chance && item.effect.luck_chance.breakable) {
             item.uses = (item.effect.luck_chance.max_uses || 1) + getBreakableUsesBoost();
         }
@@ -5922,13 +5886,7 @@ async function runSpinAnimation() {
       return bonus * multiplier;
     }
 
-    // Глобальный Set для отслеживания анимируемых предметов
-    const animatingItems = new Set();
-
     function animateInventoryItem(itemId) {
-      // Если предмет уже анимируется, не перезапускаем
-      if (animatingItems.has(itemId)) return;
-
       // Ищем элемент в обоих инвентарях для надежности
       const el = document.querySelector(
         `#inventory-items [data-item-id='${itemId}'], #planning-inventory-items [data-item-id='${itemId}']`
@@ -5937,26 +5895,20 @@ async function runSpinAnimation() {
       if (el) {
         // Если уже есть анимация проигрыша, не добавляем обычную анимацию
         if (el.classList.contains('item-activated-loss')) return;
-        // Если анимация уже запущена на элементе, не перезапускаем её
-        if (el.classList.contains('item-activated')) return;
-
-        // Добавляем в Set анимируемых предметов
-        animatingItems.add(itemId);
+        // Удаляем класс, если он уже есть, чтобы анимация заметила удаление
+        el.classList.remove('item-activated');
+        // Этот трюк (force reflow) гарантирует, что браузер заметит удаление класса
+        // перед тем, как мы добавим его снова, что позволяет перезапустить анимацию.
+        void el.offsetWidth;
+        
         el.classList.add('item-activated');
-
+        
         // Устанавливаем таймер для удаления класса после завершения анимации.
         setTimeout(() => {
-            // Удаляем из Set
-            animatingItems.delete(itemId);
-
-            // Ищем элемент снова (он мог быть пересоздан при ререндере)
-            const currentEl = document.querySelector(
-                `#inventory-items [data-item-id='${itemId}'], #planning-inventory-items [data-item-id='${itemId}']`
-            );
-            if (currentEl) {
-                currentEl.classList.remove('item-activated');
+            if (el) { // Проверяем, существует ли еще элемент
+                 el.classList.remove('item-activated');
             }
-        }, 1500); // Длительность должна совпадать с анимацией в CSS
+        }, 800); // Длительность должна совпадать с анимацией в CSS
 
         // [NEW] Echo Stone logic
         if (hasItem('echo_stone') && itemId !== 'echo_stone' && state.activatedItemsThisSpin) {
@@ -6568,120 +6520,6 @@ async function runSpinAnimation() {
             }
         });
     });
-
-    // [NEW] Функция показа попапа с наградами раунда
-    function showRoundRewardsModal() {
-        // Проверяем, не показан ли уже попап
-        if (!ui.roundRewardsModal.classList.contains('hidden')) {
-            return; // Попап уже показан
-        }
-        
-        const coins = state.roundEarnings.coins || 0;
-        const tickets = state.roundEarnings.tickets || 0;
-        
-        // Если нет наград, не показываем попап
-        if (coins === 0 && tickets === 0) {
-            return;
-        }
-        
-        // Устанавливаем начальные значения
-        ui.roundRewardsCoins.textContent = '0';
-        ui.roundRewardsTickets.textContent = '0';
-        
-        // Показываем модальное окно
-        ui.roundRewardsModal.classList.remove('hidden');
-        
-        // Сбрасываем анимации
-        const rewardItems = ui.roundRewardsModal.querySelectorAll('.reward-item');
-        rewardItems.forEach(item => {
-            item.classList.remove('show', 'collecting');
-        });
-        ui.btnCollectRewards.classList.remove('show');
-        ui.btnCollectRewards.disabled = true;
-        
-        // Анимация появления элементов
-        setTimeout(() => {
-            if (coins > 0) {
-                const coinsItem = ui.roundRewardsModal.querySelector('.coins-reward');
-                if (coinsItem) {
-                    coinsItem.classList.add('show');
-                }
-            }
-        }, 100);
-        
-        setTimeout(() => {
-            if (tickets > 0) {
-                const ticketsItem = ui.roundRewardsModal.querySelector('.tickets-reward');
-                if (ticketsItem) {
-                    ticketsItem.classList.add('show');
-                }
-            }
-        }, 300);
-        
-        // Анимация подсчета монет
-        if (coins > 0) {
-            animateNumber(ui.roundRewardsCoins, 0, coins, 1500, '');
-        } else {
-            ui.roundRewardsCoins.textContent = '0';
-        }
-        
-        // Анимация подсчета талонов
-        if (tickets > 0) {
-            animateNumber(ui.roundRewardsTickets, 0, tickets, 1500, '');
-        } else {
-            ui.roundRewardsTickets.textContent = '0';
-        }
-        
-        // Показываем кнопку после завершения анимаций
-        setTimeout(() => {
-            ui.btnCollectRewards.classList.add('show');
-            ui.btnCollectRewards.disabled = false;
-        }, 2000);
-    }
-
-    // [NEW] Функция сбора наград
-    function collectRoundRewards() {
-        const coins = state.roundEarnings.coins || 0;
-        const tickets = state.roundEarnings.tickets || 0;
-        
-        if (coins === 0 && tickets === 0) {
-            ui.roundRewardsModal.classList.add('hidden');
-            return;
-        }
-        
-        // Анимация выдачи
-        const coinsItem = ui.roundRewardsModal.querySelector('.coins-reward');
-        const ticketsItem = ui.roundRewardsModal.querySelector('.tickets-reward');
-        
-        if (coins > 0 && coinsItem) {
-            coinsItem.classList.add('collecting');
-        }
-        
-        if (tickets > 0 && ticketsItem) {
-            ticketsItem.classList.add('collecting');
-        }
-        
-        // Начисляем награды после анимации
-        setTimeout(() => {
-            state.coins += coins;
-            state.tickets += tickets;
-            
-            // Обновляем UI
-            updateUI();
-            
-            // Сбрасываем накопления
-            state.roundEarnings.coins = 0;
-            state.roundEarnings.tickets = 0;
-            
-            // Скрываем попап - игрок сам решит, когда завершить раунд
-            ui.roundRewardsModal.classList.add('hidden');
-        }, 1000);
-    }
-
-    // Обработчик кнопки "Забрать награды"
-    if (ui.btnCollectRewards) {
-        ui.btnCollectRewards.onclick = collectRoundRewards;
-    }
 });
 // === ДИСКЛЕЙМЕР (ОБНОВЛЕННАЯ ВЕРСИЯ) ===
 document.addEventListener('DOMContentLoaded', function () {
