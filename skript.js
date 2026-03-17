@@ -68,6 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
         btnEorDepositExcept3: document.getElementById('btn-eor-deposit-except-3'),
         btnEorDepositHalf: document.getElementById('btn-eor-deposit-half'),
         btnLeaderboard: document.getElementById('btn-leaderboard'),
+        // Boss battle UI
+        bossBattleModal: document.getElementById('boss-battle-modal'),
+        bossTitle: document.getElementById('boss-title'),
+        bossDescription: document.getElementById('boss-description'),
+        bossDebtTarget: document.getElementById('boss-debt-target'),
+        bossRoundsLeft: document.getElementById('boss-rounds-left'),
+        playerStrategy: document.getElementById('player-strategy'),
+        btnStartBossBattle: document.getElementById('btn-start-boss-battle'),
     };
     // Отключаем контекстное меню по правому клику мыши на всей странице
     document.addEventListener('contextmenu', event => event.preventDefault());
@@ -392,6 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof window !== 'undefined') {
       window.getBreakableUsesBoost = getBreakableUsesBoost;
+      window.hasItem = hasItem;
     }
 
     function generateGrid() {
@@ -2908,16 +2917,34 @@ async function spin() {
             animateInventoryItem('magnifying_glass');
         }
 
+        // ==========================================
+        // СКРЫВАЕМ ИНДИКАТОР БОССА (если был)
+        // ==========================================
+        hideBossIndicator();
+        state.isBossBattle = false;
+        state.currentBoss = null;
+        // ==========================================
+
         const lastPassiveIds = state.activePassives.map(p => p.id);
-        
+
         state.run++;
         state.turn = 1;
-        
+
         // Обновляем фон в зависимости от нового цикла
         if (window.BackgroundManager) {
             window.BackgroundManager.update(state.run);
         }
-        
+
+        // ==========================================
+        // ПРОВЕРКА НА БОССА (каждый 3-й цикл)
+        // ==========================================
+        if (isBossBattle(state.run)) {
+            addLog(`⚠️ ⚔️ ВНИМАНИЕ: Цикл #${state.run} - это БОСС! ⚔️ ⚠️`, 'danger');
+            addLog(`После выбора пассивки начнётся битва с боссом...`, 'danger');
+            addLog(`У вас будет 2 раунда чтобы победить босса!`, 'danger');
+        }
+        // ==========================================
+
         // --- ПАССИВКА: Прощение долга ---
         if (state.flags.nextDebtReduced) {
             const oldDebt = state.targetDebt;
@@ -2989,9 +3016,29 @@ async function spin() {
         addLog(`Начался Цикл Долга #${state.run}. Цель: ${formatNumberWithComma(state.targetDebt)}💲.`);
         if(bonusCoins > 0 || bonusTickets > 0) addLog(`Бонус за быстроту: +${formatNumberWithComma(bonusCoins)}💲 и +${formatNumberWithComma(bonusTickets)}🎟️`, 'win');
         populateShop();
-        
+
         if (state.run >= 2) {
             showPassiveChoiceModal(lastPassiveIds);
+            
+            // Если это босс, модифицируем поведение после выбора пассивки
+            if (isBossBattle(state.run)) {
+                // Ждём пока модальное окно будет создано и показано
+                setTimeout(() => {
+                    const modal = document.getElementById('passive-choice-modal');
+                    if (modal) {
+                        modal.querySelectorAll('.passive-choice').forEach(choiceDiv => {
+                            const originalHandler = choiceDiv.onclick;
+                            choiceDiv.onclick = () => {
+                                if (originalHandler) originalHandler();
+                                // После выбора пассивки показываем босса
+                                setTimeout(() => {
+                                    showBossBattleModal();
+                                }, 300);
+                            };
+                        });
+                    }
+                }, 100);
+            }
         } else {
             startTurn();
         }
@@ -3017,6 +3064,123 @@ async function spin() {
         }
     }
 
+    // ==========================================
+    // BOSS BATTLE FUNCTIONS
+    // ==========================================
+    function showBossBattleModal() {
+        const boss = selectBossForPlayer(state);
+        const bossDebtTarget = calculateBossDebtTarget(state.run);
+        const playerStrategy = determinePlayerStrategy(state);
+
+        // Сохраняем текущего босса в состоянии
+        state.currentBoss = boss;
+        state.bossDebtTarget = bossDebtTarget;
+        state.bossRoundsLeft = 2;
+        state.isBossBattle = true;
+
+        // Обновляем UI модального окна
+        ui.bossTitle.textContent = `${boss.emoji} ${boss.name.toUpperCase()}`;
+        ui.bossDescription.textContent = boss.description;
+        ui.bossDebtTarget.textContent = formatNumberWithComma(bossDebtTarget);
+        ui.bossRoundsLeft.textContent = state.bossRoundsLeft;
+
+        const strategyNames = {
+            'cherry': 'Вишнёвая 🍒',
+            'lemon': 'Лимонная 🍋',
+            'clover': 'Клеверная 🍀',
+            'bell': 'Колокольная 🔔',
+            'diamond': 'Алмазная 💎',
+            'seven': 'Семёрочная 7️⃣',
+            'coins': 'Монетная 💰',
+            'none': 'Смешанная/Не определена'
+        };
+        ui.playerStrategy.textContent = strategyNames[playerStrategy] || 'Не определена';
+
+        ui.bossBattleModal.classList.remove('hidden');
+
+        ui.btnStartBossBattle.onclick = () => {
+            ui.bossBattleModal.classList.add('hidden');
+            startBossBattle();
+        };
+    }
+    
+    function startBossBattle() {
+        addLog(`⚔️ БОСС: ${state.currentBoss.name} начинает битву!`, 'danger');
+        addLog(`Цель: выплатить ${state.bossDebtTarget}💲 за ${state.bossRoundsLeft} раунда!`, 'danger');
+        
+        // Применяем эффект босса (ослабление стратегии)
+        if (state.currentBoss.effect) {
+            state.currentBoss.effect(state);
+            addLog(`${state.currentBoss.name} ослабляет вашу стратегию!`, 'danger');
+        }
+        
+        // Устанавливаем временную цель долга
+        state.targetDebt = state.bossDebtTarget;
+        
+        // Сбрасываем раунд на 1 для битвы с боссом
+        state.turn = 1;
+        
+        // Показываем индикатор босса
+        showBossIndicator();
+        
+        startTurn();
+    }
+    
+    function showBossIndicator() {
+        const bossIndicator = document.getElementById('boss-indicator');
+        const bossIndicatorName = document.getElementById('boss-indicator-name');
+        const bossIndicatorRound = document.getElementById('boss-indicator-round');
+        if (bossIndicator && state.currentBoss) {
+            bossIndicator.classList.remove('hidden');
+            bossIndicatorName.textContent = state.currentBoss.name;
+            if (bossIndicatorRound) {
+                bossIndicatorRound.textContent = state.turn;
+            }
+        }
+    }
+    
+    function hideBossIndicator() {
+        const bossIndicator = document.getElementById('boss-indicator');
+        if (bossIndicator) {
+            bossIndicator.classList.add('hidden');
+        }
+    }
+    
+    function completeBossBattle() {
+        state.isBossBattle = false;
+        state.currentBoss = null;
+        
+        // Награда за победу
+        const bonusCoins = 50 * state.run;
+        const bonusTickets = 10;
+        
+        state.coins += bonusCoins;
+        state.tickets += bonusTickets;
+        
+        addLog(`🎉 БОСС ПОВЕРЖЕН! Награда: +${bonusCoins}💲 и +${bonusTickets}🎟️`, 'win');
+        
+        // Скрываем индикатор босса
+        hideBossIndicator();
+        
+        // Восстанавливаем веса символов и пересчитываем
+        window.SYMBOLS = JSON.parse(JSON.stringify(ORIGINAL_SYMBOLS));
+        updateWeightedSymbols();
+        
+        addLog(`Символы восстановлены после битвы с боссом!`, 'win');
+    }
+    
+    function failBossBattle() {
+        state.isBossBattle = false;
+        state.currentBoss = null;
+        hideBossIndicator();
+        addLog(`💀 БОСС НЕ ПОВЕРЖЕН... Игра окончена.`, 'danger');
+        gameOver();
+    }
+
+    // ==========================================
+    // END BOSS BATTLE FUNCTIONS
+    // ==========================================
+
 
     function startTurn() {
         if (typeof console !== 'undefined') {
@@ -3031,6 +3195,13 @@ async function spin() {
         state.purchasesThisRound = 0; // Сброс счетчика покупок в начале раунда
         state.symbioticParasiteLuck = 0; // [NEW] Сброс состояния симбиотического паразита в начале раунда
         
+        // ==========================================
+        // ОБНОВЛЕНИЕ ИНДИКАТОРА БОССА
+        // ==========================================
+        if (state.isBossBattle) {
+            showBossIndicator();
+        }
+
         // --- СБРОС ФЛАГОВ ДЛЯ ПАССИВОК НА 1 РАУНД ---
         if (state.activePassives.length > 0) {
             if (hasPassive('bankers_friend')) state.flags.firstDepositThisRound = true;
@@ -3398,15 +3569,38 @@ async function spin() {
 
         ui.endOfRoundModal.classList.add('hidden');
         addLog(`--- Раунд ${state.turn} окончен ---`);
+
+        // ==========================================
+        // ПРОВЕРКА НА БОССА - особый подсчёт раундов
+        // ==========================================
+        if (state.isBossBattle) {
+            // Для босса только 2 раунда
+            if (state.turn >= 2) {
+                // Это был последний раунд босса - сразу переходим к проверке долга
+                setTimeout(() => {
+                    judgementDay();
+                }, 900);
+                return;
+            } else {
+                // Ещё есть раунды босса
+                state.turn++;
+                setTimeout(() => {
+                    startTurn();
+                }, 900);
+                return;
+            }
+        }
+
+        // === ОБЫЧНАЯ ИГРА (не босс) ===
         state.turn++;
-        
-        // [NEW] Проверка денег в конце 3-го раунда
+
+        // Проверка денег в конце 3-го раунда
         if (state.turn === 4) { // После завершения 3-го раунда
             checkMoneyForRound3();
             return; // Не продолжаем дальше, пока не проверим деньги
         }
-        
-        // [FIX] Добавляем задержку, чтобы анимация копилки (и других эффектов конца раунда) успела проиграться
+
+        // Добавляем задержку, чтобы анимация копилки (и других эффектов конца раунда) успела проиграться
         // перед тем, как startTurn() вызовет updateUI() и перерисует инвентарь.
         setTimeout(() => {
             if (state.turn > 3) {
@@ -3514,19 +3708,39 @@ async function spin() {
 
     function advanceToNextCycle(bonusCoins = 0, bonusTickets = 0, paidToBank = 0) {
         ui.judgementModal.classList.remove('hidden');
-        ui.judgementTitle.textContent = "ДОЛГ ВЫПЛАЧЕН";
-        ui.judgementTitle.classList.remove('failure');
 
-        const totalMoney = state.coins + state.bankBalance;
-        const standardTickets = 5 + state.run;
+        // Определяем bonusText заранее
         let bonusText = '';
         if(bonusCoins > 0 || bonusTickets > 0) {
-            bonusText = `Бонус за быстроту: <span style="color:var(--money-color)">+${formatNumberWithComma(bonusCoins)}💲</span> и 
+            bonusText = `Бонус за быстроту: <span style="color:var(--money-color)">+${formatNumberWithComma(bonusCoins)}💲</span> и
             <span style="color:var(--ticket-color)">+${formatNumberWithComma(bonusTickets)}🎟️</span>.<br>`;
         }
-        ui.judgementText.innerHTML = `Вы выжили. Наличные: <span style="color:var(--money-color)">${formatNumberWithComma(state.coins)}💲</span>.<br>
-                                     Стандартная награда: <span style="color:var(--ticket-color)">${formatNumberWithComma(standardTickets)}🎟️</span>.<br>
-                                     ${bonusText}`;
+
+        // ==========================================
+        // ПРОВЕРКА НА ЗАВЕРШЕНИЕ БОССА
+        // ==========================================
+        if (state.isBossBattle) {
+            ui.judgementTitle.textContent = "БОСС ПОВЕРЖЁН!";
+            ui.judgementTitle.classList.remove('failure');
+
+            const standardTickets = 5 + state.run;
+            ui.judgementText.innerHTML = `Вы победили босса!<br>
+                                         Наличные: <span style="color:var(--money-color)">${formatNumberWithComma(state.coins)}💲</span>.<br>
+                                         Стандартная награда: <span style="color:var(--ticket-color)">${formatNumberWithComma(standardTickets)}🎟️</span>.<br>
+                                         ${bonusText}`;
+
+            // Завершаем битву с боссом
+            completeBossBattle();
+        } else {
+            ui.judgementTitle.textContent = "ДОЛГ ВЫПЛАЧЕН";
+            ui.judgementTitle.classList.remove('failure');
+
+            const totalMoney = state.coins + state.bankBalance;
+            const standardTickets = 5 + state.run;
+            ui.judgementText.innerHTML = `Вы выжили. Наличные: <span style="color:var(--money-color)">${formatNumberWithComma(state.coins)}💲</span>.<br>
+                                         Стандартная награда: <span style="color:var(--ticket-color)">${formatNumberWithComma(standardTickets)}🎟️</span>.<br>
+                                         ${bonusText}`;
+        }
 
         // Обновляем результат в лидерборде при успешном завершении цикла
         if (window.leaderboardsManager) {
@@ -3550,13 +3764,13 @@ async function spin() {
     function judgementDay() {
         const totalMoney = state.coins + state.bankBalance;
         addLog(`СУДНЫЙ ДЕНЬ. Ваша сумма: ${formatNumberWithComma(totalMoney)}💲. Требуется: ${formatNumberWithComma(state.targetDebt)}💲.`);
-        
+
         if (totalMoney >= state.targetDebt) {
             // Списываем долг так же, как при обычном погашении: сначала из наличных, затем из банка
             let remainingDebt = state.targetDebt;
             let paidFromCoins = 0;
             let paidFromBank = 0;
-            
+
             if (state.coins > 0) {
                 paidFromCoins = Math.min(state.coins, remainingDebt);
                 state.coins -= paidFromCoins;
@@ -3565,7 +3779,7 @@ async function spin() {
                     addLog(`Списано ${formatNumberWithComma(paidFromCoins)}💲 из наличных для погашения долга.`);
                 }
             }
-            
+
             if (remainingDebt > 0) {
                 paidFromBank = Math.min(state.bankBalance, remainingDebt);
                 state.bankBalance -= paidFromBank;
@@ -3574,17 +3788,50 @@ async function spin() {
                     addLog(`Списано ${formatNumberWithComma(paidFromBank)}💲 из банка для погашения долга.`);
                 }
             }
-            
+
             const totalPaidToBank = paidFromCoins + paidFromBank; // равен размеру долга
             console.log(`[DEBUG][judgementDay] paidFromCoins=${paidFromCoins}, paidFromBank=${paidFromBank}, totalPaidToBank=${totalPaidToBank}, coins=${state.coins}, bank=${state.bankBalance}`);
+            
+            // ==========================================
+            // ПРОВЕРКА НА БОССА
+            // ==========================================
+            if (state.isBossBattle) {
+                // Если это был босс, проверяем, последний ли это раунд
+                if (state.bossRoundsLeft && state.bossRoundsLeft > 1) {
+                    // Ещё есть раунды
+                    state.bossRoundsLeft--;
+                    addLog(`⚔️ БОСС: остался ещё ${state.bossRoundsLeft} раунд!`, 'danger');
+                    addLog(`Цель всё ещё: ${state.bossDebtTarget}💲`, 'danger');
+                    
+                    // Обновляем индикатор раундов
+                    if (ui.bossRoundsLeft) {
+                        ui.bossRoundsLeft.textContent = state.bossRoundsLeft;
+                    }
+                } else {
+                    // Босс побеждён!
+                    addLog(`⚔️ БОСС ПОВЕРЖЁН! Переход к следующему циклу...`, 'win');
+                }
+            }
+
             advanceToNextCycle(0, 0, totalPaidToBank);
         } else {
-            gameOver();
+            // ==========================================
+            // ПРОВЕРКА НА БОССА - ПРОВАЛ
+            // ==========================================
+            if (state.isBossBattle) {
+                failBossBattle();
+            } else {
+                gameOver();
+            }
         }
     }
 
     function payDebtEarly() {
-        if (state.turn >= 3) return;
+        // Для босса: можно платить досрочно только в раунде 1
+        // Для обычной игры: нельзя платить в раунде 3
+        if (state.isBossBattle && state.turn >= 2) return;
+        if (!state.isBossBattle && state.turn >= 3) return;
+        
         // Проверяем общую сумму (наличные + банк) для досрочного погашения
         const totalMoney = state.coins + state.bankBalance;
         if (totalMoney < state.targetDebt) return;
@@ -4075,8 +4322,18 @@ function updateLeverState() {
 function updateUI() {
         if (!state || Object.keys(state).length === 0) return;
         ui.statRun.textContent = state.run;
-        ui.statTurn.textContent = `${state.turn} / 3`;
-        ui.statDebt.textContent = `${formatNumberWithComma(state.targetDebt)}💲`;
+        
+        // ==========================================
+        // ОТОБРАЖЕНИЕ РАУНДОВ ДЛЯ БОССА
+        // ==========================================
+        if (state.isBossBattle) {
+            ui.statTurn.textContent = `${state.turn} / 2`;
+            ui.statDebt.textContent = `${formatNumberWithComma(state.bossDebtTarget || state.targetDebt)}💲`;
+        } else {
+            ui.statTurn.textContent = `${state.turn} / 3`;
+            ui.statDebt.textContent = `${formatNumberWithComma(state.targetDebt)}💲`;
+        }
+        
         if (ui.statDebtStart) ui.statDebtStart.textContent = `${formatNumberWithComma(state.targetDebt)}💲`;
         
         // --- АНИМАЦИЯ МОНЕТ (Rolling Numbers) ---
@@ -5609,6 +5866,7 @@ async function runSpinAnimation() {
 
     // Делаем функцию доступной глобально
     window.clearLog = clearLog;
+    window.addLog = addLog;
 
     /*
     // Функция для экспорта лога в файл

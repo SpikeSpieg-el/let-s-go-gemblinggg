@@ -221,11 +221,14 @@
             <div class="ui-panel-panle1">
             <div class="ui-box">
                 <h3>Цикл <span id="stat-run" style="color: var(--highlight-color);">1</span></h3>
+                <div id="boss-indicator" class="boss-indicator hidden" style="background: linear-gradient(145deg, #500, #300); border: 2px solid var(--danger-color); padding: 8px; border-radius: 6px; margin: 10px 0; text-align: center; animation: bossPulse 2s infinite;">
+                    <span style="color: var(--danger-color); font-weight: bold; font-size: 1.1em;">⚔️ БОСС: <span id="boss-indicator-name">Имя босса</span> | Раунд: <span id="boss-indicator-round">1</span>/2</span>
+                </div>
                 <div class="stats-grid compact-stats">
                     <span>Раунд:</span><span id="stat-turn">1 / 3</span>
                     <span style="color: var(--money-color);">Наличные:</span><span id="stat-coins" style="color: var(--money-color);">0</span>
                     <span style="color: var(--luck-color);">Удача:</span><span id="stat-luck" style="color: var(--luck-color);">0</span>
-                    
+
                 </div>
                 <div class="gif_icon" style="width: 100%; position: relative; overflow: visible;">
                     <img src="img/girl_siting2.png" alt="Девушка сидит" class="girl-sitting-img">
@@ -397,6 +400,32 @@
         </div>
     </div>
 
+    <!-- МОДАЛЬНОЕ ОКНО БОССА -->
+    <div id="boss-battle-modal" class="modal-overlay hidden">
+        <div class="modal-content boss-battle-content">
+            <h2 id="boss-title" class="boss-title">🍒😈 ВИШНЁВЫЙ НЕМЕЗИС</h2>
+            <div class="boss-info">
+                <p id="boss-description" class="boss-description">Подавляет вишнёвые стратегии</p>
+                <div class="boss-debt-info">
+                    <p>Цель долга: <span id="boss-debt-target" style="color: var(--danger-color); font-weight: bold;">0</span>💲</p>
+                    <p>Раундов осталось: <span id="boss-rounds-left" style="color: var(--highlight-color); font-weight: bold;">2</span></p>
+                </div>
+                <div class="boss-strategy-info">
+                    <p>Ваша стратегия: <span id="player-strategy" style="font-weight: bold;">Не определена</span></p>
+                </div>
+            </div>
+            <div class="boss-rewards">
+                <h3>Награда за победу:</h3>
+                <ul>
+                    <li>💰 +50 монет за цикл</li>
+                    <li>🎟️ +10 талонов</li>
+                    <li>📈 Доступ к следующему циклу</li>
+                </ul>
+            </div>
+            <button id="btn-start-boss-battle">Начать битву!</button>
+        </div>
+    </div>
+
     <!-- МОДАЛЬНОЕ ОКНО СТАТИСТИКИ ЗАБЕГА -->
     <div id="run-stats-modal" class="modal-overlay hidden">
         <div class="modal-content compact-stats-modal" style="max-width: 1000px; padding: 18px 12px;">
@@ -460,6 +489,7 @@
     <script type="module" src="tutorial.js"></script>
     <script src="passives.js"></script>
     <script src="background_manager.js"></script>
+    <script src="boss.js"></script>
     <script src="skript.js"></script>
     <script src="npc_guide.js"></script>
     <script>
