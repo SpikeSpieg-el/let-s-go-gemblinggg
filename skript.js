@@ -545,10 +545,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const id = chosenSymbolIds[symbolIdx];
             luckBonuses[id] = (luckBonuses[id] || 0) + luckParts[i];
         }
-        // --- DEBUG LOGS ---
-        console.log('[DEBUG] Удача разбита на части:', luckParts);
-        console.log('[DEBUG] Символы для удачи:', chosenSymbolIds);
-        console.log('[DEBUG] Итоговые бонусы по символам:', luckBonuses);
         // 4. Применяем бонусы к весам
         let adjustedSymbols = filteredWeightedSymbols.map(symbol => {
             if (luckBonuses[symbol.id]) {
@@ -650,10 +646,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let piratesPlaced = 0;
         if (state.run < 3) {
             // Пиратские флаги не появляются до 3-го цикла
-            console.log('[DEBUG] Пиратский флаг: цикл < 3, не вставляем флаг');
         } else if (state.pirateFlagCooldown && state.pirateFlagCooldown > 0) {
             state.pirateFlagCooldown--;
-            console.log('[DEBUG] Пиратский флаг: кулдаун, не вставляем флаг');
         } else {
             for (const line of PAYLINES.filter(l => l.scannable && l.type === 'Горизонтальная')) {
                 for (const pos of line.positions) {
@@ -667,7 +661,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (piratesPlaced > 0) {
                 state.pirateFlagCooldown = 1;
             }
-            console.log(`[DEBUG] Пиратский флаг: вставлено за спин = ${piratesPlaced}`);
         }
 
         // --- ЭФФЕКТ: slot_machine_heart ---
@@ -1066,7 +1059,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         }, 0);
                         lineMultiplier += typeBonus;
                         
-                        const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => (item.effect.line_length_multiplier_bonus.length === comboLength) ? acc * item.effect.line_length_multiplier_bonus.multiplier : acc, 1);
+                        const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => {
+                            const eff = item.effect.line_length_multiplier_bonus;
+                            const matches = eff.length !== undefined ? eff.length === comboLength : (eff.min_length !== undefined ? comboLength >= eff.min_length : false);
+                            return matches ? acc * eff.multiplier : acc;
+                        }, 1);
                         lineMultiplier *= lengthBonus;
 
                         // --- Палитра художника: бонус за разнообразие символов ---
@@ -1143,7 +1140,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }, 0);
                     lineMultiplier += typeBonus;
 
-                    const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => (item.effect.line_length_multiplier_bonus.length === line.positions.length) ? acc * item.effect.line_length_multiplier_bonus.multiplier : acc, 1);
+                    const lengthBonus = state.inventory.filter(item => item.effect?.line_length_multiplier_bonus).reduce((acc, item) => {
+                        const eff = item.effect.line_length_multiplier_bonus;
+                        const matches = eff.length !== undefined ? eff.length === line.positions.length : (eff.min_length !== undefined ? line.positions.length >= eff.min_length : false);
+                        return matches ? acc * eff.multiplier : acc;
+                    }, 1);
                     lineMultiplier *= lengthBonus;
 
                     // --- Палитра художника: бонус за разнообразие символов (для не-сканируемых линий) --- 
@@ -2959,10 +2960,8 @@ async function spin() {
         // (не добавляем к существующему, а заменяем)
         if (paidToBank) {
             state.bankBalance = paidToBank;
-            console.log(`[DEBUG][startNewCycle] Устанавливаем bankBalance=${paidToBank} из paidToBank`);
         } else {
             state.bankBalance = 0; // Сбрасываем банковский счет в новом цикле
-            console.log(`[DEBUG][startNewCycle] Сбрасываем bankBalance=0 (paidToBank=${paidToBank})`);
         }
 
         
@@ -2978,22 +2977,12 @@ async function spin() {
         lastKnownCoins = state.coins;
         lastKnownTickets = state.tickets;
         
-        // --- ПАССИВКА: Опытный ветеран ---
-        if (hasPassive('seasoned_veteran') && state.run >= 2) {
-            const commonItems = ALL_ITEMS.filter(i => i.rarity === 'common' && !hasItem(i.id));
-            if (commonItems.length > 0) {
-                const randomItem = commonItems[Math.floor(Math.random() * commonItems.length)];
-                state.inventory.push(randomItem);
-                addLog(`Опытный ветеран: вы получили случайный амулет "${randomItem.name}"!`, 'win');
-            }
-        }
-        
-        // Применяем разовые пассивки для нового цикла
+        // Применяем per_cycle пассивки в начале каждого нового цикла
         if (state.activePassives && state.activePassives.length > 0) {
             state.activePassives.forEach(passive => {
-                if (passive.type === 'one_time' && typeof passive.effect === 'function') {
+                if (passive.type === 'per_cycle' && typeof passive.effect === 'function') {
                     passive.effect(state);
-                    addLog(`Применена разовая пассивка: ${passive.name}.`, 'win');
+                    addLog(`${passive.name} сработала в начале цикла.`, 'win');
                 }
             });
         }
@@ -3044,7 +3033,6 @@ async function spin() {
             setTimeout(showPirateWarning, 1000);
             state.flags.sawPirateWarning = true;
         }
-        console.log(`[DEBUG][startNewCycle] После переноса: bankBalance=${state.bankBalance}, coins=${state.coins}, tickets=${state.tickets}`);
         
         // [NEW] Настраиваем обработчики событий для dropdown кнопок
         setupDepositDropdownHandlers();
@@ -3176,9 +3164,6 @@ async function spin() {
 
 
     function startTurn() {
-        if (typeof console !== 'undefined') {
-            console.log('[DEBUG][startTurn] Инвентарь перед начислением бонусов:', state.inventory.map(i=>({id:i.id,name:i.name,effect:i.effect})));
-        }
         repairDwarfsWorkshop(); // Мастерская гнома теперь срабатывает в начале раунда
         updateSpinCosts(); // Обновляем стоимость в начале каждого раунда
         state.spinsLeft = 0;
@@ -3273,9 +3258,6 @@ async function spin() {
         
         if(hasItem('timepiece')) {
             let timepieceBonus = getItemEffectValue('on_round_start_spins', 0);
-            if (typeof console !== 'undefined') {
-                console.log('[DEBUG][startTurn] Карманные часы: начисляется', timepieceBonus, 'прокрутов');
-            }
             if (hasPassive('watchmaker_precision') && Math.random() < 0.5) {
                 timepieceBonus += 1;
                 addLog(`Точность часовщика: +1 дополнительный прокрут!`, 'win');
@@ -3289,9 +3271,6 @@ async function spin() {
 
         // --- ОБРАБОТКА PERMANENT_SPINS ---
         let permanentSpinsBonus = getItemEffectValue('permanent_spins', 0);
-        if (typeof console !== 'undefined') {
-            console.log('[DEBUG][startTurn] Бесконечные спинны: начисляется', permanentSpinsBonus, 'прокрутов');
-        }
         if (permanentSpinsBonus > 0) {
             state.spinsLeft += permanentSpinsBonus;
             addLog(`Бесконечные спинны: +${permanentSpinsBonus} прокрут(ов) в начале раунда.`, 'win');
@@ -3507,7 +3486,7 @@ async function spin() {
 
         // --- ПАССИВКА: Просчитанный риск ---
         if (hasPassive('calculated_risk') && state.spinsLeft === 0) {
-            const bonus = 5 * (state.cycle || 1);
+            const bonus = 5 * (state.run || 1);
             state.coins += bonus;
             addLog(`Просчитанный риск: +${bonus}💲 за окончание раунда с 0 прокрутов.`, 'win');
         }
@@ -3783,7 +3762,6 @@ async function spin() {
             }
 
             const totalPaidToBank = paidFromCoins + paidFromBank; // равен размеру долга
-            console.log(`[DEBUG][judgementDay] paidFromCoins=${paidFromCoins}, paidFromBank=${paidFromBank}, totalPaidToBank=${totalPaidToBank}, coins=${state.coins}, bank=${state.bankBalance}`);
             
             // ==========================================
             // ПРОВЕРКА НА БОССА
@@ -3910,7 +3888,6 @@ async function spin() {
 
         // В банк уходит вся сумма долга (из наличных + из банка)
         const totalPaidToBank = paidFromCoins + (remainingDebt > 0 ? remainingDebt : 0);
-        console.log(`[DEBUG][payDebtEarly] Передаем в advanceToNextCycle: totalPaidToBank=${totalPaidToBank} (paidFromCoins=${paidFromCoins} + remainingDebt=${remainingDebt})`);
         advanceToNextCycle(bonusCoins, bonusTickets, totalPaidToBank);
     }
     
@@ -4136,10 +4113,6 @@ async function spin() {
         } else {
              addLog(`Куплен амулет: ${item.name}`, 'win');
         }
-        if (discountLog.length > 0) {
-            console.log(`[DEBUG][buyItem] Скидки применены: ${discountLog.join(', ')}. Итоговая цена: ${cost}`);
-        }
-        console.log(`[DEBUG][buyItem] Куплен ${item.name} за ${cost}🎟️. Осталось tickets: ${state.tickets}`);
 
         // Исправлено: только если куплен mimic_chest и у него нет цели, выбираем цель
         if (item.id === 'mimic_chest') {
@@ -4488,11 +4461,6 @@ function updateUI() {
             }
             ui.earlyPayoffBonusInfo.innerHTML = bonusInfo;
         }
-        window.addEventListener('resize', () => {
-    // Очищаем линии при ресайзе, так как координаты собьются
-    const svg = document.getElementById('payline-overlay');
-    if(svg) svg.innerHTML = '';
-    });
         // --- BUTTONS STATE ---
         let rerollCost = CONFIG.REROLL_COST;
         if (hasPassive('reroll_master') && !state.flags.firstRerollUsed) {
@@ -5044,10 +5012,6 @@ async function runSpinAnimation() {
             }
 
             updateUI();
-        } else {
-            if (typeof console !== 'undefined') {
-                console.warn('[DEBUG][removeAmulet] Попытка удалить несуществующий предмет:', itemId, 'Инвентарь:', state.inventory.map(i=>i.id));
-            }
         }
     }
 
@@ -5777,6 +5741,12 @@ async function runSpinAnimation() {
         if (eorDepositDropdown) eorDepositDropdown.classList.add('hidden');
     });
 
+    // Очищаем оверлей линий при ресайзе (регистрируем один раз)
+    window.addEventListener('resize', () => {
+        const svg = document.getElementById('payline-overlay');
+        if (svg) svg.innerHTML = '';
+    });
+
     function addLog(message, type = 'normal') {
         // Фильтруем отладочные сообщения
         if (typeof message === 'string' && (message.startsWith('[DEBUG]') || message.startsWith('[Квантовая Запутанность]') || message.startsWith('Dev:'))) return;
@@ -6480,8 +6450,6 @@ async function runSpinAnimation() {
                 if (!state.bannedSymbols) state.bannedSymbols = [];
                 state.bannedSymbols.push({ symbol: s.id, spinsLeft: 3, justSet: true });
                 addLog(`🔮 Призма: символ ${s.graphic} (${s.id}) запрещён на 3 прокрута!`, 'win');
-                // --- DEBUG LOG ---
-                addLog(`[DEBUG] bannedSymbols: ` + JSON.stringify(state.bannedSymbols), 'normal');
                 animateInventoryItem('probability_prism');
                 modal.remove();
                 removePrismButton(); // Убираем кнопку после применения

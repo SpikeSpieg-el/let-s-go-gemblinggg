@@ -124,8 +124,8 @@
 </div>
 <!-- ДИСКЛЕЙМЕР: конец -->
 
-    <!-- КНОПКА  -->
-    <button id="dev-menu-btn">Dev</button>
+    <!-- КНОПКА (скрыта в релизе) -->
+    <button id="dev-menu-btn" style="display:none;">Dev</button>
     <!-- <button id="switch-style2-btn" class="style2-switch-btn" style="position:fixed;top:10px;right:70px;z-index:1000;">Style 2</button> -->
     <div id="dev-menu-modal" class="modal-overlay hidden">
         <div class="modal-content" style="max-width:800px;">
@@ -290,7 +290,7 @@
         <div class="modal-content">
             <h2>Цикл Долга</h2>
             <p>У вас есть 3 раунда (дня), чтобы собрать сумму для выплаты долга. Вносите деньги в банк, покупайте прокруты и амулеты, и молитесь об удаче. Если к концу 3-го дня у вас не будет нужной суммы... вы провалитесь в яму.</p>
-            <div id="start-debt-amount" style="color: var(--danger-color); font-size: 1.5em; font-weight: bold; margin: 10px 0; animation: debt-pulse 1.2s infinite alternate;">Всего долг: <span id="stat-debt" style="color: var(--danger-color);">88,888,888</span>💲</div>
+            <div id="start-debt-amount" style="color: var(--danger-color); font-size: 1.5em; font-weight: bold; margin: 10px 0; animation: debt-pulse 1.2s infinite alternate;">Всего долг: <span id="start-debt-value" style="color: var(--danger-color);">66</span>💲</div>
             <button id="btn-show-tutorial" style="margin-bottom: 10px;">Как играть?</button>
             <button id="btn-start-game">Начать</button>
         </div>
@@ -350,7 +350,7 @@
     <!-- Попап с итогами раунда (монеты и талоны) -->
     <div id="round-rewards-modal" class="modal-overlay hidden">
         <div class="modal-content round-rewards-content">
-            <h2 id="round-rewards-title">Выйгрыш</h2>
+            <h2 id="round-rewards-title">Выигрыш</h2>
             <p id="round-rewards-subtitle">За раунд:</p>
             <div class="round-rewards-container">
                 <div class="reward-item coins-reward">
@@ -501,10 +501,6 @@
             const passivesContainer = document.getElementById('stats-active-passives');
 
             function populateStats() {
-                console.log('populateStats вызвана');
-                console.log('window.state:', window.state);
-                console.log('window.symbolWeights:', window.symbolWeights);
-                console.log('window.symbols:', window.symbols);
                 
                 // 1. Активные пассивки (только названия-кнопки)
                 if (window.state && window.state.activePassives) {
@@ -833,29 +829,16 @@
         
         // Функция инициализации лидербордов
         function initializeLeaderboards(ysdk) {
-            console.log('[Leaderboards] Инициализируем лидерборды с SDK:', ysdk);
-            leaderboardsManager.initialize(ysdk).then(success => {
-                if (success) {
-                    console.log('[Leaderboards] Лидерборды успешно инициализированы');
-                } else {
-                    console.warn('[Leaderboards] Не удалось инициализировать лидерборды');
-                }
-            });
+            leaderboardsManager.initialize(ysdk);
         }
         
         // Обработчик события готовности SDK
         window.addEventListener('ysdk-ready', (event) => {
-            console.log('[Leaderboards] SDK готов, инициализируем лидерборды...');
             initializeLeaderboards(event.detail);
         });
         
         // Таймаут для инициализации SDK (5 секунд)
-        let sdkTimeout = setTimeout(() => {
-            console.warn('[Leaderboards] Таймаут инициализации SDK (5 секунд)');
-            if (!window.ysdk && !window.YandexGamesSDK) {
-                console.log('[Leaderboards] SDK недоступен, лидерборды будут отключены');
-            }
-        }, 5000);
+        let sdkTimeout = setTimeout(() => {}, 5000);
         
         // Очищаем таймаут при успешной инициализации
         window.addEventListener('ysdk-ready', () => {
@@ -863,40 +846,16 @@
         });
         
         window.addEventListener('DOMContentLoaded', () => {
-            console.log('[Leaderboards] DOM загружен, проверяем Yandex SDK...');
-            console.log('[Leaderboards] window.ysdk:', window.ysdk);
-            console.log('[Leaderboards] window.YandexGamesSDK:', window.YandexGamesSDK);
-            
             // Если SDK уже загружен, инициализируем сразу
             if (window.ysdk) {
-                console.log('[Leaderboards] SDK уже доступен, инициализируем...');
                 clearTimeout(sdkTimeout);
                 initializeLeaderboards(window.ysdk);
             } else if (window.YandexGamesSDK) {
-                console.log('[Leaderboards] Используем YandexGamesSDK...');
                 clearTimeout(sdkTimeout);
                 initializeLeaderboards(window.YandexGamesSDK);
-            } else {
-                console.log('[Leaderboards] SDK еще не загружен, ждем события ysdk-ready...');
             }
             
-            // Обработчики кнопок лидерборда
-            const btnLeaderboard = document.getElementById('btn-leaderboard');
-            const btnLeaderboardGameover = document.getElementById('btn-leaderboard-gameover');
-            
-            if (btnLeaderboard) {
-                btnLeaderboard.addEventListener('click', () => {
-                    console.log('[Leaderboards] Кнопка лидерборда нажата');
-                    leaderboardsManager.showLeaderboardModal();
-                });
-            }
-            
-            if (btnLeaderboardGameover) {
-                btnLeaderboardGameover.addEventListener('click', () => {
-                    console.log('[Leaderboards] Кнопка лидерборда в game over нажата');
-                    leaderboardsManager.showLeaderboardModal();
-                });
-            }
+            // Обработчики кнопок лидерборда уже добавлены в skript.js
         });
     </script>
     
@@ -906,53 +865,15 @@
         
         // Инициализация рекламы
         function initializeAds(ysdk) {
-            console.log('[Ads] Инициализируем рекламу с SDK:', ysdk);
-            
-            // Настройка callbacks для событий рекламы
-            adsManager.on('onStickyBannerShow', () => {
-                console.log('[Ads] Стики-баннер показан');
-                // Можно добавить логику для адаптации UI
-            });
-            
-            adsManager.on('onStickyBannerHide', () => {
-                console.log('[Ads] Стики-баннер скрыт');
-                // Можно добавить логику для адаптации UI
-            });
-            
-            adsManager.on('onFullscreenAdShow', () => {
-                console.log('[Ads] Полноэкранная реклама показана');
-                // Приостанавливаем игру если нужно
-            });
-            
-            adsManager.on('onFullscreenAdClose', (wasShown) => {
-                console.log('[Ads] Полноэкранная реклама закрыта, была показана:', wasShown);
-                // Возобновляем игру
-            });
-            
-            adsManager.on('onRewardedVideoReward', () => {
-                console.log('[Ads] Видеореклама просмотрена, выдаем награду');
-                // Выдаем награду игроку
-                if (window.state) {
-                    // Например, даем дополнительные монеты или талоны
-                    window.state.coins += 100;
-                    window.state.tickets += 5;
-                    if (window.updateUI) {
-                        window.updateUI();
-                    }
-                }
-            });
-            
             adsManager.on('onAdError', (adType, error) => {
                 console.error('[Ads] Ошибка рекламы:', adType, error);
-                // Можно показать уведомление пользователю
             });
             
-            // Настройки рекламы
             adsManager.updateSettings({
                 stickyBannerEnabled: true,
                 stickyBannerPosition: 'right',
                 autoShowStickyBanner: true,
-                showAdsOnGameStart: false, // Отключаем на старте игры
+                showAdsOnGameStart: false,
                 showAdsOnLevelComplete: true,
                 showAdsOnGameOver: true
             });
@@ -960,13 +881,11 @@
         
         // Обработчик события готовности SDK
         window.addEventListener('ysdk-ready', (event) => {
-            console.log('[Ads] SDK готов, инициализируем рекламу...');
             initializeAds(event.detail);
         });
         
         // Если SDK уже загружен
         if (window.ysdk) {
-            console.log('[Ads] SDK уже доступен, инициализируем рекламу...');
             initializeAds(window.ysdk);
         }
         

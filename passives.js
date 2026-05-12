@@ -570,9 +570,7 @@ function applyPassive(passive, state) {
     if (!state.activePassives) state.activePassives = [];
     if (passive && typeof passive.effect === 'function') {
         const alreadyActive = state.activePassives.find(p => p.id === passive.id);
-        if (alreadyActive) {
-            console.log(`Пассивка ${passive.name} уже активна!`);
-        } else {
+        if (!alreadyActive) {
             state.activePassives.push(passive);
             
             // Запускаем эффект немедленно при выборе (для one_time, per_cycle и флагов)

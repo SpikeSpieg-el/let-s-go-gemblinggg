@@ -225,7 +225,7 @@ function calculateBossDebtTarget(cycle) {
     else nextCycleDebt = Math.min(Math.floor(nextCycleDebt * 2.5 + 10000), 88888888);
     
     // Делим на 1.3
-    return Math.floor(nextCycleDebt / 1.3);
+    return Math.floor(nextCycleDebt / 3.3);
 }
 
 // Проверяет, должен ли начаться босс (каждый 3-й цикл)

@@ -143,7 +143,7 @@ const ALL_ITEMS = [
   { id: 'quantum_entanglement', name: 'Квантовая Запутанность', desc: 'Символы в верхней левой и нижней правой ячейках всегда одинаковы.', cost: 11, rarity: 'legendary', thumbnail: '⚛️', effect: { sync_cells: { cells: [0, 14] } } },
   { id: 'bank_insurance', name: 'Банковская Страховка', desc: 'Процентная ставка в банке не опускается ниже 20%.', cost: 10, rarity: 'legendary', thumbnail: '🛡️', effect: { min_interest_rate_floor: 0.20 } },
   { id: 'golden_lemon', name: 'Золотой Лимон', desc: 'Символы 🍋 приносят в 3 раза больше 💲.', cost: 10, rarity: 'legendary', thumbnail: 'image1.png', effect: { symbol_value_multiplier: { symbol: 'lemon', multiplier: 3 } } },
-  { id: 'lucky_seven_bonus', name: 'Бонус Семёрки', desc: 'Линии из 7️⃣ приносят дополнительно +7💲.', cost: 12, rarity: 'legendary', thumbnail: 'image2.png', effect: { on_line_win_bonus: { length: 7, coins: 7 } } },
+  { id: 'lucky_seven_bonus', name: 'Бонус Семёрки', desc: 'Выигрышные линии из 7️⃣ приносят дополнительно +7💲.', cost: 12, rarity: 'legendary', thumbnail: '7️⃣🌟', effect: { symbol_win_bonus: { symbol: 'seven', bonus: 7 } } },
 
   { id: 'reality_glitch', name: 'Сбой реальности', desc: 'Каждый прокрут есть 1% шанс что случится "глич": получите выигрыш как будто выпали все одинаковые символы.', cost: 25, rarity: 'legendary', thumbnail: '📺', effect: {   reality_glitch: { chance: 0.01 } }},
   { 
@@ -356,7 +356,7 @@ const ALL_ITEMS = [
     cost: 7, 
     rarity: 'rare', 
     thumbnail: '🌱', 
-    on_spin_bonus: (grid, state) => {
+    on_spin_bonus: (grid, winAmount, state) => {
       const cloverCount = grid.filter(s => s && s.id === 'clover').length;
       return cloverCount * (state?.run || 1);
     },
