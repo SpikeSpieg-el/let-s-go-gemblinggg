@@ -33,12 +33,12 @@ export const tutorialSteps = [
   },
   {
     selector: '#inventory-items',
-    text: 'Здесь отображаются ваши амулеты. Они дают постоянные или временные бонусы. Сейчас у вас нет амулетов, мы можете купить их в магазине.',
+    text: 'Здесь отображаются ваши амулеты. Они дают постоянные или временные бонусы. Сейчас у вас нет амулетов, вы можете купить их в магазине.',
     waitFor: 'next',
   },
   {
-    selector: '#bank-balance',
-    text: 'Это ваш банк. Вносите деньги сюда, чтобы получать проценты в начале следующего раунда.',
+    selector: '#btn-deposit',
+    text: 'Это кнопка внесения монет в банк. Храните деньги на банковском счёте — в начале каждого следующего раунда вы будете получать проценты.',
     waitFor: 'next',
   },
   {
@@ -71,11 +71,21 @@ function showTutorialStep(stepIdx) {
 
   // Если шаг требует дождаться окончания прокрутов
   if (step.waitForSpinsEnd) {
+    // Показываем маленький угловой тост, пока прокруты не закончатся
+    tutorialOverlay = document.createElement('div');
+    tutorialOverlay.className = 'tutorial-waiting-toast';
+    tutorialOverlay.innerHTML = `
+      <div class="tutorial-step-counter">Шаг ${stepIdx + 1} / ${tutorialSteps.length}</div>
+      <div class="tutorial-text">Сделайте все прокруты, чтобы продолжить обучение...</div>
+      <button class="tutorial-skip">Пропустить</button>
+    `;
+    document.body.appendChild(tutorialOverlay);
+    tutorialOverlay.querySelector('.tutorial-skip').onclick = stopTutorial;
+
     function checkSpins() {
-      // DEBUG: выводим состояние
-      console.log('[ТУТОРИАЛ] checkSpins: tutorialActive=', tutorialActive, 'spinsLeft=', window.state && window.state.spinsLeft, 'tutorialStep=', tutorialStep);
       if (!tutorialActive) return;
       if (window.state && Number(window.state.spinsLeft) === 0) {
+        removeTutorialOverlay();
         actuallyShowStep(step);
       } else {
         setTimeout(checkSpins, 500);
@@ -97,15 +107,21 @@ function actuallyShowStep(step) {
     }
   }
 
+  // Определяем текущий индекс шага для счётчика
+  const currentStepIdx = tutorialSteps.indexOf(step);
+  const isLastStep = step.waitFor === 'finish';
+
   // Окно подсказки
   tutorialOverlay = document.createElement('div');
   tutorialOverlay.className = 'tutorial-overlay';
   tutorialOverlay.innerHTML = `
     <div class="tutorial-popup">
+      ${!isLastStep ? '<button class="tutorial-skip">× пропустить</button>' : ''}
+      <div class="tutorial-step-counter">Шаг ${currentStepIdx + 1} / ${tutorialSteps.length}</div>
       <div class="tutorial-text">${step.text}</div>
       <div class="tutorial-actions">
-        <button class="tutorial-skip">Пропустить обучение</button>
         ${step.waitFor === 'next' ? '<button class="tutorial-next">Далее</button>' : ''}
+        ${isLastStep ? '<button class="tutorial-finish">Завершить обучение</button>' : ''}
       </div>
     </div>
   `;
@@ -115,33 +131,41 @@ function actuallyShowStep(step) {
   if (step.selector && highlightEl) {
     const popup = tutorialOverlay.querySelector('.tutorial-popup');
     const rect = highlightEl.getBoundingClientRect();
-    const popupRect = { width: 340, height: 140 }; // примерная ширина/высота
-    let top = rect.top + window.scrollY;
-    let left = rect.right + 18 + window.scrollX;
+    const popupRect = { width: 340, height: 160 }; // примерная ширина/высота
+    // getBoundingClientRect возвращает координаты относительно вьюпорта,
+    // а overlay — position:fixed от (0,0), поэтому scrollX/Y не нужен
+    let top = rect.top;
+    let left = rect.right + 18;
     // Если не помещается справа — ставим снизу
     if (left + popupRect.width > window.innerWidth) {
-      left = rect.left + window.scrollX;
-      top = rect.bottom + 18 + window.scrollY;
+      left = rect.left;
+      top = rect.bottom + 18;
     }
     // Если не помещается снизу — ставим сверху
-    if (top + popupRect.height > window.innerHeight + window.scrollY) {
-      top = rect.top + window.scrollY - popupRect.height - 18;
+    if (top + popupRect.height > window.innerHeight) {
+      top = rect.top - popupRect.height - 18;
     }
-    // Минимальные отступы
+    // Минимальные отступы и зажим по правому/нижнему краям
     if (left < 8) left = 8;
     if (top < 8) top = 8;
-    popup.style.position = 'absolute';
+    if (left + popupRect.width > window.innerWidth - 8) left = window.innerWidth - popupRect.width - 8;
+    if (top + popupRect.height > window.innerHeight - 8) top = window.innerHeight - popupRect.height - 8;
+    popup.style.position = 'fixed';
     popup.style.left = left + 'px';
     popup.style.top = top + 'px';
     popup.style.zIndex = 10002;
   }
 
-  // Кнопка пропуска
-  tutorialOverlay.querySelector('.tutorial-skip').onclick = stopTutorial;
+  // Кнопка пропуска (только для не-финальных шагов)
+  const skipBtn = tutorialOverlay.querySelector('.tutorial-skip');
+  if (skipBtn) skipBtn.onclick = stopTutorial;
   // Кнопка далее
   if (step.waitFor === 'next') {
     tutorialOverlay.querySelector('.tutorial-next').onclick = () => nextTutorialStep();
   }
+  // Кнопка завершения (финальный шаг)
+  const finishBtn = tutorialOverlay.querySelector('.tutorial-finish');
+  if (finishBtn) finishBtn.onclick = stopTutorial;
 
   // Ожидание действия пользователя
   if (step.waitFor === 'click' && highlightEl) {
@@ -210,7 +234,34 @@ style.innerHTML = `
   pointer-events: auto;
 }
 .tutorial-actions { margin-top: 18px; display: flex; gap: 12px; justify-content: center; }
+.tutorial-step-counter { font-size: 0.78em; color: #ffd600; margin-bottom: 8px; opacity: 0.85; }
+.tutorial-popup { position: relative; }
 .tutorial-popup button { font-size: 1em; padding: 8px 18px; border-radius: 6px; border: none; background: #ffd600; color: #222; font-weight: bold; cursor: pointer; transition: background 0.2s; }
 .tutorial-popup button:hover { background: #ffe066; }
+.tutorial-popup button.tutorial-finish { background: #4caf50; color: #fff; }
+.tutorial-popup button.tutorial-finish:hover { background: #66bb6a; }
+.tutorial-popup button.tutorial-skip {
+  position: absolute; top: 8px; right: 10px;
+  background: transparent; color: #888; font-size: 0.72em;
+  padding: 2px 6px; font-weight: normal; border-radius: 4px;
+  border: 1px solid #555; transition: color 0.2s, border-color 0.2s;
+}
+.tutorial-popup button.tutorial-skip:hover { background: transparent; color: #ccc; border-color: #999; }
+.tutorial-waiting-toast {
+  position: fixed; bottom: 16px; right: 16px; z-index: 10002;
+  background: #232323; color: #fff; border-radius: 10px;
+  padding: 22px 18px 14px; max-width: 280px; box-shadow: 0 4px 20px #000a;
+  font-size: 0.95em; text-align: center; pointer-events: auto;
+  border: 2px solid #ffd600;
+}
+.tutorial-waiting-toast .tutorial-step-counter { font-size: 0.75em; color: #ffd600; margin-bottom: 6px; opacity: 0.85; }
+.tutorial-waiting-toast .tutorial-text { margin-bottom: 0; }
+.tutorial-waiting-toast button.tutorial-skip {
+  position: absolute; top: 6px; right: 8px;
+  background: transparent; color: #888; font-size: 0.72em;
+  padding: 2px 6px; font-weight: normal; border-radius: 4px;
+  border: 1px solid #555; cursor: pointer; transition: color 0.2s, border-color 0.2s;
+}
+.tutorial-waiting-toast button.tutorial-skip:hover { color: #ccc; border-color: #999; }
 `;
 document.head.appendChild(style); 

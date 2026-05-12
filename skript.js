@@ -77,6 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
         playerStrategy: document.getElementById('player-strategy'),
         btnStartBossBattle: document.getElementById('btn-start-boss-battle'),
     };
+    // Экспортируем ui глобально для animation_manager
+    window.ui = ui;
+    
     // Отключаем контекстное меню по правому клику мыши на всей странице
     document.addEventListener('contextmenu', event => event.preventDefault());
 
@@ -1317,15 +1320,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 animateInventoryItem(gamblersCoin.id);
             } else if (result < 0) {
                 // Анимация красной обводки для проигрыша
-                const el = document.querySelector(`#inventory-items [data-item-id='gamblers_coin'], #planning-inventory-items [data-item-id='gamblers_coin']`);
-                if (el) {
-                    el.classList.remove('item-activated');
-                    void el.offsetWidth;
-                    el.classList.add('item-activated-loss');
-                    setTimeout(() => {
-                        el.classList.remove('item-activated-loss');
-                    }, 800);
-                }
+                animateInventoryItemLoss('gamblers_coin', '💔 ПРОИГРЫШ!');
             }
             // Если result === 0 — не активируем анимацию вообще
         }
@@ -1543,15 +1538,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     state.bankBalance -= penalty;
                     addLog('😈 Контракт с Демоном: -5% от баланса в банке!', 'loss');
                     // Анимация проигрыша для демона
-                    const el = document.querySelector(`#inventory-items [data-item-id='demon_contract'], #planning-inventory-items [data-item-id='demon_contract']`);
-                    if (el) {
-                        el.classList.remove('item-activated');
-                        void el.offsetWidth;
-                        el.classList.add('item-activated-loss');
-                        setTimeout(() => {
-                            el.classList.remove('item-activated-loss');
-                        }, 800);
-                    }
+                    animateInventoryItemLoss('demon_contract', '😈 ШТРАФ!');
                 }
             }
         }
@@ -1648,10 +1635,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // === ОРИГИНАЛЬНАЯ ФУНКЦИЯ (без Animation Manager) ===
     function highlightWinningCells(positions, winAmount, isCombo = false, winningLines = []) {
         const cells = ui.slotMachine.querySelectorAll('.slot-cell');
         let highlightClass = 'highlight';
-        
+
         if (winAmount > 50) highlightClass = 'highlight-huge';
         else if (winAmount > 20) highlightClass = 'highlight-big';
 
@@ -1667,7 +1655,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             comboLevel = 0;
         }
-        
+
         // Проверяем, есть ли зеркальные отражения
         const hasMirrorDimension = hasItem('mirror_dimension');
         const mirrorPositions = [];
@@ -1688,7 +1676,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        
+
         if (comboLevel > 0) {
             ui.slotMachine.classList.add('combo-active');
             if (isJackpot) ui.slotMachine.classList.add('jackpot');
@@ -1840,14 +1828,14 @@ function drawPaylineSVG(positions, color = '#ffd700') {
     // Получаем координаты ячеек относительно контейнера слота
     const cells = machine.querySelectorAll('.slot-cell');
     let pathData = "";
-    
+
     // Получаем размеры SVG (оно должно совпадать с slot-machine)
     const svgRect = machine.getBoundingClientRect();
 
     positions.forEach((pos, index) => {
         const cell = cells[pos];
         if (!cell) return;
-        
+
         const cellRect = cell.getBoundingClientRect();
         // Центр ячейки относительно SVG
         const x = (cellRect.left - svgRect.left) + (cellRect.width / 2);
@@ -1864,7 +1852,7 @@ function drawPaylineSVG(positions, color = '#ffd700') {
     path.setAttribute("d", pathData);
     path.setAttribute("class", "payline-path");
     path.style.stroke = color;
-    
+
     // Вычисляем длину линии для анимации
     const length = path.getTotalLength() || 1000;
     path.style.strokeDasharray = length;
@@ -1896,36 +1884,41 @@ function showFloatingText(text, positions) {
     floating.style.top = rect.top + 'px';
     
     document.body.appendChild(floating);
-    
+
     setTimeout(() => floating.remove(), 1500);
 }
 
-// 3. ОБНОВЛЕННАЯ: Последовательная анимация линий (УСКОРЕННАЯ)
+// Экспортируем вспомогательные функции для animation_manager
+window.drawPaylineSVG = drawPaylineSVG;
+window.showFloatingText = showFloatingText;
+
+// === ОРИГИНАЛЬНАЯ ФУНКЦИЯ (без Animation Manager) ===
+// Animation Manager вызывает проблемы с отрисовкой линий, используем оригинал
 function animateWinningLinesSequentially(winningLinesInfo, onComplete = null) {
     if (!winningLinesInfo || winningLinesInfo.length === 0) {
         if (onComplete) onComplete();
         return;
     }
-    
+
     const svg = document.getElementById('payline-overlay');
     if(svg) svg.innerHTML = ''; // Очистка старых линий
 
     const cells = ui.slotMachine.querySelectorAll('.slot-cell');
     let currentLineIndex = 0;
-    
+
     function animateNextLine() {
         if (currentLineIndex >= winningLinesInfo.length) {
             // Финальная часть
-            if (svg) svg.innerHTML = ''; 
-            
+            if (svg) svg.innerHTML = '';
+
             // Запуск колбэка
             if (onComplete) setTimeout(onComplete, 150); // Пауза перед итогом тоже меньше
 
             // Автоматическая очистка через 3 секунды
             setTimeout(() => {
-                if (!state.isSpinning) { 
+                if (!state.isSpinning) {
                     cells.forEach(c => c.classList.remove(
-                        'line-highlight-sequential', 'line-highlight', 
+                        'line-highlight-sequential', 'line-highlight',
                         'mirror-highlight', 'jackpot', 'combo-5'
                     ));
                     const winningSymbols = document.querySelectorAll('.symbol.line-winning, .symbol.winning');
@@ -1936,16 +1929,16 @@ function animateWinningLinesSequentially(winningLinesInfo, onComplete = null) {
 
             return;
         }
-        
+
         const lineInfo = winningLinesInfo[currentLineIndex];
         const positions = lineInfo.positions;
-        
+
         // 1. Очистка
         cells.forEach(c => c.classList.remove('line-highlight-sequential', 'line-highlight'));
         if(svg) svg.innerHTML = '';
 
-        // 2. Рисуем
-        drawPaylineSVG(positions, 'var(--money-color)');
+        // 2. Рисуем линию
+        drawPaylineSVG(positions, '#FFD700');
 
         // 3. Текст
         showFloatingText(`+${formatNumberWithComma(lineInfo.win)}💲`, positions);
@@ -1958,23 +1951,22 @@ function animateWinningLinesSequentially(winningLinesInfo, onComplete = null) {
                 const symbol = cell.querySelector('.symbol');
                 if (symbol) {
                     symbol.style.animation = 'none';
-                    symbol.offsetHeight; 
-                    symbol.style.animation = 'lineSymbolWobble 0.2s ease-out'; // Ускорена анимация символа
+                    symbol.offsetHeight;
+                    symbol.style.animation = 'lineSymbolWobble 0.2s ease-out';
                     symbol.classList.add('line-winning');
                 }
             }
         });
 
-        // --- ИЗМЕНЕНИЕ: Ускорен перебор линий (в 2 раза быстрее) ---
-        // Было: Math.max(600, 1500 - ...) -> Стало: Math.max(300, 750 - ...)
-        const delay = Math.max(300, 750 - (currentLineIndex * 50)); 
-        
+        // Ускоренный перебор линий
+        const delay = Math.max(300, 750 - (currentLineIndex * 50));
+
         setTimeout(() => {
             currentLineIndex++;
             animateNextLine();
         }, delay);
     }
-    
+
     animateNextLine();
 }
 
@@ -2425,14 +2417,14 @@ function createConfetti() {
 
 async function spin() {
         if (state.spinsLeft <= 0 || state.gameover || state.isSpinning) return;
-        
-        // --- [FIX] ОЧИСТКА ПЕРЕД СПИНОМ ---
-        // 1. Удаляем классы подсветки с ячеек
+
+        // === [FIX] ПОЛНАЯ ОЧИСТКА АНИМАЦИЙ ПЕРЕД СПИНОМ ===
+        // 1. Очищаем классы с ячеек
         const cells = ui.slotMachine.querySelectorAll('.slot-cell');
         cells.forEach(cell => {
             cell.classList.remove(
-                'highlight', 'highlight-big', 'highlight-huge', 
-                'combo-1', 'combo-2', 'combo-3', 'combo-4', 'combo-5', 
+                'highlight', 'highlight-big', 'highlight-huge',
+                'combo-1', 'combo-2', 'combo-3', 'combo-4', 'combo-5',
                 'sequential', 'sequential-highlight', 'mirror-highlight',
                 'line-highlight', 'line-highlight-sequential', 'jackpot',
                 'pirate-1', 'pirate-2', 'pirate-3'
@@ -2441,6 +2433,7 @@ async function spin() {
             const symbol = cell.querySelector('.symbol');
             if (symbol) {
                 symbol.classList.remove('winning', 'jackpot', 'line-winning');
+                symbol.style.animation = '';
             }
         });
 
@@ -2448,8 +2441,8 @@ async function spin() {
         const svg = document.getElementById('payline-overlay');
         if(svg) svg.innerHTML = '';
 
-        // 3. Удаляем плавающие тексты выигрышей
-        document.querySelectorAll('.floating-win-text').forEach(el => el.remove());
+        // 3. Удаляем все плавающие элементы
+        document.querySelectorAll('.floating-win-text, .particle, .flying-coin, .confetti, .line-particle').forEach(el => el.remove());
         // ----------------------------------
 
         // [NEW] Reset Echo Stone state for the new spin
@@ -4218,6 +4211,10 @@ async function spin() {
         if (typeof num !== 'number') return num;
         return num.toLocaleString('en-US');
     }
+    // Экспортируем вспомогательные функции для animation_manager
+    window.formatNumberWithComma = formatNumberWithComma;
+    window.flyResource = flyResource;
+    
     // Функция полета визуальных элементов (монет/талонов)
 function flyResource(fromElement, targetElementId, type = 'coin', amount = 1) {
     if (!fromElement) return;
@@ -4598,32 +4595,32 @@ async function runSpinAnimation() {
 
     const reels = ui.slotMachine.querySelectorAll('.reel');
     const promises = [];
-    
+
     // --- ИЗМЕНЕНИЕ: Ускорено в 2 раза (было 1.2) ---
-    const baseDuration = 0.6; 
-    
+    const baseDuration = 0.6;
+
     reels.forEach((reel, i) => {
         // Сброс без анимации
         reel.style.transition = 'none';
         reel.style.transform = 'translate3d(0, 0, 0)';
-        reel.classList.remove('landing'); 
+        reel.classList.remove('landing');
         void reel.offsetHeight; // Force Reflow
 
         // Старт вращения
         reel.classList.add('spinning');
 
         // --- ИЗМЕНЕНИЕ: Ускорено (было 0.1) ---
-        const stopDelay = i * 0.05; 
+        const stopDelay = i * 0.05;
         const totalDuration = baseDuration + stopDelay;
 
         promises.push(new Promise(resolve => {
             requestAnimationFrame(() => {
                 reel.style.transition = `transform ${totalDuration}s cubic-bezier(0.5, 0, 0.1, 1)`;
-                
+
                 // Целевая позиция (предпоследний символ из 22)
                 const totalItems = 22;
                 const targetPercent = -(20 * (100 / totalItems));
-                
+
                 reel.style.transform = `translate3d(0, ${targetPercent}%, 0)`;
 
                 // Слушаем окончание CSS перехода
@@ -4635,12 +4632,12 @@ async function runSpinAnimation() {
             });
         }));
     });
-    
+
     await Promise.all(promises);
-    
+
     // --- ИЗМЕНЕНИЕ: Пауза перед показом линий сокращена (было 250) ---
     await new Promise(res => setTimeout(res, 125));
-    
+
     updateGoldenSymbolsDisplay();
 }
 
@@ -6151,22 +6148,41 @@ async function runSpinAnimation() {
       );
 
       if (el) {
-        // Если уже есть анимация проигрыша, не добавляем обычную анимацию
-        if (el.classList.contains('item-activated-loss')) return;
-        // Удаляем класс, если он уже есть, чтобы анимация заметила удаление
-        el.classList.remove('item-activated');
+        // Если уже есть анимация, не добавляем новую (предотвращаем мерцание)
+        if (el.classList.contains('item-activated')) {
+          return;
+        }
+        
+        // Удаляем старый текст активации если есть
+        const oldText = el.querySelector('.item-activation-text');
+        if (oldText) oldText.remove();
+        
         // Этот трюк (force reflow) гарантирует, что браузер заметит удаление класса
         // перед тем, как мы добавим его снова, что позволяет перезапустить анимацию.
+        el.classList.remove('item-activated');
         void el.offsetWidth;
-        
+
         el.classList.add('item-activated');
         
+        // Создаём и добавляем текст активации
+        const activationText = document.createElement('div');
+        activationText.className = 'item-activation-text';
+        activationText.textContent = '✨ АКТИВАЦИЯ!';
+        el.appendChild(activationText);
+        
+        // Удаляем текст после завершения анимации
+        setTimeout(() => {
+            if (activationText && activationText.parentNode) {
+                activationText.remove();
+            }
+        }, 1000);
+
         // Устанавливаем таймер для удаления класса после завершения анимации.
         setTimeout(() => {
             if (el) { // Проверяем, существует ли еще элемент
                  el.classList.remove('item-activated');
             }
-        }, 800); // Длительность должна совпадать с анимацией в CSS
+        }, 1200); // Длительность совпадает с анимацией в CSS (1.2s)
 
         // [NEW] Echo Stone logic
         if (hasItem('echo_stone') && itemId !== 'echo_stone' && state.activatedItemsThisSpin) {
@@ -6176,6 +6192,51 @@ async function runSpinAnimation() {
                 updateEchoStoneDisplay();
             }
         }
+      }
+    }
+    
+    // Функция для анимации потери/неудачи
+    function animateInventoryItemLoss(itemId, text = '💔 НЕУДАЧА!') {
+      const el = document.querySelector(
+        `#inventory-items [data-item-id='${itemId}'], #planning-inventory-items [data-item-id='${itemId}']`
+      );
+
+      if (el) {
+        // Если уже есть анимация, не добавляем новую
+        if (el.classList.contains('item-activated-loss')) {
+          return;
+        }
+        
+        // Удаляем старую анимацию и текст
+        const oldText = el.querySelector('.item-activation-text');
+        if (oldText) oldText.remove();
+        
+        el.classList.remove('item-activated-loss');
+        
+        // Force reflow
+        void el.offsetWidth;
+
+        el.classList.add('item-activated-loss');
+        
+        // Создаём и добавляем текст потери
+        const lossText = document.createElement('div');
+        lossText.className = 'item-activation-text loss';
+        lossText.textContent = text;
+        el.appendChild(lossText);
+        
+        // Удаляем текст после завершения анимации
+        setTimeout(() => {
+            if (lossText && lossText.parentNode) {
+                lossText.remove();
+            }
+        }, 1000);
+
+        // Удаляем класс после завершения анимации
+        setTimeout(() => {
+            if (el) {
+                el.classList.remove('item-activated-loss');
+            }
+        }, 1200);
       }
     }
 
